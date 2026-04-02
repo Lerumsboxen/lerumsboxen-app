@@ -3335,7 +3335,7 @@ function enrichProgramText(text) {
     if (!matchedPR) return line;
 
     const weight = calcWeight(matchedPR.value, pct);
-    const annotation = `<span style="color:#4ade80;font-weight:700;"> → ${weight}${plus} <span style="color:var(--muted);font-size:0.8em;">(${pct}%${plus} of ${matchedPR.value}kg 1RM)</span></span>`;
+    const annotation = `<span style="color:#4ade80;font-weight:700;"> → ${weight}${plus}</span>`;
     return line.replace(pctMatch[0], pctMatch[0] + annotation);
   }).join('\n');
 }
@@ -3466,35 +3466,64 @@ async function diagProgramSync() {
 
 async function fetchDailyProgram(silent = false) {
   const statusEl = document.getElementById('programSyncStatus');
-
-  // Use the Apps Script Web App URL (same one used for push/pull sync)
   const scriptUrl = APPS_SCRIPT_URL;
-
   const sheetTab = localStorage.getItem('lerums_program_sheet') || '2026';
 
   if (!scriptUrl) {
-    if (!silent) {
-      if (statusEl) { statusEl.textContent = '⚠ No Web App URL set — enter it in Step 2 above'; statusEl.style.color = '#fbbf24'; }
-    }
+    if (!silent && statusEl) { statusEl.textContent = '⚠ No Web App URL set'; statusEl.style.color = '#fbbf24'; }
     return;
   }
 
   if (statusEl && !silent) { statusEl.textContent = 'Syncing…'; statusEl.style.color = 'var(--muted)'; }
 
   try {
-    const data = await xhrPost(scriptUrl, { action: 'getProgram', sheet: sheetTab, cols: getProgramCols() });
-    if (data.error) throw new Error(data.error);
-    if (!data.program) throw new Error('No program data returned');
+    // Use pull action to get raw sheet rows — works with OLD and NEW script
+    const cols = getProgramCols();
+    const raw = await xhrPost(scriptUrl, { action: 'pull', sheet: sheetTab });
 
-    state.dailyProgram = { ...state.dailyProgram, ...data.program };
+    if (raw.error || !raw.rows) {
+      // Fallback to getProgram if pull fails
+      const data = await xhrPost(scriptUrl, { action: 'getProgram', sheet: sheetTab, cols });
+      if (data.error) throw new Error(data.error);
+      state.dailyProgram = { ...state.dailyProgram, ...data.program };
+    } else {
+      // Parse rows using configured column indexes
+      const program = {};
+      const colNames = ['date','strength','workout','club','hyrox','endurance','oly'];
+      raw.rows.forEach(row => {
+        // row is an object keyed by header name — but indexes may differ
+        // Get the keys of the row object in order
+        const keys = Object.keys(row);
+        const getByIdx = (idx) => {
+          const key = keys[idx];
+          return key !== undefined ? (row[key] || '').toString().trim() : '';
+        };
+        const dateVal = getByIdx(cols.date);
+        if (!dateVal) return;
+        let iso;
+        try {
+          const d = new Date(dateVal);
+          if (isNaN(d)) return;
+          iso = d.toISOString().split('T')[0];
+        } catch(e) { return; }
+        const strength  = getByIdx(cols.strength);
+        const workout   = getByIdx(cols.workout);
+        const club      = getByIdx(cols.club);
+        const hyrox     = getByIdx(cols.hyrox);
+        const endurance = getByIdx(cols.endurance);
+        const oly       = getByIdx(cols.oly);
+        if (strength || workout || club || hyrox || endurance || oly)
+          program[iso] = { strength, workout, club, hyrox, endurance, oly };
+      });
+      state.dailyProgram = { ...state.dailyProgram, ...program };
+    }
+
     save();
-
-    const count = Object.keys(data.program).length;
+    const count = Object.keys(state.dailyProgram).length;
     const now = new Date().toLocaleString('en-SE');
     localStorage.setItem('lerums_program_last_sync', now);
-
     if (statusEl && !silent) {
-      statusEl.textContent = `✓ Synced ${count} days from "${sheetTab}". Last: ${now}`;
+      statusEl.textContent = `✓ Synced ${count} days. Last: ${now}`;
       statusEl.style.color = 'var(--success)';
     }
     if (!silent) showToast('Daily program synced! 📅');
