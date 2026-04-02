@@ -3492,9 +3492,8 @@ async function fetchDailyProgram(silent = false) {
       // First row tells us the header order
       if (!raw.rows.length) throw new Error('No rows returned');
 
-      // Get header names in column order from the first row's keys
+      // Get header names from keys — use any row (all rows have same keys)
       const headerKeys = Object.keys(raw.rows[0]);
-      // headerKeys[0] = col A header, headerKeys[1] = col B header, etc.
 
       const cols = getProgramCols();
       const hDate     = headerKeys[cols.date];
@@ -3505,9 +3504,10 @@ async function fetchDailyProgram(silent = false) {
       const hEndur    = headerKeys[cols.endurance];
       const hOly      = headerKeys[cols.oly];
 
-      // Show diagnostic in status
+      if (!hDate) throw new Error(`Column B (index ${cols.date}) not found. Headers: ${headerKeys.slice(0,5).join(', ')}`);
+
       if (statusEl && !silent) {
-        statusEl.textContent = `Columns mapped: date="${hDate}" strength="${hStrength}" workout="${hWorkout}" club="${hClub}" oly="${hOly}"`;
+        statusEl.textContent = `Parsing: date="${hDate}" club="${hClub}" oly="${hOly}"`;
         statusEl.style.color = 'var(--muted)';
       }
 
@@ -3515,12 +3515,18 @@ async function fetchDailyProgram(silent = false) {
       raw.rows.forEach(row => {
         const dateVal = (row[hDate] || '').toString().trim();
         if (!dateVal) return;
+        // Try to parse the date — handle ISO strings and locale strings
         let iso;
         try {
-          // Handle date strings like "2026-04-02" or Date objects serialised as strings
-          const d = new Date(dateVal);
-          if (isNaN(d)) return;
-          iso = d.toISOString().split('T')[0];
+          // Remove time portion if present
+          const cleaned = dateVal.replace(/T.*$/, '').trim();
+          const d = new Date(cleaned);
+          if (isNaN(d.getTime())) return;
+          // Format as YYYY-MM-DD
+          const y = d.getFullYear();
+          const m = String(d.getMonth()+1).padStart(2,'0');
+          const day = String(d.getDate()).padStart(2,'0');
+          iso = `${y}-${m}-${day}`;
         } catch(e) { return; }
 
         const strength  = (row[hStrength] || '').toString().trim();
@@ -3532,6 +3538,10 @@ async function fetchDailyProgram(silent = false) {
         if (strength || workout || club || hyrox || endurance || oly)
           program[iso] = { strength, workout, club, hyrox, endurance, oly };
       });
+
+      const count = Object.keys(program).length;
+      if (count === 0) throw new Error(`Parsed 0 days. date col="${hDate}", club col="${hClub}". First row date value: "${(raw.rows[0][hDate]||'')}"`);
+
       state.dailyProgram = { ...state.dailyProgram, ...program };
     }
 
