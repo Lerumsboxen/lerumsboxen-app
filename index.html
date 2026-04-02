@@ -1198,7 +1198,14 @@
     var vals = sheet.getDataRange().getValues();
     if (vals.length < 1) return json({headers: []});
     var hdrs = vals[0].map(function(h) { return (h+"").trim(); });
-    return json({headers: hdrs});
+    // Also return raw values from first data row with a date
+    var sampleRow = null;
+    var tz = Session.getScriptTimeZone();
+    for (var i = 1; i < vals.length; i++) {
+      var d = vals[i][1];
+      if (d) { sampleRow = vals[i].map(function(c) { return (c+"").substring(0,30); }); break; }
+    }
+    return json({headers: hdrs, sampleRow: sampleRow, headerCount: hdrs.length});
   }
 
   if (action === "getProgram") {
@@ -1207,31 +1214,36 @@
     var vals = sheet.getDataRange().getValues();
     if (vals.length < 2) return json({program: {}});
     var hdrs = vals[0].map(function(h) { return (h+"").toLowerCase().trim(); });
-    var dateIdx     = hdrs.indexOf("date");                     if (dateIdx < 0) dateIdx = 1;
-    var strengthIdx = hdrs.indexOf("strength");                 if (strengthIdx < 0) strengthIdx = 2;
-    var workoutIdx  = hdrs.indexOf("workout");                  if (workoutIdx < 0) workoutIdx = 3;
-    // Club Series — try multiple name variants, fallback to col E (index 4)
-    var clubIdx = hdrs.indexOf("club series simulation");
-    if (clubIdx < 0) clubIdx = hdrs.indexOf("club series");
-    if (clubIdx < 0) clubIdx = hdrs.indexOf("club");
-    if (clubIdx < 0) clubIdx = 4;
-    // OLY — try multiple name variants, fallback to col H (index 7)
-    var olyIdx = hdrs.indexOf("oly");
-    if (olyIdx < 0) olyIdx = hdrs.indexOf("olympic");
-    if (olyIdx < 0) olyIdx = hdrs.indexOf("weightlifting");
-    if (olyIdx < 0) olyIdx = 7;
+    // Column detection — header name first, then positional fallback
+    var dateIdx     = hdrs.indexOf("date");                   if (dateIdx < 0) dateIdx = 1;
+    var strengthIdx = hdrs.indexOf("strength");               if (strengthIdx < 0) strengthIdx = 2;
+    var workoutIdx  = hdrs.indexOf("workout");                if (workoutIdx < 0) workoutIdx = 3;
+    var clubIdx     = hdrs.indexOf("club series simulation"); if (clubIdx < 0) clubIdx = hdrs.indexOf("club series"); if (clubIdx < 0) clubIdx = 4;
+    var hyroxIdx    = hdrs.indexOf("hyrox");                  if (hyroxIdx < 0) hyroxIdx = 5;
+    var endurIdx    = hdrs.indexOf("endurance - hyrox");      if (endurIdx < 0) endurIdx = hdrs.indexOf("endurance"); if (endurIdx < 0) endurIdx = 6;
+    var olyIdx      = hdrs.indexOf("oly");                    if (olyIdx < 0) olyIdx = hdrs.indexOf("olympic"); if (olyIdx < 0) olyIdx = 7;
+    var tz = Session.getScriptTimeZone();
     var program = {};
     vals.slice(1).forEach(function(row) {
       var d = row[dateIdx];
       if (!d) return;
-      var date = new Date(d);
-      if (isNaN(date)) return;
-      var iso = Utilities.formatDate(date, Session.getScriptTimeZone(), "yyyy-MM-dd");
+      var date;
+      // Google Sheets stores dates as Date objects — handle both Date and string
+      if (d instanceof Date) {
+        date = d;
+      } else {
+        date = new Date(d);
+      }
+      if (isNaN(date.getTime())) return;
+      var iso = Utilities.formatDate(date, tz, "yyyy-MM-dd");
       var strength = (row[strengthIdx] || "").toString().trim();
       var workout  = (row[workoutIdx]  || "").toString().trim();
       var club     = (row[clubIdx]     || "").toString().trim();
+      var hyrox    = (row[hyroxIdx]    || "").toString().trim();
+      var endur    = (row[endurIdx]    || "").toString().trim();
       var oly      = (row[olyIdx]      || "").toString().trim();
-      if (strength || workout || club || oly) program[iso] = {strength: strength, workout: workout, club: club, oly: oly};
+      if (strength || workout || club || hyrox || endur || oly)
+        program[iso] = {strength: strength, workout: workout, club: club, hyrox: hyrox, endurance: endur, oly: oly};
     });
     return json({program: program});
   }
@@ -1619,6 +1631,22 @@ const DASH_SECTIONS = {
             <div class="program-section-text">${enrichProgramText(prog.club)}</div>
           </div>
           <button data-log="club" style="flex-shrink:0;margin-top:0.15rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;background:#7c3aed;color:#fff;border:none;border-radius:3px;padding:0.35rem 0.7rem;cursor:pointer;white-space:nowrap;">+ WORKOUT</button>
+        </div>` : ''}
+        ${prog && prog.hyrox ? `
+        <div class="program-section" style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem;">
+          <div style="flex:1;min-width:0;">
+            <div class="program-section-label" style="color:#38bdf8;">🏃 Hyrox</div>
+            <div class="program-section-text">${enrichProgramText(prog.hyrox)}</div>
+          </div>
+          <button data-log="hyrox" style="flex-shrink:0;margin-top:0.15rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;background:#0369a1;color:#fff;border:none;border-radius:3px;padding:0.35rem 0.7rem;cursor:pointer;white-space:nowrap;">+ WORKOUT</button>
+        </div>` : ''}
+        ${prog && prog.endurance ? `
+        <div class="program-section" style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem;">
+          <div style="flex:1;min-width:0;">
+            <div class="program-section-label" style="color:#34d399;">🏅 Endurance</div>
+            <div class="program-section-text">${enrichProgramText(prog.endurance)}</div>
+          </div>
+          <button data-log="endurance" style="flex-shrink:0;margin-top:0.15rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;background:#065f46;color:#fff;border:none;border-radius:3px;padding:0.35rem 0.7rem;cursor:pointer;white-space:nowrap;">+ WORKOUT</button>
         </div>` : ''}
         ${prog && prog.oly ? `
         <div class="program-section" style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem;">
@@ -2064,6 +2092,24 @@ function logFromProgram(type) {
     document.getElementById('wodDesc').value = prog.club || '';
     document.getElementById('wodScore').value = '';
     document.getElementById('wodNotes').value = 'Club Series Simulation';
+    document.getElementById('wodModal').style.display = 'flex';
+  }
+
+  if (type === 'hyrox') {
+    document.getElementById('wodDate').value = viewDate;
+    document.getElementById('wodName').value = 'Hyrox';
+    document.getElementById('wodDesc').value = prog.hyrox || '';
+    document.getElementById('wodScore').value = '';
+    document.getElementById('wodNotes').value = 'Hyrox session';
+    document.getElementById('wodModal').style.display = 'flex';
+  }
+
+  if (type === 'endurance') {
+    document.getElementById('wodDate').value = viewDate;
+    document.getElementById('wodName').value = 'Endurance';
+    document.getElementById('wodDesc').value = prog.endurance || '';
+    document.getElementById('wodScore').value = '';
+    document.getElementById('wodNotes').value = 'Endurance - Hyrox';
     document.getElementById('wodModal').style.display = 'flex';
   }
 
@@ -3302,39 +3348,54 @@ async function diagProgramSync() {
   const sheetTab = localStorage.getItem('lerums_program_sheet') || '2026';
   if (statusEl) { statusEl.textContent = 'Checking…'; statusEl.style.color = 'var(--muted)'; }
   try {
-    // First get raw headers via a new action
     const diagData = await xhrPost(APPS_SCRIPT_URL, { action: 'diagProgram', sheet: sheetTab });
     if (diagData.headers) {
       const hdrs = diagData.headers;
-      const msg = hdrs.map((h, i) => `col ${i+1} (${String.fromCharCode(65+i)}): "${h}"`).join(' · ');
+      const sample = diagData.sampleRow || [];
+      const lines = hdrs.map((h, i) =>
+        `col ${String.fromCharCode(65+i)} (idx ${i}): header="${h}" | value="${sample[i] || ''}"`
+      );
       if (statusEl) {
         statusEl.style.color = '#fbbf24';
-        statusEl.innerHTML = `Sheet headers found:<br>${msg}`;
+        statusEl.innerHTML = `${diagData.headerCount} columns:<br>` + lines.join('<br>');
       }
       return;
     }
 
     const data = await xhrPost(APPS_SCRIPT_URL, { action: 'getProgram', sheet: sheetTab });
     if (data.error) throw new Error(data.error);
-    const days = Object.keys(data.program || {});
+    const prog = data.program || {};
+    const days = Object.keys(prog).sort();
     if (!days.length) {
-      if (statusEl) { statusEl.textContent = `Script OK but no data found in "${sheetTab}".`; statusEl.style.color = '#fbbf24'; }
+      if (statusEl) { statusEl.textContent = 'No data returned.'; statusEl.style.color = '#fbbf24'; }
       return;
     }
+
+    // Find first day with each content type
+    const firstClub      = days.find(d => prog[d].club);
+    const firstHyrox     = days.find(d => prog[d].hyrox);
+    const firstEndurance = days.find(d => prog[d].endurance);
+    const firstOly       = days.find(d => prog[d].oly);
+
+    // Sample today or most recent
     const today = new Date().toISOString().split('T')[0];
-    const sorted = days.sort();
-    const key = data.program[today] ? today : sorted[sorted.length - 1];
-    const sample = data.program[key];
-    const fields = [
-      `strength: ${sample.strength ? '✓' : 'EMPTY'}`,
-      `workout: ${sample.workout ? '✓' : 'EMPTY'}`,
-      `club: ${sample.club ? '✓ ' + sample.club.substring(0,30) : '✗ not returned'}`,
-      `oly: ${sample.oly ? '✓ ' + sample.oly.substring(0,30) : '✗ not returned'}`,
+    const key = prog[today] ? today : days[days.length - 1];
+    const s = prog[key];
+
+    const lines = [
+      `${days.length} days synced. Sample: ${key}`,
+      `C strength: ${s.strength?'✓':'—'} | D workout: ${s.workout?'✓':'—'} | E club: ${s.club?'✓':'—'} | F hyrox: ${s.hyrox?'✓':'—'} | G endurance: ${s.endurance?'✓':'—'} | H oly: ${s.oly?'✓':'—'}`,
+      `First Club Series: ${firstClub || 'none found'}`,
+      `First Hyrox: ${firstHyrox || 'none found'}`,
+      `First Endurance: ${firstEndurance || 'none found'}`,
+      `First OLY: ${firstOly || 'none found'}`,
     ];
+
     if (statusEl) {
-      statusEl.style.color = (sample.club && sample.oly) ? 'var(--success)' : '#fbbf24';
-      statusEl.innerHTML = `${days.length} days synced. Sample (${key}):<br>${fields.map(f => '· ' + f).join('<br>')}`;
+      statusEl.style.color = (firstClub || firstOly || firstHyrox) ? 'var(--success)' : 'var(--red)';
+      statusEl.innerHTML = lines.join('<br>');
     }
+
     state.dailyProgram = { ...state.dailyProgram, ...data.program };
     save();
     if (currentDashSection === 'log') selectDashSection('log');
