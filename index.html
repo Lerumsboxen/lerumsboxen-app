@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lerumsboxen Workout Tracker</title>
+<title>Lerumsboxen Workout Tracker v26</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@300;400;600;700&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -3335,7 +3335,7 @@ function enrichProgramText(text) {
     if (!matchedPR) return line;
 
     const weight = calcWeight(matchedPR.value, pct);
-    const annotation = `<span style="color:#4ade80;font-weight:700;"> → ${weight}${plus}</span>`;
+    const annotation = `<span style="color:#4ade80;font-weight:700;"> → ${weight}${plus} </span>`;
     return line.replace(pctMatch[0], pctMatch[0] + annotation);
   }).join('\n');
 }
