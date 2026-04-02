@@ -1213,27 +1213,22 @@
     if (!sheet) return json({error: "Sheet not found: " + (sheetName || "2026")});
     var vals = sheet.getDataRange().getValues();
     if (vals.length < 2) return json({program: {}});
+    // Use column indexes sent from app if available, otherwise detect from headers
+    var cols = data.cols || {};
     var hdrs = vals[0].map(function(h) { return (h+"").toLowerCase().trim(); });
-    // Column detection — header name first, then positional fallback
-    var dateIdx     = hdrs.indexOf("date");                   if (dateIdx < 0) dateIdx = 1;
-    var strengthIdx = hdrs.indexOf("strength");               if (strengthIdx < 0) strengthIdx = 2;
-    var workoutIdx  = hdrs.indexOf("workout");                if (workoutIdx < 0) workoutIdx = 3;
-    var clubIdx     = hdrs.indexOf("club series simulation"); if (clubIdx < 0) clubIdx = hdrs.indexOf("club series"); if (clubIdx < 0) clubIdx = 4;
-    var hyroxIdx    = hdrs.indexOf("hyrox");                  if (hyroxIdx < 0) hyroxIdx = 5;
-    var endurIdx    = hdrs.indexOf("endurance - hyrox");      if (endurIdx < 0) endurIdx = hdrs.indexOf("endurance"); if (endurIdx < 0) endurIdx = 6;
-    var olyIdx      = hdrs.indexOf("oly");                    if (olyIdx < 0) olyIdx = hdrs.indexOf("olympic"); if (olyIdx < 0) olyIdx = 7;
+    var dateIdx     = (cols.date     >= 0) ? cols.date     : (hdrs.indexOf("date")     >= 0 ? hdrs.indexOf("date")     : 1);
+    var strengthIdx = (cols.strength >= 0) ? cols.strength : (hdrs.indexOf("strength") >= 0 ? hdrs.indexOf("strength") : 2);
+    var workoutIdx  = (cols.workout  >= 0) ? cols.workout  : (hdrs.indexOf("workout")  >= 0 ? hdrs.indexOf("workout")  : 3);
+    var clubIdx     = (cols.club     >= 0) ? cols.club     : (hdrs.indexOf("club series simulation") >= 0 ? hdrs.indexOf("club series simulation") : 4);
+    var hyroxIdx    = (cols.hyrox    >= 0) ? cols.hyrox    : (hdrs.indexOf("hyrox")    >= 0 ? hdrs.indexOf("hyrox")    : 5);
+    var endurIdx    = (cols.endurance>= 0) ? cols.endurance: (hdrs.indexOf("endurance - hyrox") >= 0 ? hdrs.indexOf("endurance - hyrox") : 6);
+    var olyIdx      = (cols.oly      >= 0) ? cols.oly      : (hdrs.indexOf("oly")      >= 0 ? hdrs.indexOf("oly")      : 7);
     var tz = Session.getScriptTimeZone();
     var program = {};
     vals.slice(1).forEach(function(row) {
       var d = row[dateIdx];
       if (!d) return;
-      var date;
-      // Google Sheets stores dates as Date objects — handle both Date and string
-      if (d instanceof Date) {
-        date = d;
-      } else {
-        date = new Date(d);
-      }
+      var date = (d instanceof Date) ? d : new Date(d);
       if (isNaN(date.getTime())) return;
       var iso = Utilities.formatDate(date, tz, "yyyy-MM-dd");
       var strength = (row[strengthIdx] || "").toString().trim();
@@ -1339,11 +1334,42 @@ function json(obj) {
     <div class="card" style="margin-bottom:1rem;border-color:rgba(251,191,36,0.3);">
       <div style="font-family:'Bebas Neue';font-size:1.1rem;letter-spacing:0.06em;color:#fbbf24;margin-bottom:1rem;">📅 DAILY PROGRAM</div>
       <p style="font-size:0.82rem;color:var(--muted);margin-bottom:1rem;line-height:1.5;">
-        Uses the same Web App URL from Step 2. Make sure you have updated and redeployed the Apps Script with the new code above. Enter the sheet tab name containing your program.
+        Uses the same Web App URL from Step 2. Enter the sheet tab name and the column letters for each program type.
       </p>
       <div class="form-group" style="margin-bottom:0.75rem;">
         <label>Sheet Tab Name (e.g. 2026)</label>
         <input type="text" id="programSheetTab" value="2026" placeholder="2026" onchange="saveProgramSettings()">
+      </div>
+      <div style="font-size:0.75rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.5rem;">Column letters in your sheet</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;margin-bottom:0.75rem;">
+        <div class="form-group" style="margin:0;">
+          <label style="font-size:0.7rem;">Date</label>
+          <input type="text" id="colDate" value="B" maxlength="2" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase();saveProgramSettings()">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label style="font-size:0.7rem;">Strength</label>
+          <input type="text" id="colStrength" value="C" maxlength="2" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase();saveProgramSettings()">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label style="font-size:0.7rem;">Workout / WOD</label>
+          <input type="text" id="colWorkout" value="D" maxlength="2" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase();saveProgramSettings()">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label style="font-size:0.7rem;">Club Series</label>
+          <input type="text" id="colClub" value="E" maxlength="2" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase();saveProgramSettings()">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label style="font-size:0.7rem;">Hyrox</label>
+          <input type="text" id="colHyrox" value="F" maxlength="2" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase();saveProgramSettings()">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label style="font-size:0.7rem;">Endurance</label>
+          <input type="text" id="colEndurance" value="G" maxlength="2" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase();saveProgramSettings()">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label style="font-size:0.7rem;">OLY</label>
+          <input type="text" id="colOly" value="H" maxlength="2" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase();saveProgramSettings()">
+        </div>
       </div>
       <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
         <button class="btn btn-sm" style="background:#fbbf24;color:#000;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:2px;cursor:pointer;" onclick="fetchDailyProgram()">⟳ SYNC NOW</button>
@@ -3316,11 +3342,39 @@ function enrichProgramText(text) {
 
 // ===== DAILY PROGRAM =====
 
+function colLetterToIndex(letter) {
+  // Convert column letter (A=0, B=1, ... Z=25, AA=26 etc.)
+  const l = (letter || '').toUpperCase().trim();
+  if (!l) return -1;
+  let idx = 0;
+  for (let i = 0; i < l.length; i++) {
+    idx = idx * 26 + (l.charCodeAt(i) - 64);
+  }
+  return idx - 1;
+}
+
+function getProgramCols() {
+  return {
+    date:     colLetterToIndex(document.getElementById('colDate')?.value     || localStorage.getItem('lerums_col_date')     || 'B'),
+    strength: colLetterToIndex(document.getElementById('colStrength')?.value || localStorage.getItem('lerums_col_strength') || 'C'),
+    workout:  colLetterToIndex(document.getElementById('colWorkout')?.value  || localStorage.getItem('lerums_col_workout')  || 'D'),
+    club:     colLetterToIndex(document.getElementById('colClub')?.value     || localStorage.getItem('lerums_col_club')     || 'E'),
+    hyrox:    colLetterToIndex(document.getElementById('colHyrox')?.value    || localStorage.getItem('lerums_col_hyrox')    || 'F'),
+    endurance:colLetterToIndex(document.getElementById('colEndurance')?.value|| localStorage.getItem('lerums_col_endurance')|| 'G'),
+    oly:      colLetterToIndex(document.getElementById('colOly')?.value      || localStorage.getItem('lerums_col_oly')      || 'H'),
+  };
+}
+
 function saveProgramSettings() {
   const tab = document.getElementById('programSheetTab')?.value.trim() || '2026';
   const autoSync = document.getElementById('programAutoSync')?.checked || false;
   localStorage.setItem('lerums_program_sheet', tab);
   localStorage.setItem('lerums_program_auto', autoSync ? '1' : '0');
+  // Save column letters
+  ['date','strength','workout','club','hyrox','endurance','oly'].forEach(k => {
+    const v = document.getElementById('col' + k.charAt(0).toUpperCase() + k.slice(1))?.value.toUpperCase().trim();
+    if (v) localStorage.setItem('lerums_col_' + k, v);
+  });
 }
 
 function loadProgramSettings() {
@@ -3330,6 +3384,12 @@ function loadProgramSettings() {
   if (tabEl) tabEl.value = tab;
   const autoEl = document.getElementById('programAutoSync');
   if (autoEl) autoEl.checked = autoSync;
+  // Load column letters
+  const defaults = {date:'B',strength:'C',workout:'D',club:'E',hyrox:'F',endurance:'G',oly:'H'};
+  Object.entries(defaults).forEach(([k, def]) => {
+    const el = document.getElementById('col' + k.charAt(0).toUpperCase() + k.slice(1));
+    if (el) el.value = localStorage.getItem('lerums_col_' + k) || def;
+  });
 }
 
 function parseCSV(text) {
@@ -3362,7 +3422,7 @@ async function diagProgramSync() {
       return;
     }
 
-    const data = await xhrPost(APPS_SCRIPT_URL, { action: 'getProgram', sheet: sheetTab });
+    const data = await xhrPost(APPS_SCRIPT_URL, { action: 'getProgram', sheet: sheetTab, cols: getProgramCols() });
     if (data.error) throw new Error(data.error);
     const prog = data.program || {};
     const days = Object.keys(prog).sort();
@@ -3422,7 +3482,7 @@ async function fetchDailyProgram(silent = false) {
   if (statusEl && !silent) { statusEl.textContent = 'Syncing…'; statusEl.style.color = 'var(--muted)'; }
 
   try {
-    const data = await xhrPost(scriptUrl, { action: 'getProgram', sheet: sheetTab });
+    const data = await xhrPost(scriptUrl, { action: 'getProgram', sheet: sheetTab, cols: getProgramCols() });
     if (data.error) throw new Error(data.error);
     if (!data.program) throw new Error('No program data returned');
 
