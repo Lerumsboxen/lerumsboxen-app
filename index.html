@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lerumsboxen Workout Tracker v27</title>
+<title>Lerumsboxen Workout Tracker v28</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@300;400;600;700&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -3477,81 +3477,26 @@ async function fetchDailyProgram(silent = false) {
   if (statusEl && !silent) { statusEl.textContent = 'Syncing…'; statusEl.style.color = 'var(--muted)'; }
 
   try {
-    // Use pull action to get raw sheet rows — works with OLD and NEW script
     const cols = getProgramCols();
-    const raw = await xhrPost(scriptUrl, { action: 'pull', sheet: sheetTab });
+    const data = await xhrPost(scriptUrl, { action: 'getProgram', sheet: sheetTab, cols });
+    if (data.error) throw new Error(data.error);
+    if (!data.program) throw new Error('No program data returned');
 
-    if (raw.error || !raw.rows) {
-      // Fallback to getProgram if pull fails
-      const data = await xhrPost(scriptUrl, { action: 'getProgram', sheet: sheetTab, cols });
-      if (data.error) throw new Error(data.error);
-      state.dailyProgram = { ...state.dailyProgram, ...data.program };
-    } else {
-      // raw.rows is array of objects keyed by header name
-      // We need to map column letter indexes → header names
-      // First row tells us the header order
-      if (!raw.rows.length) throw new Error('No rows returned');
+    const incoming = data.program;
+    const count = Object.keys(incoming).length;
 
-      // Get header names from keys — use any row (all rows have same keys)
-      const headerKeys = Object.keys(raw.rows[0]);
+    // Check if club/oly are actually coming through
+    const hasClub = Object.values(incoming).some(d => d.club);
+    const hasOly  = Object.values(incoming).some(d => d.oly);
 
-      const cols = getProgramCols();
-      const hDate     = headerKeys[cols.date];
-      const hStrength = headerKeys[cols.strength];
-      const hWorkout  = headerKeys[cols.workout];
-      const hClub     = headerKeys[cols.club];
-      const hHyrox    = headerKeys[cols.hyrox];
-      const hEndur    = headerKeys[cols.endurance];
-      const hOly      = headerKeys[cols.oly];
-
-      if (!hDate) throw new Error(`Column B (index ${cols.date}) not found. Headers: ${headerKeys.slice(0,5).join(', ')}`);
-
-      if (statusEl && !silent) {
-        statusEl.textContent = `Parsing: date="${hDate}" club="${hClub}" oly="${hOly}"`;
-        statusEl.style.color = 'var(--muted)';
-      }
-
-      const program = {};
-      raw.rows.forEach(row => {
-        const dateVal = (row[hDate] || '').toString().trim();
-        if (!dateVal) return;
-        // Try to parse the date — handle ISO strings and locale strings
-        let iso;
-        try {
-          // Remove time portion if present
-          const cleaned = dateVal.replace(/T.*$/, '').trim();
-          const d = new Date(cleaned);
-          if (isNaN(d.getTime())) return;
-          // Format as YYYY-MM-DD
-          const y = d.getFullYear();
-          const m = String(d.getMonth()+1).padStart(2,'0');
-          const day = String(d.getDate()).padStart(2,'0');
-          iso = `${y}-${m}-${day}`;
-        } catch(e) { return; }
-
-        const strength  = (row[hStrength] || '').toString().trim();
-        const workout   = (row[hWorkout]  || '').toString().trim();
-        const club      = (row[hClub]     || '').toString().trim();
-        const hyrox     = (row[hHyrox]    || '').toString().trim();
-        const endurance = (row[hEndur]    || '').toString().trim();
-        const oly       = (row[hOly]      || '').toString().trim();
-        if (strength || workout || club || hyrox || endurance || oly)
-          program[iso] = { strength, workout, club, hyrox, endurance, oly };
-      });
-
-      const count = Object.keys(program).length;
-      if (count === 0) throw new Error(`Parsed 0 days. date col="${hDate}", club col="${hClub}". First row date value: "${(raw.rows[0][hDate]||'')}"`);
-
-      state.dailyProgram = { ...state.dailyProgram, ...program };
-    }
-
+    state.dailyProgram = { ...state.dailyProgram, ...incoming };
     save();
-    const count = Object.keys(state.dailyProgram).length;
+
     const now = new Date().toLocaleString('en-SE');
     localStorage.setItem('lerums_program_last_sync', now);
     if (statusEl && !silent) {
-      statusEl.textContent = `✓ Synced ${count} days. Last: ${now}`;
-      statusEl.style.color = 'var(--success)';
+      statusEl.textContent = `✓ ${count} days synced. Club: ${hasClub?'✓':'✗ not found'} OLY: ${hasOly?'✓':'✗ not found'}. cols sent: E=${cols.club} H=${cols.oly}`;
+      statusEl.style.color = (hasClub && hasOly) ? 'var(--success)' : '#fbbf24';
     }
     if (!silent) showToast('Daily program synced! 📅');
     if (currentDashSection === 'log') selectDashSection('log');
