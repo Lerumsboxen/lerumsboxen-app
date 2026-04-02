@@ -1199,9 +1199,11 @@
     if (vals.length < 2) return json({program: {}});
     // Find column indexes from header row (row 0)
     var hdrs = vals[0].map(function(h) { return (h+"").toLowerCase().trim(); });
-    var dateIdx     = hdrs.indexOf("date");     if (dateIdx < 0) dateIdx = 1;
-    var strengthIdx = hdrs.indexOf("strength"); if (strengthIdx < 0) strengthIdx = 2;
-    var workoutIdx  = hdrs.indexOf("workout");  if (workoutIdx < 0) workoutIdx = 3;
+    var dateIdx     = hdrs.indexOf("date");                     if (dateIdx < 0) dateIdx = 1;
+    var strengthIdx = hdrs.indexOf("strength");                 if (strengthIdx < 0) strengthIdx = 2;
+    var workoutIdx  = hdrs.indexOf("workout");                  if (workoutIdx < 0) workoutIdx = 3;
+    var clubIdx     = hdrs.indexOf("club series simulation");   if (clubIdx < 0) clubIdx = 4; // col E
+    var olyIdx      = hdrs.indexOf("oly");                      if (olyIdx < 0) olyIdx = 7;  // col H
     var program = {};
     vals.slice(1).forEach(function(row) {
       var d = row[dateIdx];
@@ -1211,7 +1213,9 @@
       var iso = Utilities.formatDate(date, Session.getScriptTimeZone(), "yyyy-MM-dd");
       var strength = (row[strengthIdx] || "").toString().trim();
       var workout  = (row[workoutIdx]  || "").toString().trim();
-      if (strength || workout) program[iso] = {strength: strength, workout: workout};
+      var club     = (row[clubIdx]     || "").toString().trim();
+      var oly      = (row[olyIdx]      || "").toString().trim();
+      if (strength || workout || club || oly) program[iso] = {strength: strength, workout: workout, club: club, oly: oly};
     });
     return json({program: program});
   }
@@ -1315,11 +1319,12 @@ function json(obj) {
       </div>
       <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
         <button class="btn btn-sm" style="background:#fbbf24;color:#000;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:2px;cursor:pointer;" onclick="fetchDailyProgram()">⟳ SYNC NOW</button>
+        <button class="btn btn-ghost btn-sm" onclick="diagProgramSync()">🔍 Check columns</button>
         <label style="display:flex;align-items:center;gap:0.5rem;margin:0;font-size:0.78rem;color:var(--muted);cursor:pointer;">
           <input type="checkbox" id="programAutoSync" onchange="saveProgramSettings()" style="width:auto;"> Auto-sync on open
         </label>
       </div>
-      <div id="programSyncStatus" style="margin-top:0.6rem;font-size:0.8rem;color:var(--muted);font-family:'Barlow Condensed';letter-spacing:0.05em;min-height:1.2em;"></div>
+      <div id="programSyncStatus" style="margin-top:0.6rem;font-size:0.8rem;color:var(--muted);font-family:'Barlow Condensed';letter-spacing:0.05em;min-height:1.2em;word-break:break-word;"></div>
     </div>
 
     <!-- Summary -->
@@ -1586,10 +1591,26 @@ const DASH_SECTIONS = {
         ${prog && prog.workout ? `
         <div class="program-section" style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem;">
           <div style="flex:1;min-width:0;">
-            <div class="program-section-label">🏋️ Workout</div>
+            <div class="program-section-label">🏋️ WOD</div>
             <div class="program-section-text">${enrichProgramText(prog.workout)}</div>
           </div>
-          <button data-log="workout" style="flex-shrink:0;margin-top:0.15rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;background:var(--red);color:#fff;border:none;border-radius:3px;padding:0.35rem 0.7rem;cursor:pointer;white-space:nowrap;">+ LOG</button>
+          <button data-log="workout" style="flex-shrink:0;margin-top:0.15rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;background:var(--red);color:#fff;border:none;border-radius:3px;padding:0.35rem 0.7rem;cursor:pointer;white-space:nowrap;">+ WORKOUT</button>
+        </div>` : ''}
+        ${prog && prog.club ? `
+        <div class="program-section" style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem;">
+          <div style="flex:1;min-width:0;">
+            <div class="program-section-label" style="color:#a78bfa;">🏆 Club Series</div>
+            <div class="program-section-text">${enrichProgramText(prog.club)}</div>
+          </div>
+          <button data-log="club" style="flex-shrink:0;margin-top:0.15rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;background:#7c3aed;color:#fff;border:none;border-radius:3px;padding:0.35rem 0.7rem;cursor:pointer;white-space:nowrap;">+ WORKOUT</button>
+        </div>` : ''}
+        ${prog && prog.oly ? `
+        <div class="program-section" style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem;">
+          <div style="flex:1;min-width:0;">
+            <div class="program-section-label" style="color:#fbbf24;">🏅 OLY</div>
+            <div class="program-section-text">${enrichProgramText(prog.oly)}</div>
+          </div>
+          <button data-log="oly" style="flex-shrink:0;margin-top:0.15rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;background:#b45309;color:#fff;border:none;border-radius:3px;padding:0.35rem 0.7rem;cursor:pointer;white-space:nowrap;">+ WORKOUT</button>
         </div>` : ''}
       </div>`;
       return `
@@ -2018,6 +2039,24 @@ function logFromProgram(type) {
     document.getElementById('wodDesc').value = prog.workout || '';
     document.getElementById('wodScore').value = '';
     document.getElementById('wodNotes').value = '';
+    document.getElementById('wodModal').style.display = 'flex';
+  }
+
+  if (type === 'club') {
+    document.getElementById('wodDate').value = viewDate;
+    document.getElementById('wodName').value = 'Club Series';
+    document.getElementById('wodDesc').value = prog.club || '';
+    document.getElementById('wodScore').value = '';
+    document.getElementById('wodNotes').value = 'Club Series Simulation';
+    document.getElementById('wodModal').style.display = 'flex';
+  }
+
+  if (type === 'oly') {
+    document.getElementById('wodDate').value = viewDate;
+    document.getElementById('wodName').value = 'OLY';
+    document.getElementById('wodDesc').value = prog.oly || '';
+    document.getElementById('wodScore').value = '';
+    document.getElementById('wodNotes').value = 'OLY session';
     document.getElementById('wodModal').style.display = 'flex';
   }
 }
@@ -3242,6 +3281,40 @@ function parseCSV(text) {
   });
 }
 
+async function diagProgramSync() {
+  const statusEl = document.getElementById('programSyncStatus');
+  const sheetTab = localStorage.getItem('lerums_program_sheet') || '2026';
+  if (statusEl) { statusEl.textContent = 'Checking…'; statusEl.style.color = 'var(--muted)'; }
+  try {
+    const data = await xhrPost(APPS_SCRIPT_URL, { action: 'getProgram', sheet: sheetTab });
+    if (data.error) throw new Error(data.error);
+    const days = Object.keys(data.program || {});
+    const today = new Date().toISOString().split('T')[0];
+    // Find closest day with data
+    const sample = data.program[today] || data.program[days[days.length - 1]];
+    if (!sample) {
+      if (statusEl) { statusEl.textContent = `✓ Script reachable but no data found for "${sheetTab}". Check sheet name and that rows have dates.`; statusEl.style.color = '#fbbf24'; }
+      return;
+    }
+    const fields = [];
+    if (sample.strength) fields.push('✓ Strength');
+    else fields.push('— Strength (empty)');
+    if (sample.workout) fields.push('✓ WOD (col D)');
+    else fields.push('— WOD (empty)');
+    if (sample.club) fields.push('✓ Club Series (col E)');
+    else fields.push('✗ Club Series (col E) — not returned. Script may need redeploying.');
+    if (sample.oly) fields.push('✓ OLY (col H)');
+    else fields.push('✗ OLY (col H) — not returned. Script may need redeploying.');
+    if (statusEl) {
+      const allGood = sample.club !== undefined && sample.oly !== undefined;
+      statusEl.style.color = allGood ? 'var(--success)' : '#fbbf24';
+      statusEl.textContent = `${days.length} days synced. Latest entry: ${fields.join(' · ')}`;
+    }
+  } catch(e) {
+    if (statusEl) { statusEl.textContent = '✗ ' + e.message; statusEl.style.color = 'var(--red)'; }
+  }
+}
+
 async function fetchDailyProgram(silent = false) {
   const statusEl = document.getElementById('programSyncStatus');
 
@@ -3831,6 +3904,63 @@ async function fetchChallenges() {
   }
 }
 
+function getKnownMembers() {
+  const names = new Set();
+  // From leaderboard
+  if (leaderboardCache) {
+    [...(leaderboardCache.wods || []), ...(leaderboardCache.strength || [])]
+      .forEach(e => { if (e.memberName && e.memberName !== 'Anonymous') names.add(e.memberName); });
+  }
+  // From challenges (sent/received)
+  if (challengesCache) {
+    (challengesCache.challenges || []).forEach(c => {
+      if (c.from) names.add(c.from);
+      if (c.to)   names.add(c.to);
+    });
+  }
+  // Remove own name
+  names.delete(profile.name || '');
+  return [...names].sort((a, b) => a.localeCompare(b));
+}
+
+function filterMemberDropdown() {
+  const input = document.getElementById('chTo');
+  const dd = document.getElementById('memberDropdown');
+  if (!input || !dd) return;
+  const q = input.value.toLowerCase().trim();
+  const members = getKnownMembers();
+  const matches = q ? members.filter(m => m.toLowerCase().includes(q)) : members;
+  if (!matches.length) { dd.style.display = 'none'; return; }
+  dd.style.display = 'block';
+  dd.innerHTML = matches.map(m => `
+    <div onclick="selectMember('${m.replace(/'/g, "\\'")}');hideMemberDropdown()"
+      onmousedown="event.preventDefault()"
+      onmouseover="this.style.background='var(--card2)'"
+      onmouseout="this.style.background=''"
+      style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.85rem;cursor:pointer;font-size:0.88rem;border-bottom:1px solid var(--border);">
+      <span style="font-size:1rem;">${getAvatarFor(m)}</span>
+      <span>${m}</span>
+    </div>`).join('');
+}
+
+function getAvatarFor(name) {
+  if (!leaderboardCache) return '💪';
+  const entry = [...(leaderboardCache.wods||[]), ...(leaderboardCache.strength||[])]
+    .find(e => e.memberName === name);
+  return entry?.avatar || '💪';
+}
+
+function selectMember(name) {
+  const input = document.getElementById('chTo');
+  if (input) input.value = name;
+  hideMemberDropdown();
+}
+
+function hideMemberDropdown() {
+  const dd = document.getElementById('memberDropdown');
+  if (dd) dd.style.display = 'none';
+}
+
 function openChallengeModal(prefill) {
   if (!profile.name) { openProfileModal(); showToast('Set your name first to send challenges!'); return; }
   document.getElementById('chName').value = prefill?.name || '';
@@ -4323,9 +4453,14 @@ window.addEventListener('orientationchange', () => {
         <input type="date" id="chDeadline">
       </div>
     </div>
-    <div class="form-group">
+    <div class="form-group" style="position:relative;">
       <label>Send to (member name)</label>
-      <input type="text" id="chTo" placeholder="e.g. Anna K. — or leave blank to send to all">
+      <input type="text" id="chTo" placeholder="Search members — or leave blank to send to all"
+        autocomplete="off"
+        oninput="filterMemberDropdown()"
+        onfocus="filterMemberDropdown()"
+        onblur="setTimeout(hideMemberDropdown, 200)">
+      <div id="memberDropdown" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:300;background:var(--card);border:1px solid var(--border);border-radius:4px;max-height:200px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>
     </div>
     <div class="form-group">
       <label>Message (optional)</label>
