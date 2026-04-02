@@ -3487,31 +3487,48 @@ async function fetchDailyProgram(silent = false) {
       if (data.error) throw new Error(data.error);
       state.dailyProgram = { ...state.dailyProgram, ...data.program };
     } else {
-      // Parse rows using configured column indexes
+      // raw.rows is array of objects keyed by header name
+      // We need to map column letter indexes → header names
+      // First row tells us the header order
+      if (!raw.rows.length) throw new Error('No rows returned');
+
+      // Get header names in column order from the first row's keys
+      const headerKeys = Object.keys(raw.rows[0]);
+      // headerKeys[0] = col A header, headerKeys[1] = col B header, etc.
+
+      const cols = getProgramCols();
+      const hDate     = headerKeys[cols.date];
+      const hStrength = headerKeys[cols.strength];
+      const hWorkout  = headerKeys[cols.workout];
+      const hClub     = headerKeys[cols.club];
+      const hHyrox    = headerKeys[cols.hyrox];
+      const hEndur    = headerKeys[cols.endurance];
+      const hOly      = headerKeys[cols.oly];
+
+      // Show diagnostic in status
+      if (statusEl && !silent) {
+        statusEl.textContent = `Columns mapped: date="${hDate}" strength="${hStrength}" workout="${hWorkout}" club="${hClub}" oly="${hOly}"`;
+        statusEl.style.color = 'var(--muted)';
+      }
+
       const program = {};
-      const colNames = ['date','strength','workout','club','hyrox','endurance','oly'];
       raw.rows.forEach(row => {
-        // row is an object keyed by header name — but indexes may differ
-        // Get the keys of the row object in order
-        const keys = Object.keys(row);
-        const getByIdx = (idx) => {
-          const key = keys[idx];
-          return key !== undefined ? (row[key] || '').toString().trim() : '';
-        };
-        const dateVal = getByIdx(cols.date);
+        const dateVal = (row[hDate] || '').toString().trim();
         if (!dateVal) return;
         let iso;
         try {
+          // Handle date strings like "2026-04-02" or Date objects serialised as strings
           const d = new Date(dateVal);
           if (isNaN(d)) return;
           iso = d.toISOString().split('T')[0];
         } catch(e) { return; }
-        const strength  = getByIdx(cols.strength);
-        const workout   = getByIdx(cols.workout);
-        const club      = getByIdx(cols.club);
-        const hyrox     = getByIdx(cols.hyrox);
-        const endurance = getByIdx(cols.endurance);
-        const oly       = getByIdx(cols.oly);
+
+        const strength  = (row[hStrength] || '').toString().trim();
+        const workout   = (row[hWorkout]  || '').toString().trim();
+        const club      = (row[hClub]     || '').toString().trim();
+        const hyrox     = (row[hHyrox]    || '').toString().trim();
+        const endurance = (row[hEndur]    || '').toString().trim();
+        const oly       = (row[hOly]      || '').toString().trim();
         if (strength || workout || club || hyrox || endurance || oly)
           program[iso] = { strength, workout, club, hyrox, endurance, oly };
       });
