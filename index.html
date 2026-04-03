@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lerumsboxen Workout Tracker v28</title>
+<title>Lerumsboxen Workout Tracker v29</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@300;400;600;700&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -1628,60 +1628,60 @@ const DASH_SECTIONS = {
         <button data-prog-nav="next" ${isToday ? 'disabled' : ''} style="width:2rem;height:2rem;border-radius:4px;border:1px solid var(--border);background:var(--card);color:${isToday ? 'var(--border)' : 'var(--text)'};cursor:${isToday ? 'default' : 'pointer'};font-size:1rem;display:flex;align-items:center;justify-content:center;">›</button>
       </div>`;
 
+      const hasWod = prog && (prog.strength || prog.workout);
       const banner = `
-      <div class="program-banner">
-        <div class="program-banner-title">
-          <span>📅 Program</span>
+      <div style="margin-bottom:1rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+          <span style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#fbbf24;">📅 Program</span>
         </div>
         ${dateNav}
-        ${prog && prog.strength ? `
-        <div class="program-section" style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem;">
-          <div style="flex:1;min-width:0;">
+
+        ${hasWod ? `
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
+          <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:var(--text);margin-bottom:0.75rem;">Workout of the Day</div>
+          ${prog.strength ? `
+          <div style="margin-bottom:0.75rem;">
             <div class="program-section-label">💪 Strength</div>
-            <div class="program-section-text">${enrichProgramText(prog.strength)}</div>
-          </div>
-          <button data-log="strength" style="flex-shrink:0;margin-top:0.15rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;background:#e0e0e0;color:#000;border:none;border-radius:3px;padding:0.35rem 0.7rem;cursor:pointer;white-space:nowrap;">+ LOG</button>
-        </div>` : (prog ? '' : '<div style="color:var(--muted);font-size:0.82rem;text-align:center;padding:0.5rem 0;">No program for this day</div>')}
-        ${prog && prog.workout ? `
-        <div class="program-section" style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem;">
-          <div style="flex:1;min-width:0;">
+            <div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.strength)}</div>
+            <button data-log="strength" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#e0e0e0;color:#000;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG</button>
+          </div>` : ''}
+          ${prog.strength && prog.workout ? `<div style="border-top:1px solid var(--border);margin:0.75rem 0;"></div>` : ''}
+          ${prog.workout ? `
+          <div>
             <div class="program-section-label">🏋️ WOD</div>
-            <div class="program-section-text">${enrichProgramText(prog.workout)}</div>
-          </div>
-          <button data-log="workout" style="flex-shrink:0;margin-top:0.15rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;background:var(--red);color:#fff;border:none;border-radius:3px;padding:0.35rem 0.7rem;cursor:pointer;white-space:nowrap;">+ WORKOUT</button>
-        </div>` : ''}
+            <div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.workout)}</div>
+            <button data-log="workout" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:var(--red);color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ WORKOUT</button>
+          </div>` : ''}
+        </div>` : (prog ? '' : '<div style="color:var(--muted);font-size:0.82rem;text-align:center;padding:0.5rem 0;margin-bottom:0.75rem;">No program for this day</div>')}
+
         ${prog && prog.club ? `
-        <div class="program-section" style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem;">
-          <div style="flex:1;min-width:0;">
-            <div class="program-section-label" style="color:#a78bfa;">🏆 Club Series</div>
-            <div class="program-section-text">${enrichProgramText(prog.club)}</div>
-          </div>
-          <button data-log="club" style="flex-shrink:0;margin-top:0.15rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;background:#7c3aed;color:#fff;border:none;border-radius:3px;padding:0.35rem 0.7rem;cursor:pointer;white-space:nowrap;">+ WORKOUT</button>
+        <div style="background:var(--card);border:1px solid rgba(167,139,250,0.4);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
+          <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#a78bfa;margin-bottom:0.5rem;">🏆 Club Series Simulation</div>
+          <div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.club)}</div>
+          <button data-log="club" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#7c3aed;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ WORKOUT</button>
         </div>` : ''}
+
         ${prog && prog.hyrox ? `
-        <div class="program-section" style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem;">
-          <div style="flex:1;min-width:0;">
-            <div class="program-section-label" style="color:#38bdf8;">🏃 Hyrox</div>
-            <div class="program-section-text">${enrichProgramText(prog.hyrox)}</div>
-          </div>
-          <button data-log="hyrox" style="flex-shrink:0;margin-top:0.15rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;background:#0369a1;color:#fff;border:none;border-radius:3px;padding:0.35rem 0.7rem;cursor:pointer;white-space:nowrap;">+ WORKOUT</button>
+        <div style="background:var(--card);border:1px solid rgba(56,189,248,0.4);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
+          <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#38bdf8;margin-bottom:0.5rem;">🏃 Hyrox</div>
+          <div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.hyrox)}</div>
+          <button data-log="hyrox" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#0369a1;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ WORKOUT</button>
         </div>` : ''}
+
         ${prog && prog.endurance ? `
-        <div class="program-section" style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem;">
-          <div style="flex:1;min-width:0;">
-            <div class="program-section-label" style="color:#34d399;">🏅 Endurance</div>
-            <div class="program-section-text">${enrichProgramText(prog.endurance)}</div>
-          </div>
-          <button data-log="endurance" style="flex-shrink:0;margin-top:0.15rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;background:#065f46;color:#fff;border:none;border-radius:3px;padding:0.35rem 0.7rem;cursor:pointer;white-space:nowrap;">+ WORKOUT</button>
+        <div style="background:var(--card);border:1px solid rgba(52,211,153,0.4);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
+          <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#34d399;margin-bottom:0.5rem;">🏅 Endurance</div>
+          <div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.endurance)}</div>
+          <button data-log="endurance" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#065f46;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ WORKOUT</button>
         </div>` : ''}
+
         ${prog && prog.oly ? `
-        <div class="program-section" style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem;">
-          <div style="flex:1;min-width:0;">
-            <div class="program-section-label" style="color:#fbbf24;">🏅 OLY</div>
-            <div class="program-section-text">${enrichProgramText(prog.oly)}</div>
-          </div>
-          <button data-log="oly" style="flex-shrink:0;margin-top:0.15rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;background:#b45309;color:#fff;border:none;border-radius:3px;padding:0.35rem 0.7rem;cursor:pointer;white-space:nowrap;">+ WORKOUT</button>
+        <div style="background:var(--card);border:1px solid rgba(251,191,36,0.4);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
+          <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#fbbf24;margin-bottom:0.5rem;">🏅 OLY</div>
+          <div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.oly)}</div>
+          <button data-log="oly" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#b45309;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ WORKOUT</button>
         </div>` : ''}
+
       </div>`;
       return `
       ${banner}
