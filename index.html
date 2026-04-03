@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lerumsboxen Workout Tracker v30</title>
+<title>Lerumsboxen Workout Tracker v31</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@300;400;600;700&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -946,8 +946,11 @@
   .program-section-text {
     font-size: 0.88rem;
     color: var(--text);
-    white-space: pre-wrap;
-    line-height: 1.5;
+    line-height: 1.6;
+  }
+  .program-section-text b {
+    color: var(--text);
+    font-weight: 700;
   }
 
   /* FULLSCREEN TIMER OVERLAY */
@@ -3327,31 +3330,29 @@ function calcWeight(rm, pct) {
 
 function enrichProgramText(text) {
   if (!text) return text;
+  // Text may contain <b> tags from rich text — split on \n but preserve HTML
   const lines = text.split('\n');
   const sortedMovements = [...MOVEMENTS].sort((a, b) => b.length - a.length);
 
-  return lines.map((line, idx) => {
-    const pctMatch = line.match(/(\d{1,3})\s*%\s*(\+?)(?:\s*of\s*1\s*RM)?/i);
+  const processed = lines.map((line, idx) => {
+    // Strip tags for matching purposes only
+    const plainLine = line.replace(/<[^>]+>/g, '');
+    const pctMatch = plainLine.match(/(\d{1,3})\s*%\s*(\+?)(?:\s*of\s*1\s*RM)?/i);
     if (!pctMatch) return line;
     const pct = parseFloat(pctMatch[1]);
     const plus = pctMatch[2] === '+' ? '+' : '';
     if (pct <= 0 || pct > 100) return line;
 
-    // Search current line AND the line above for a movement name
-    const prevLine = idx > 0 ? lines[idx - 1] : '';
-    const searchText = line + ' ' + prevLine;
+    const prevLine = idx > 0 ? lines[idx - 1].replace(/<[^>]+>/g, '') : '';
+    const searchText = plainLine + ' ' + prevLine;
 
     let matchedPR = null;
-
-    // Try known movements first (longest match wins)
     for (const mv of sortedMovements) {
       if (searchText.toLowerCase().includes(mv.toLowerCase())) {
         const pr = getBestPR(mv);
         if (pr) { matchedPR = pr; break; }
       }
     }
-
-    // Fallback: partial word matching across both lines
     if (!matchedPR) {
       const words = searchText.replace(/[^a-zA-ZåäöÅÄÖ\s]/g, ' ').split(/\s+/).filter(w => w.length > 3);
       for (const word of words) {
@@ -3359,13 +3360,16 @@ function enrichProgramText(text) {
         if (pr) { matchedPR = pr; break; }
       }
     }
-
     if (!matchedPR) return line;
 
     const weight = calcWeight(matchedPR.value, pct);
     const annotation = `<span style="color:#4ade80;font-weight:700;"> → ${weight}${plus} </span>`;
+    // Replace in the original line (which may have HTML tags)
     return line.replace(pctMatch[0], pctMatch[0] + annotation);
-  }).join('\n');
+  });
+
+  // Join with <br> so newlines render correctly alongside HTML bold tags
+  return processed.join('<br>');
 }
 
 // ===== DAILY PROGRAM =====
