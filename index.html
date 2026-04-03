@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lerumsboxen Workout Tracker v29</title>
+<title>Lerumsboxen Workout Tracker v30</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@300;400;600;700&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -1211,7 +1211,8 @@
   if (action === "getProgram") {
     var sheet = ss.getSheetByName(sheetName || "2026");
     if (!sheet) return json({error: "Sheet not found: " + (sheetName || "2026")});
-    var vals = sheet.getDataRange().getValues();
+    var range = sheet.getDataRange();
+    var vals = range.getValues();
     if (vals.length < 2) return json({program: {}});
     // Use column indexes sent from app if available, otherwise detect from headers
     var cols = data.cols || {};
@@ -1223,20 +1224,47 @@
     var hyroxIdx    = (cols.hyrox    >= 0) ? cols.hyrox    : (hdrs.indexOf("hyrox")    >= 0 ? hdrs.indexOf("hyrox")    : 5);
     var endurIdx    = (cols.endurance>= 0) ? cols.endurance: (hdrs.indexOf("endurance - hyrox") >= 0 ? hdrs.indexOf("endurance - hyrox") : 6);
     var olyIdx      = (cols.oly      >= 0) ? cols.oly      : (hdrs.indexOf("oly")      >= 0 ? hdrs.indexOf("oly")      : 7);
+
+    // Get rich text to preserve bold formatting
+    var richVals = range.getRichTextValues();
+
+    // Convert a rich text cell to HTML with <b> tags for bold runs
+    function richToHtml(richCell) {
+      if (!richCell) return "";
+      var text = richCell.getText();
+      if (!text) return "";
+      try {
+        var runs = richCell.getRuns();
+        if (!runs || runs.length === 0) return text;
+        var html = "";
+        runs.forEach(function(run) {
+          var t = run.getText();
+          if (!t) return;
+          var style = run.getTextStyle();
+          var bold = style && style.isBold && style.isBold();
+          html += bold ? "<b>" + t + "</b>" : t;
+        });
+        return html || text;
+      } catch(e) {
+        return text;
+      }
+    }
+
     var tz = Session.getScriptTimeZone();
     var program = {};
-    vals.slice(1).forEach(function(row) {
+    vals.slice(1).forEach(function(row, rowIdx) {
       var d = row[dateIdx];
       if (!d) return;
       var date = (d instanceof Date) ? d : new Date(d);
       if (isNaN(date.getTime())) return;
       var iso = Utilities.formatDate(date, tz, "yyyy-MM-dd");
-      var strength = (row[strengthIdx] || "").toString().trim();
-      var workout  = (row[workoutIdx]  || "").toString().trim();
-      var club     = (row[clubIdx]     || "").toString().trim();
-      var hyrox    = (row[hyroxIdx]    || "").toString().trim();
-      var endur    = (row[endurIdx]    || "").toString().trim();
-      var oly      = (row[olyIdx]      || "").toString().trim();
+      var richRow = richVals[rowIdx + 1]; // +1 for header row offset
+      var strength = richRow ? richToHtml(richRow[strengthIdx]) : (row[strengthIdx] || "").toString().trim();
+      var workout  = richRow ? richToHtml(richRow[workoutIdx])  : (row[workoutIdx]  || "").toString().trim();
+      var club     = richRow ? richToHtml(richRow[clubIdx])     : (row[clubIdx]     || "").toString().trim();
+      var hyrox    = richRow ? richToHtml(richRow[hyroxIdx])    : (row[hyroxIdx]    || "").toString().trim();
+      var endur    = richRow ? richToHtml(richRow[endurIdx])    : (row[endurIdx]    || "").toString().trim();
+      var oly      = richRow ? richToHtml(richRow[olyIdx])      : (row[olyIdx]      || "").toString().trim();
       if (strength || workout || club || hyrox || endur || oly)
         program[iso] = {strength: strength, workout: workout, club: club, hyrox: hyrox, endurance: endur, oly: oly};
     });
