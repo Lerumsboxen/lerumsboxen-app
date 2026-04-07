@@ -1402,11 +1402,13 @@
     if (!sheet || sheet.getLastRow() < 2) return json({members: []});
     var vals = sheet.getDataRange().getValues();
     var members = vals.slice(1).map(function(row) {
-      // Col E (index 4) = "admin" to grant admin access
-      // Col F (index 5) = "preview" to grant future program preview
+      // Col E (index 4) = "admin" → admin access
+      // Col F (index 5) = "preview" → future program preview
+      // Col G (index 6) = "lbwl" → LB Weightlifting program access
       var isAdmin = row[4] && row[4].toString().toLowerCase().trim() === "admin";
       var isPreview = row[5] && row[5].toString().toLowerCase().trim() === "preview";
-      return {name: row[0], avatar: row[1], registered: row[2], lastSeen: row[3], admin: isAdmin, preview: isPreview};
+      var isLBWL = row[6] && row[6].toString().toLowerCase().trim() === "lbwl";
+      return {name: row[0], avatar: row[1], registered: row[2], lastSeen: row[3], admin: isAdmin, preview: isPreview, lbwl: isLBWL};
     }).filter(function(m) { return m.name; });
     return json({members: members});
   }
@@ -1421,6 +1423,21 @@
       if (vals[r][0] === targetName) {
         sheet.getRange(r + 1, 6).setValue(enable ? "preview" : "");
         return json({status: "ok", memberName: targetName, preview: enable});
+      }
+    }
+    return json({error: "Member not found: " + targetName});
+  }
+
+  if (action === "setMemberLBWL") {
+    var sheet = ss.getSheetByName("Members");
+    if (!sheet) return json({error: "Members sheet not found"});
+    var targetName = data.memberName || "";
+    var enable = data.enable === true;
+    var vals = sheet.getDataRange().getValues();
+    for (var r = 1; r < vals.length; r++) {
+      if (vals[r][0] === targetName) {
+        sheet.getRange(r + 1, 7).setValue(enable ? "lbwl" : "");
+        return json({status: "ok", memberName: targetName, lbwl: enable});
       }
     }
     return json({error: "Member not found: " + targetName});
@@ -1676,6 +1693,28 @@ function json(obj) {
       <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
         <button class="btn btn-sm" style="background:#fbbf24;color:#000;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:2px;cursor:pointer;" onclick="fetchDailyProgram()">⟳ SYNC NOW</button>
         <button class="btn btn-ghost btn-sm" onclick="state.dailyProgram={};save();fetchDailyProgram();showToast('Cache cleared — re-syncing…')">🗑 Clear & re-sync</button>
+      </div>
+
+      <!-- LB Weightlifting Program Settings (only if enabled) -->
+      ${isLBWLEnabled() ? `
+      <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);">
+        <div style="font-family:'Barlow Condensed';font-size:0.75rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:0.5rem;">🏋️ LB Weightlifting Program</div>
+        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;">
+          <label style="font-size:0.8rem;color:var(--muted);white-space:nowrap;">Week 1 Start Date</label>
+          <input type="date" id="lbwlStartDate"
+            value="${localStorage.getItem('lerums_lbwl_start_date')||''}"
+            onchange="localStorage.setItem('lerums_lbwl_start_date',this.value)"
+            style="flex:1;padding:0.35rem 0.5rem;font-size:0.82rem;">
+        </div>
+        <div style="display:flex;gap:0.5rem;">
+          <button class="btn btn-sm" style="background:#fbbf24;color:#000;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:2px;cursor:pointer;" onclick="fetchLBWLProgram()">⟳ Sync LB Lifting</button>
+          <button class="btn btn-ghost btn-sm" onclick="localStorage.removeItem('lerums_lbwl_program');localStorage.removeItem('lerums_lbwl_last_sync');fetchLBWLProgram();showToast('LB Lifting cache cleared')">🗑 Clear & re-sync</button>
+        </div>
+        <div id="lbwlSyncStatus" style="margin-top:0.4rem;font-size:0.75rem;color:var(--muted);">
+          ${localStorage.getItem('lerums_lbwl_last_sync') ? '✓ Last synced: ' + localStorage.getItem('lerums_lbwl_last_sync') : 'Not synced yet'}
+        </div>
+      </div>` : ''}
+      <div style="display:none;">
         <button class="btn btn-ghost btn-sm" onclick="diagProgramSync()">🔍 Check columns</button>
         <button class="btn btn-ghost btn-sm" onclick="debugBoldCell()">🔤 Debug bold</button>
         <button class="btn btn-ghost btn-sm" onclick="inspectStoredProgram()">👁 Inspect stored</button>
@@ -1824,7 +1863,8 @@ function json(obj) {
 
 <script>
 // ===== STATE =====
-const APP_VERSION = 'v80';
+const APP_VERSION = 'v81';
+const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
   wods: [],
   prs: [],
@@ -2027,7 +2067,15 @@ const DASH_SECTIONS = {
         <button id="dlt-strength" onclick="switchDashLogTab('strength')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.4rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;">Strength</button>
         <button id="dlt-wod" onclick="switchDashLogTab('wod')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.4rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;">Workouts</button>
       </div>
-      <div id="dash-log-list"></div>`;
+      <div id="dash-log-list"></div>
+      ${isLBWLEnabled() ? `
+      <div id="dash-lbwl-section" style="margin-top:1.5rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+          <span style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#fbbf24;">🏋️ LB Weightlifting</span>
+          <button onclick="fetchLBWLProgram()" style="font-family:'Barlow Condensed';font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;background:none;border:1px solid var(--border);border-radius:3px;color:var(--muted);padding:0.2rem 0.5rem;cursor:pointer;">⟳ Sync</button>
+        </div>
+        ${renderLBWLSection()}
+      </div>` : ''}`;
     }
   },
   prs: {
@@ -2159,6 +2207,56 @@ function selectDashSection(section) {
   dc.innerHTML = cfg.build();
   cfg.render();
   window.scrollTo(0, 0);
+}
+
+function renderLBWLSection() {
+  const program = JSON.parse(localStorage.getItem('lerums_lbwl_program') || '{}');
+  const startDate = localStorage.getItem('lerums_lbwl_start_date') || '';
+  const lastSync = localStorage.getItem('lerums_lbwl_last_sync') || '';
+
+  if (!startDate) {
+    return `<div style="padding:1rem;background:var(--card);border:1px solid var(--border);border-radius:6px;font-size:0.83rem;color:var(--muted);text-align:center;">
+      Set Week 1 Start Date in <a href="#" onclick="showPage('sync');return false;" style="color:var(--red);">Sync settings</a> to see your program.
+    </div>`;
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  // Show this week's sessions
+  const todayDate = new Date(today + 'T00:00:00');
+  const dayOfWeek = todayDate.getDay(); // 0=Sun
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const weekStart = new Date(todayDate);
+  weekStart.setDate(todayDate.getDate() + mondayOffset);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+
+  const weekDates = [];
+  for (let d = new Date(weekStart); d <= weekEnd; d.setDate(d.getDate() + 1)) {
+    weekDates.push(d.toISOString().split('T')[0]);
+  }
+
+  const sessions = weekDates.filter(d => program[d]).map(d => ({ date: d, ...program[d] }));
+
+  if (!sessions.length) {
+    const hasFuture = Object.keys(program).some(d => d >= today);
+    return `<div style="padding:1rem;background:var(--card);border:1px solid var(--border);border-radius:6px;font-size:0.83rem;color:var(--muted);text-align:center;">
+      ${lastSync ? 'No sessions this week.' : 'Tap ⟳ Sync to load the LB Lifting program.'}
+    </div>`;
+  }
+
+  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  return sessions.map(s => {
+    const d = new Date(s.date + 'T00:00:00');
+    const isToday = s.date === today;
+    const isPast = s.date < today;
+    const dayLabel = dayNames[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth()+1);
+    return `<div style="margin-bottom:0.75rem;padding:0.85rem 1rem;background:var(--card);border:1px solid ${isToday ? '#fbbf24' : 'var(--border)'};border-radius:6px;opacity:${isPast && !isToday ? '0.6' : '1'};">
+      <div style="font-family:'Barlow Condensed';font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:${isToday ? '#fbbf24' : 'var(--muted)'};margin-bottom:0.4rem;">
+        ${isToday ? '▶ TODAY — ' : ''}${dayLabel} · Session ${s.session}
+      </div>
+      <div style="font-size:0.83rem;line-height:1.6;white-space:pre-wrap;">${enrichProgramText(s.text)}</div>
+    </div>`;
+  }).join('');
 }
 
 function renderDashLogTab() {
@@ -4489,6 +4587,94 @@ function isProgramPreview() {
   } catch(e) { return false; }
 }
 
+function isLBWLEnabled() {
+  // Users granted LB Weightlifting program access via col G of Members sheet
+  if (isAdmin()) return true;
+  try {
+    if (membersCache) {
+      const me = membersCache.find(m => m.name === profile.name);
+      if (me) return !!me.lbwl;
+    }
+    const list = JSON.parse(localStorage.getItem('lerums_lbwl_access') || '[]');
+    return list.includes(profile.name);
+  } catch(e) { return false; }
+}
+
+async function toggleLBWLAccess(memberName) {
+  if (!isAdmin()) return;
+  try {
+    const member = (membersCache || []).find(m => m.name === memberName);
+    const currentlyEnabled = member ? !!member.lbwl : false;
+    const enable = !currentlyEnabled;
+
+    // Update membersCache immediately
+    if (membersCache) {
+      membersCache = membersCache.map(m =>
+        m.name === memberName ? {...m, lbwl: enable} : m
+      );
+    }
+    // Update localStorage fallback
+    let list = JSON.parse(localStorage.getItem('lerums_lbwl_access') || '[]');
+    if (enable) { if (!list.includes(memberName)) list.push(memberName); }
+    else { list = list.filter(n => n !== memberName); }
+    localStorage.setItem('lerums_lbwl_access', JSON.stringify(list));
+
+    renderMembersList();
+
+    // Persist to sheet via Apps Script (col G = "lbwl")
+    const res = await xhrPost(APPS_SCRIPT_URL, {
+      action: 'setMemberLBWL',
+      memberName: memberName,
+      enable: enable
+    });
+    if (res.error) showToast('⚠ Could not save: ' + res.error);
+    else showToast(enable ? '🏋️ LB Lifting enabled for ' + memberName : '🏋️ LB Lifting removed for ' + memberName);
+  } catch(e) { showToast('⚠ Error: ' + e.message); }
+}
+
+// Fetch and cache the LB Weightlifting program from the separate script
+async function fetchLBWLProgram(silent = false) {
+  const startDate = localStorage.getItem('lerums_lbwl_start_date') || '';
+  if (!startDate) {
+    if (!silent) showToast('⚠ Set LB Lifting start date in Sync settings');
+    return;
+  }
+  try {
+    const data = await xhrPost(LBWL_SCRIPT_URL, {
+      action: 'getProgram',
+      sheet: 'LBWT',
+      cols: { date: 0, strength: 1, workout: 2 },
+      programStartDate: startDate
+    });
+    if (data.error) throw new Error(data.error);
+    if (!data.entries) throw new Error('No entries returned');
+
+    const startDay = new Date(startDate + 'T00:00:00');
+    const sessionOffsets = [0, 2, 4]; // Mon/Wed/Fri or similar
+    const today = new Date(); today.setHours(0,0,0,0);
+    const maxDate = new Date(today); maxDate.setDate(today.getDate() + 14);
+
+    const program = {};
+    data.entries.forEach(entry => {
+      const weekOffset = (entry.week - 1) * 7;
+      const dayOffset = sessionOffsets[(entry.day - 1) % 3] || 0;
+      const d = new Date(startDay);
+      d.setDate(startDay.getDate() + weekOffset + dayOffset);
+      if (d > maxDate) return;
+      const iso = d.toISOString().split('T')[0];
+      program[iso] = { session: entry.day, text: entry.text };
+    });
+
+    localStorage.setItem('lerums_lbwl_program', JSON.stringify(program));
+    localStorage.setItem('lerums_lbwl_last_sync', new Date().toLocaleString('en-SE'));
+    if (!silent) showToast('🏋️ LB Lifting program synced!');
+    // Re-render if in log section
+    if (currentDashSection === 'log') selectDashSection('log');
+  } catch(e) {
+    if (!silent) showToast('🏋️ LB Lifting sync failed: ' + e.message);
+  }
+}
+
 async function toggleProgramPreview(memberName) {
   if (!isAdmin()) return;
   try {
@@ -4956,6 +5142,14 @@ function renderMembersList() {
             📅 ${hasPreview ? 'Preview ON' : 'Preview'}
           </button>`
         : '';
+      const hasLBWL = previewList.includes(m.name + '_lbwl') || (membersCache && membersCache.find(x => x.name === m.name)?.lbwl);
+      const lbwlBtn = adminView && m.name !== profile.name
+        ? `<button onclick="event.stopPropagation();toggleLBWLAccess('${m.name.replace(/'/g,"\\'")}');return false;"
+            title="${hasLBWL ? 'Remove LB Lifting access' : 'Give LB Lifting access'}"
+            style="flex-shrink:0;background:${hasLBWL ? 'rgba(251,191,36,0.15)' : 'var(--card2)'};border:1px solid ${hasLBWL ? '#fbbf24' : 'var(--border)'};border-radius:4px;padding:0.3rem 0.55rem;cursor:pointer;font-size:0.7rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${hasLBWL ? '#fbbf24' : 'var(--muted)'};white-space:nowrap;">
+            🏋️ ${hasLBWL ? 'Lifting ON' : 'Lifting'}
+          </button>`
+        : '';
       return `<div onclick="openMemberProfile('${m.name.replace(/'/g,"\\'")}','${(m.avatar||'💪').replace(/'/g,"\\'")}' )"
         style="display:flex;align-items:center;gap:0.75rem;padding:0.85rem 1rem;background:var(--card);border:1px solid var(--border);border-radius:6px;margin-bottom:0.5rem;cursor:pointer;transition:border-color 0.15s;"
         onmouseover="this.style.borderColor='var(--red)'" onmouseout="this.style.borderColor='var(--border)'">
@@ -4965,6 +5159,7 @@ function renderMembersList() {
           ${m.lastSeen ? `<div style="font-size:0.72rem;color:var(--muted);">Last seen ${formatDate(m.lastSeen?.toString().split('T')[0])}</div>` : ''}
         </div>
         ${previewBtn}
+        ${lbwlBtn}
         <div style="color:var(--muted);font-size:1rem;flex-shrink:0;">›</div>
       </div>`;
     }).join('');
@@ -5054,6 +5249,9 @@ async function fetchMembers() {
       // Cache preview names as fallback
       const previewNames = data.members.filter(m => m.preview).map(m => m.name);
       localStorage.setItem('lerums_program_preview', JSON.stringify(previewNames));
+      // Cache LBWL access names as fallback
+      const lbwlNames = data.members.filter(m => m.lbwl).map(m => m.name);
+      localStorage.setItem('lerums_lbwl_access', JSON.stringify(lbwlNames));
 
       // DEBUG: show what came back for this user
       const myEntry = data.members.find(m => m.name === profile.name);
@@ -5453,6 +5651,8 @@ autoSyncProgramIfEnabled();
 setTimeout(() => showToast('✅ App v80 loaded'), 500);
 // Always fetch members (needed for preview status even without full profile)
 setTimeout(() => fetchMembers(), 4000);
+// Auto-sync LB Lifting program if user has access
+setTimeout(() => { if (isLBWLEnabled()) fetchLBWLProgram(true); }, 6000);
 if (!profile.name) {
   setTimeout(() => { showToast('👋 Welcome! Tap your avatar to set up your profile.'); }, 1000);
 } else {
