@@ -1085,6 +1085,9 @@
         <span class="home-btn-label">Movements</span>
         <span class="home-btn-sub">Exercise library</span>
       </button>
+      <div style="grid-column: 1 / -1; display:flex; justify-content:flex-end; padding: 0 0.25rem 0.25rem;">
+        <button onclick="fetchDailyProgram()" style="background:#fbbf24;color:#000;font-family:'Barlow Condensed';font-size:0.95rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:4px;padding:0.5rem 1.2rem;cursor:pointer;display:flex;align-items:center;gap:0.4rem;">⟳ SYNC PROGRAM</button>
+      </div>
       <div id="bottom-btns-row" style="grid-column: 1 / -1; display: flex; gap: 0.75rem; justify-content: center;">
         <button class="home-btn" id="hbtn-leaderboard" onclick="selectDashSection('leaderboard')" style="flex:1;max-width:25%;">
           <span class="home-btn-icon">🥇</span>
@@ -1800,7 +1803,7 @@ function json(obj) {
 
 <script>
 // ===== STATE =====
-const APP_VERSION = 'v70';
+const APP_VERSION = 'v71';
 let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
   wods: [],
   prs: [],
@@ -4177,7 +4180,7 @@ async function fetchDailyProgram(silent = false) {
 }
 
 function autoSyncProgramIfEnabled() {
-  if (localStorage.getItem('lb_lerums_program_auto') === '1') {
+  if (true) { // Always auto-sync for all users
     const lastSync = localStorage.getItem('lb_lerums_program_last_sync') || '';
     const today = new Date().toDateString();
     const lastDate = lastSync ? new Date(lastSync).toDateString() : '';
@@ -4436,9 +4439,9 @@ function isAdmin() {
 }
 
 function applyAdminVisibility() {
-  // Sync header button — visible to ALL users
+  // Sync header button — admin only (dashboard has SYNC PROGRAM for all)
   const syncBtn = document.getElementById('headerSyncBtn');
-  if (syncBtn) syncBtn.style.display = '';
+  if (syncBtn) syncBtn.style.display = isAdmin() ? '' : 'none';
   // Sync tab in bottom nav — admin only
   document.querySelectorAll('.tab').forEach(t => {
     if (t.textContent.includes('Sync')) t.style.display = isAdmin() ? '' : 'none';
