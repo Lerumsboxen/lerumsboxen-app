@@ -1402,11 +1402,28 @@
     if (!sheet || sheet.getLastRow() < 2) return json({members: []});
     var vals = sheet.getDataRange().getValues();
     var members = vals.slice(1).map(function(row) {
-      // Col E (index 4) can be "admin" to grant admin access
+      // Col E (index 4) = "admin" to grant admin access
+      // Col F (index 5) = "preview" to grant future program preview
       var isAdmin = row[4] && row[4].toString().toLowerCase().trim() === "admin";
-      return {name: row[0], avatar: row[1], registered: row[2], lastSeen: row[3], admin: isAdmin};
+      var isPreview = row[5] && row[5].toString().toLowerCase().trim() === "preview";
+      return {name: row[0], avatar: row[1], registered: row[2], lastSeen: row[3], admin: isAdmin, preview: isPreview};
     }).filter(function(m) { return m.name; });
     return json({members: members});
+  }
+
+  if (action === "setMemberPreview") {
+    var sheet = ss.getSheetByName("Members");
+    if (!sheet) return json({error: "Members sheet not found"});
+    var targetName = data.memberName || "";
+    var enable = data.enable === true;
+    var vals = sheet.getDataRange().getValues();
+    for (var r = 1; r < vals.length; r++) {
+      if (vals[r][0] === targetName) {
+        sheet.getRange(r + 1, 6).setValue(enable ? "preview" : "");
+        return json({status: "ok", memberName: targetName, preview: enable});
+      }
+    }
+    return json({error: "Member not found: " + targetName});
   }
 
   if (action === "debugCell") {
@@ -1807,7 +1824,7 @@ function json(obj) {
 
 <script>
 // ===== STATE =====
-const APP_VERSION = 'v75';
+const APP_VERSION = 'v76';
 let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
   wods: [],
   prs: [],
@@ -4457,27 +4474,56 @@ function isAdmin() {
 }
 
 function isProgramPreview() {
-  // Users granted "program preview" by admin — can see future dates but not sync settings
+  // Users granted "program preview" by admin via col F of Members sheet
+  if (isAdmin()) return true; // admins always have preview
   try {
+    // Check membersCache first (live data from sheet)
+    if (membersCache) {
+      const me = membersCache.find(m => m.name === profile.name);
+      if (me) return !!me.preview;
+    }
+    // Fallback to localStorage cache
     const list = JSON.parse(localStorage.getItem('lerums_program_preview') || '[]');
     return list.includes(profile.name);
   } catch(e) { return false; }
 }
 
-function toggleProgramPreview(memberName) {
+async function toggleProgramPreview(memberName) {
   if (!isAdmin()) return;
   try {
-    let list = JSON.parse(localStorage.getItem('lerums_program_preview') || '[]');
-    if (list.includes(memberName)) {
-      list = list.filter(n => n !== memberName);
-      showToast('📅 Program preview removed for ' + memberName);
-    } else {
-      list.push(memberName);
-      showToast('📅 Program preview enabled for ' + memberName);
+    // Find current state from membersCache
+    const member = (membersCache || []).find(m => m.name === memberName);
+    const currentlyEnabled = member ? !!member.preview : false;
+    const enable = !currentlyEnabled;
+
+    // Optimistically update membersCache immediately for instant UI feedback
+    if (membersCache) {
+      membersCache = membersCache.map(m =>
+        m.name === memberName ? {...m, preview: enable} : m
+      );
     }
+    // Also update localStorage fallback list
+    let list = JSON.parse(localStorage.getItem('lerums_program_preview') || '[]');
+    if (enable) { if (!list.includes(memberName)) list.push(memberName); }
+    else { list = list.filter(n => n !== memberName); }
     localStorage.setItem('lerums_program_preview', JSON.stringify(list));
-    renderMembersList(); // re-render to reflect change
-  } catch(e) {}
+
+    renderMembersList(); // instant UI update
+
+    // Persist to sheet via Apps Script
+    const res = await xhrPost(APPS_SCRIPT_URL, {
+      action: 'setMemberPreview',
+      memberName: memberName,
+      enable: enable
+    });
+    if (res.error) {
+      showToast('⚠ Could not save: ' + res.error);
+    } else {
+      showToast(enable ? '📅 Preview enabled for ' + memberName : '📅 Preview removed for ' + memberName);
+    }
+  } catch(e) {
+    showToast('⚠ Error: ' + e.message);
+  }
 }
 
 function applyAdminVisibility() {
@@ -5002,6 +5048,9 @@ async function fetchMembers() {
       // Cache admin names for isAdmin() lookup
       const adminNames = data.members.filter(m => m.admin).map(m => m.name);
       localStorage.setItem('lerums_admin_members', JSON.stringify(adminNames));
+      // Cache preview names as fallback
+      const previewNames = data.members.filter(m => m.preview).map(m => m.name);
+      localStorage.setItem('lerums_program_preview', JSON.stringify(previewNames));
       // Re-apply visibility now that admin list is known
       applyAdminVisibility();
       // Re-render log section (date nav depends on isAdmin)
