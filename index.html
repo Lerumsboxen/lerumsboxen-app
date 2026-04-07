@@ -1393,6 +1393,14 @@
     }
     if (!found) {
       sheet.appendRow([name, avatar, new Date().toISOString(), new Date().toISOString()]);
+      // Send email notification for new member
+      try {
+        MailApp.sendEmail({
+          to: "calle@lerumsboxen.com",
+          subject: "🥊 New member: " + name,
+          body: "A new member just registered in Lerumsboxen!\n\nName: " + name + "\nAvatar: " + avatar + "\nRegistered: " + new Date().toLocaleString() + "\n\nGo to Box Buddies in the app to grant them program access."
+        });
+      } catch(e) { /* email failed silently */ }
     }
     return json({status: "ok"});
   }
@@ -1861,7 +1869,7 @@ function json(obj) {
 
 <script>
 // ===== STATE =====
-const APP_VERSION = 'v84';
+const APP_VERSION = 'v85';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
   wods: [],
