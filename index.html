@@ -1824,7 +1824,7 @@ function json(obj) {
 
 <script>
 // ===== STATE =====
-const APP_VERSION = 'v77';
+const APP_VERSION = 'v78';
 let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
   wods: [],
   prs: [],
@@ -5054,9 +5054,12 @@ async function fetchMembers() {
       localStorage.setItem('lerums_program_preview', JSON.stringify(previewNames));
       // Re-apply visibility now that admin list is known
       applyAdminVisibility();
-      // Re-render log section (date nav depends on isAdmin + isProgramPreview)
-      // Always re-render so preview users get the › button unlocked immediately
-      renderCurrentLogTab();
+      // Rebuild the log section HTML so the › nav button reflects new preview status
+      // Must call selectDashSection (not just renderCurrentLogTab) because the nav
+      // button is built inside cfg.build(), not renderDashLogTab()
+      if (currentDashSection === 'log') {
+        selectDashSection('log');
+      }
       if (adminNames.includes(profile.name)) {
         console.log('[Admin] Admin confirmed for:', profile.name);
       }
