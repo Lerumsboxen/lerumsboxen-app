@@ -5449,6 +5449,8 @@ document.getElementById('configStopwatch').style.display = 'block';
 document.getElementById('headerHomeBtn')?.classList.add('on-home');
 updateHeaderProfile();
 autoSyncProgramIfEnabled();
+// Debug startup toast — remove after debugging
+setTimeout(() => showToast('✅ App v80 loaded'), 500);
 // Always fetch members (needed for preview status even without full profile)
 setTimeout(() => fetchMembers(), 4000);
 if (!profile.name) {
