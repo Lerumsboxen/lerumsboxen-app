@@ -1675,6 +1675,7 @@ function json(obj) {
         <div>🏆 PRs logged: <strong id="sumPRs" style="color:var(--text);">0</strong></div>
         <div>☁ Last synced: <strong id="sumLastSync" style="color:var(--text);">Never</strong></div>
         <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border);">📦 App version: <strong id="sumVersion" style="color:var(--text);">—</strong></div>
+        <div>🔑 Admin: <strong id="sumAdmin" style="color:var(--text);">—</strong></div>
       </div>
     </div>
   </div>
@@ -1803,7 +1804,7 @@ function json(obj) {
 
 <script>
 // ===== STATE =====
-const APP_VERSION = 'v72';
+const APP_VERSION = 'v73';
 let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
   wods: [],
   prs: [],
@@ -3341,6 +3342,17 @@ function updateSyncSummary() {
   if (progStatus && lastProg) {
     progStatus.textContent = '✓ Last synced: ' + lastProg;
     progStatus.style.color = 'var(--success)';
+  }
+  // Version
+  const verEl = document.getElementById('sumVersion');
+  if (verEl) verEl.textContent = APP_VERSION;
+  // Admin diagnostic
+  const adminEl = document.getElementById('sumAdmin');
+  if (adminEl) {
+    const names = JSON.parse(localStorage.getItem('lerums_admin_members') || '[]');
+    const am = isAdmin();
+    adminEl.textContent = am ? '✓ Yes' : (names.length ? 'No (sheet admins: ' + names.join(', ') + ')' : 'No (no admins in sheet yet — sync needed)');
+    adminEl.style.color = am ? 'var(--success)' : '#aaa';
   }
 }
 
@@ -4946,9 +4958,16 @@ async function fetchMembers() {
       // Cache admin names for isAdmin() lookup
       const adminNames = data.members.filter(m => m.admin).map(m => m.name);
       localStorage.setItem('lerums_admin_members', JSON.stringify(adminNames));
-      // Re-apply visibility and always re-render log so date nav picks up correct admin status
+      // Re-apply visibility now that admin list is known
       applyAdminVisibility();
-      if (currentDashSection === 'log') selectDashSection('log');
+      // Re-render log section (date nav depends on isAdmin)
+      if (document.getElementById('page-log')?.classList.contains('active') ||
+          currentDashSection === 'log') {
+        renderCurrentLogTab();
+      }
+      if (adminNames.includes(profile.name)) {
+        console.log('[Admin] Admin confirmed for:', profile.name);
+      }
     }
   } catch(e) { /* silent */ }
 }

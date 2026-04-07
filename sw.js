@@ -1,4 +1,4 @@
-const CACHE = 'app-v3';
+const CACHE = 'app-v5';
 
 self.addEventListener('install', e => {
   self.skipWaiting();
@@ -16,17 +16,17 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // Only handle GET requests for same-origin
   if (e.request.method !== 'GET') return;
   e.respondWith(
-    caches.match(e.request).then(cached => {
-      return cached || fetch(e.request).then(res => {
+    // Network-first: always try fresh from network, cache only as offline fallback
+    fetch(e.request)
+      .then(res => {
         if (res && res.status === 200) {
           const clone = res.clone();
           caches.open(CACHE).then(c => c.put(e.request, clone));
         }
         return res;
-      }).catch(() => caches.match('./'));
-    })
+      })
+      .catch(() => caches.match(e.request))
   );
 });
