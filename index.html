@@ -1824,7 +1824,7 @@ function json(obj) {
 
 <script>
 // ===== STATE =====
-const APP_VERSION = 'v79';
+const APP_VERSION = 'v80';
 let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
   wods: [],
   prs: [],
@@ -5042,8 +5042,10 @@ async function registerMember() {
 }
 
 async function fetchMembers() {
+  showToast('🔄 Fetching members…');
   try {
     const data = await xhrPost(APPS_SCRIPT_URL, { action: 'getMembers' });
+    showToast('📋 Got ' + (data.members ? data.members.length : 0) + ' members from sheet');
     if (data.members) {
       membersCache = data.members;
       // Cache admin names for isAdmin() lookup
@@ -5447,12 +5449,13 @@ document.getElementById('configStopwatch').style.display = 'block';
 document.getElementById('headerHomeBtn')?.classList.add('on-home');
 updateHeaderProfile();
 autoSyncProgramIfEnabled();
+// Always fetch members (needed for preview status even without full profile)
+setTimeout(() => fetchMembers(), 4000);
 if (!profile.name) {
   setTimeout(() => { showToast('👋 Welcome! Tap your avatar to set up your profile.'); }, 1000);
 } else {
   setTimeout(() => autoCloudSync(), 1500);
   setTimeout(() => registerMember(), 3000);
-  setTimeout(() => fetchMembers(), 4000);
   setTimeout(() => checkNewChallenges(), 5000);
   // Non-admins: auto-sync program silently on first login
   if (!isAdmin()) {
