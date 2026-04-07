@@ -1824,7 +1824,7 @@ function json(obj) {
 
 <script>
 // ===== STATE =====
-const APP_VERSION = 'v78';
+const APP_VERSION = 'v79';
 let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
   wods: [],
   prs: [],
@@ -5052,19 +5052,25 @@ async function fetchMembers() {
       // Cache preview names as fallback
       const previewNames = data.members.filter(m => m.preview).map(m => m.name);
       localStorage.setItem('lerums_program_preview', JSON.stringify(previewNames));
+
+      // DEBUG: show what came back for this user
+      const myEntry = data.members.find(m => m.name === profile.name);
+      if (myEntry) {
+        showToast(`👤 ${myEntry.name} | admin:${myEntry.admin} | preview:${myEntry.preview}`);
+      } else {
+        showToast(`⚠ Your name "${profile.name}" not found in Members sheet`);
+      }
+
       // Re-apply visibility now that admin list is known
       applyAdminVisibility();
-      // Rebuild the log section HTML so the › nav button reflects new preview status
-      // Must call selectDashSection (not just renderCurrentLogTab) because the nav
-      // button is built inside cfg.build(), not renderDashLogTab()
+      // Rebuild the log section HTML so › nav button reflects new preview status
       if (currentDashSection === 'log') {
         selectDashSection('log');
       }
-      if (adminNames.includes(profile.name)) {
-        console.log('[Admin] Admin confirmed for:', profile.name);
-      }
     }
-  } catch(e) { /* silent */ }
+  } catch(e) {
+    showToast('⚠ fetchMembers error: ' + e.message);
+  }
 }
 
 function getKnownMembers() {
