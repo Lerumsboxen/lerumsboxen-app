@@ -1695,25 +1695,6 @@ function json(obj) {
         <button class="btn btn-ghost btn-sm" onclick="state.dailyProgram={};save();fetchDailyProgram();showToast('Cache cleared — re-syncing…')">🗑 Clear & re-sync</button>
       </div>
 
-      <!-- LB Weightlifting Program Settings (only if enabled) -->
-      ${isLBWLEnabled() ? `
-      <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);">
-        <div style="font-family:'Barlow Condensed';font-size:0.75rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:0.5rem;">🏋️ LB Weightlifting Program</div>
-        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem;">
-          <label style="font-size:0.8rem;color:var(--muted);white-space:nowrap;">Week 1 Start Date</label>
-          <input type="date" id="lbwlStartDate"
-            value="${localStorage.getItem('lerums_lbwl_start_date')||''}"
-            onchange="localStorage.setItem('lerums_lbwl_start_date',this.value)"
-            style="flex:1;padding:0.35rem 0.5rem;font-size:0.82rem;">
-        </div>
-        <div style="display:flex;gap:0.5rem;">
-          <button class="btn btn-sm" style="background:#fbbf24;color:#000;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:2px;cursor:pointer;" onclick="fetchLBWLProgram()">⟳ Sync LB Lifting</button>
-          <button class="btn btn-ghost btn-sm" onclick="localStorage.removeItem('lerums_lbwl_program');localStorage.removeItem('lerums_lbwl_last_sync');fetchLBWLProgram();showToast('LB Lifting cache cleared')">🗑 Clear & re-sync</button>
-        </div>
-        <div id="lbwlSyncStatus" style="margin-top:0.4rem;font-size:0.75rem;color:var(--muted);">
-          ${localStorage.getItem('lerums_lbwl_last_sync') ? '✓ Last synced: ' + localStorage.getItem('lerums_lbwl_last_sync') : 'Not synced yet'}
-        </div>
-      </div>` : ''}
       <div style="display:none;">
         <button class="btn btn-ghost btn-sm" onclick="diagProgramSync()">🔍 Check columns</button>
         <button class="btn btn-ghost btn-sm" onclick="debugBoldCell()">🔤 Debug bold</button>
@@ -1863,7 +1844,7 @@ function json(obj) {
 
 <script>
 // ===== STATE =====
-const APP_VERSION = 'v81';
+const APP_VERSION = 'v82';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
   wods: [],
@@ -2214,9 +2195,19 @@ function renderLBWLSection() {
   const startDate = localStorage.getItem('lerums_lbwl_start_date') || '';
   const lastSync = localStorage.getItem('lerums_lbwl_last_sync') || '';
 
+  // Always show start date input + sync button at top of section
+  const setupUI = `<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem;flex-wrap:wrap;">
+    <label style="font-family:'Barlow Condensed';font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);white-space:nowrap;">Week 1 Start</label>
+    <input type="date" id="lbwlStartDateInput" value="${startDate}"
+      onchange="localStorage.setItem('lerums_lbwl_start_date',this.value)"
+      style="flex:1;padding:0.3rem 0.5rem;font-size:0.82rem;min-width:140px;background:var(--card2);border:1px solid var(--border);border-radius:3px;color:var(--text);">
+    <button onclick="fetchLBWLProgram()"
+      style="background:#fbbf24;color:#000;font-family:'Barlow Condensed';font-size:0.75rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:3px;padding:0.35rem 0.75rem;cursor:pointer;white-space:nowrap;">⟳ Sync</button>
+  </div>`;
+
   if (!startDate) {
-    return `<div style="padding:1rem;background:var(--card);border:1px solid var(--border);border-radius:6px;font-size:0.83rem;color:var(--muted);text-align:center;">
-      Set Week 1 Start Date in <a href="#" onclick="showPage('sync');return false;" style="color:var(--red);">Sync settings</a> to see your program.
+    return setupUI + `<div style="padding:1rem;background:var(--card);border:1px solid var(--border);border-radius:6px;font-size:0.83rem;color:var(--muted);text-align:center;">
+      Set Week 1 Start Date above, then tap ⟳ Sync.
     </div>`;
   }
 
@@ -2239,13 +2230,13 @@ function renderLBWLSection() {
 
   if (!sessions.length) {
     const hasFuture = Object.keys(program).some(d => d >= today);
-    return `<div style="padding:1rem;background:var(--card);border:1px solid var(--border);border-radius:6px;font-size:0.83rem;color:var(--muted);text-align:center;">
+    return setupUI + `<div style="padding:1rem;background:var(--card);border:1px solid var(--border);border-radius:6px;font-size:0.83rem;color:var(--muted);text-align:center;">
       ${lastSync ? 'No sessions this week.' : 'Tap ⟳ Sync to load the LB Lifting program.'}
     </div>`;
   }
 
   const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  return sessions.map(s => {
+  return setupUI + sessions.map(s => {
     const d = new Date(s.date + 'T00:00:00');
     const isToday = s.date === today;
     const isPast = s.date < today;
@@ -4640,9 +4631,10 @@ async function fetchLBWLProgram(silent = false) {
     return;
   }
   try {
+    const lbwlSheet = localStorage.getItem('lerums_lbwl_sheet') || 'LBWT';
     const data = await xhrPost(LBWL_SCRIPT_URL, {
       action: 'getProgram',
-      sheet: 'LBWT',
+      sheet: lbwlSheet,
       cols: { date: 0, strength: 1, workout: 2 },
       programStartDate: startDate
     });
