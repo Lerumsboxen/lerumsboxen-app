@@ -1824,7 +1824,7 @@ function json(obj) {
 
 <script>
 // ===== STATE =====
-const APP_VERSION = 'v76';
+const APP_VERSION = 'v77';
 let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
   wods: [],
   prs: [],
@@ -2525,8 +2525,8 @@ document.addEventListener('click', function(e) {
     if (dir === 'next') cur.setDate(cur.getDate() + 1);
     const y = cur.getFullYear(), m = String(cur.getMonth()+1).padStart(2,'0'), d = String(cur.getDate()).padStart(2,'0');
     const next = `${y}-${m}-${d}`;
-    // Admin can go to future, others are capped at today
-    window.programViewDate = (!isAdmin() && next > today) ? today : next;
+    // Admin or preview users can go to future, others are capped at today
+    window.programViewDate = (!isAdmin() && !isProgramPreview() && next > today) ? today : next;
     if (currentDashSection === 'log') selectDashSection('log');
   }
 
@@ -4477,12 +4477,13 @@ function isProgramPreview() {
   // Users granted "program preview" by admin via col F of Members sheet
   if (isAdmin()) return true; // admins always have preview
   try {
-    // Check membersCache first (live data from sheet)
+    // Check live membersCache (populated ~4s after load)
     if (membersCache) {
       const me = membersCache.find(m => m.name === profile.name);
       if (me) return !!me.preview;
     }
-    // Fallback to localStorage cache
+    // Always also check localStorage (cached from last fetchMembers call)
+    // This ensures preview works on first load before membersCache is populated
     const list = JSON.parse(localStorage.getItem('lerums_program_preview') || '[]');
     return list.includes(profile.name);
   } catch(e) { return false; }
@@ -5053,11 +5054,9 @@ async function fetchMembers() {
       localStorage.setItem('lerums_program_preview', JSON.stringify(previewNames));
       // Re-apply visibility now that admin list is known
       applyAdminVisibility();
-      // Re-render log section (date nav depends on isAdmin)
-      if (document.getElementById('page-log')?.classList.contains('active') ||
-          currentDashSection === 'log') {
-        renderCurrentLogTab();
-      }
+      // Re-render log section (date nav depends on isAdmin + isProgramPreview)
+      // Always re-render so preview users get the › button unlocked immediately
+      renderCurrentLogTab();
       if (adminNames.includes(profile.name)) {
         console.log('[Admin] Admin confirmed for:', profile.name);
       }
