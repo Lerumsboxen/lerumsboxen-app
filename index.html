@@ -1869,7 +1869,7 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v87';
+const APP_VERSION = 'v90';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
   wods: [],
@@ -1964,6 +1964,12 @@ function showPage(id, goingBack) {
     const dc = document.getElementById('dash-content');
     if (dc) { dc.classList.add('hidden'); dc.innerHTML = ''; }
     currentDashSection = null;
+    // Refresh members silently — throttled to once per 30s
+    const now = Date.now();
+    if (!window._lastMembersFetch || now - window._lastMembersFetch > 30000) {
+      window._lastMembersFetch = now;
+      fetchMembers();
+    }
   }
   if (id === 'log') { switchLogTab(currentLogTab); }
   if (id === 'prs') renderPRs();
@@ -2247,36 +2253,39 @@ function renderLBWLSection() {
   }
 
   const today = new Date().toISOString().split('T')[0];
-  // Show this week's sessions
+  // Show 14 days from today
   const todayDate = new Date(today + 'T00:00:00');
-  const dayOfWeek = todayDate.getDay(); // 0=Sun
-  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  const weekStart = new Date(todayDate);
-  weekStart.setDate(todayDate.getDate() + mondayOffset);
-  const twoWeeksEnd = new Date(weekStart);
-  twoWeeksEnd.setDate(weekStart.getDate() + 13);
+  const windowEnd = new Date(todayDate);
+  windowEnd.setDate(todayDate.getDate() + 13);
 
-  const weekDates = [];
-  for (let d = new Date(weekStart); d <= twoWeeksEnd; d.setDate(d.getDate() + 1)) {
-    weekDates.push(d.toISOString().split('T')[0]);
+  const windowDates = [];
+  for (let d = new Date(todayDate); d <= windowEnd; d.setDate(d.getDate() + 1)) {
+    windowDates.push(d.toISOString().split('T')[0]);
   }
 
-  const sessions = weekDates.filter(d => program[d]).map(d => ({ date: d, ...program[d] }));
+  const sessions = windowDates.filter(d => program[d]).map(d => ({ date: d, ...program[d] }));
 
   if (!sessions.length) {
-    const hasFuture = Object.keys(program).some(d => d >= today);
     return setupUI + `<div style="padding:1rem;background:var(--card);border:1px solid var(--border);border-radius:6px;font-size:0.83rem;color:var(--muted);text-align:center;">
       ${lastSync ? 'No sessions the next two weeks.' : 'Tap ⟳ Sync to load the LB Lifting program.'}
     </div>`;
   }
 
   const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const lbwlStart = new Date(startDate + 'T00:00:00');
+  let lastWeek = null;
   return setupUI + sessions.map(s => {
     const d = new Date(s.date + 'T00:00:00');
     const isToday = s.date === today;
     const isPast = s.date < today;
     const dayLabel = dayNames[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth()+1);
-    return `<div style="margin-bottom:0.75rem;padding:0.85rem 1rem;background:var(--card);border:1px solid ${isToday ? '#fbbf24' : 'var(--border)'};border-radius:6px;opacity:${isPast && !isToday ? '0.6' : '1'};">
+    const weekNum = Math.floor((d - lbwlStart) / (7 * 24 * 60 * 60 * 1000)) + 1;
+    let weekHeader = '';
+    if (weekNum !== lastWeek) {
+      lastWeek = weekNum;
+      weekHeader = `<div style="font-family:'Bebas Neue';font-size:0.95rem;letter-spacing:0.1em;color:var(--red);margin:${weekNum === 1 ? '0' : '1rem'} 0 0.5rem;padding-bottom:0.35rem;border-bottom:1px solid var(--border);">Week ${weekNum}</div>`;
+    }
+    return weekHeader + `<div style="margin-bottom:0.75rem;padding:0.85rem 1rem;background:var(--card);border:1px solid ${isToday ? '#fbbf24' : 'var(--border)'};border-radius:6px;opacity:${isPast && !isToday ? '0.6' : '1'};">
       <div style="font-family:'Barlow Condensed';font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:${isToday ? '#fbbf24' : 'var(--muted)'};margin-bottom:0.4rem;">
         ${isToday ? '▶ TODAY — ' : ''}${dayLabel} · Session ${s.session}
       </div>
@@ -4753,7 +4762,7 @@ async function fetch2DWLProgram(silent = false) {
     if (!data.entries) throw new Error('No entries returned');
 
     const startDay = new Date(startDate + 'T00:00:00');
-    const sessionOffsets = [0, 3]; // 2 sessions/week — day 1 +0, day 2 +3 (e.g. Mon/Thu)
+    const sessionOffsets = [0, 2]; // 2 sessions/week — day 1 = start (Wed), day 2 = +2 (Fri)
     const today = new Date(); today.setHours(0,0,0,0);
     const maxDate = new Date(today); maxDate.setDate(today.getDate() + 28);
 
@@ -4797,31 +4806,35 @@ function render2DWLSection() {
 
   const today = new Date().toISOString().split('T')[0];
   const todayDate = new Date(today + 'T00:00:00');
-  const dayOfWeek = todayDate.getDay();
-  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  const weekStart = new Date(todayDate);
-  weekStart.setDate(todayDate.getDate() + mondayOffset);
-  const twoWeeksEnd = new Date(weekStart);
-  twoWeeksEnd.setDate(weekStart.getDate() + 13);
+  const windowEnd = new Date(todayDate);
+  windowEnd.setDate(todayDate.getDate() + 13); // 14 days from today
 
-  const weekDates = [];
-  for (let d = new Date(weekStart); d <= twoWeeksEnd; d.setDate(d.getDate() + 1)) {
-    weekDates.push(d.toISOString().split('T')[0]);
+  const windowDates = [];
+  for (let d = new Date(todayDate); d <= windowEnd; d.setDate(d.getDate() + 1)) {
+    windowDates.push(d.toISOString().split('T')[0]);
   }
 
-  const sessions = weekDates.filter(d => program[d]).map(d => ({ date: d, ...program[d] }));
+  const sessions = windowDates.filter(d => program[d]).map(d => ({ date: d, ...program[d] }));
 
   if (!sessions.length) {
     return setupUI + '<div style="padding:1rem;background:var(--card);border:1px solid var(--border);border-radius:6px;font-size:0.83rem;color:var(--muted);text-align:center;">' + (lastSync ? 'No sessions the next two weeks.' : 'Tap ⟳ Sync to load the 2x Lifting program.') + '</div>';
   }
 
   const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const tdwlStart = new Date(startDate + 'T00:00:00');
+  let lastWeek2 = null;
   return setupUI + sessions.map(s => {
     const d = new Date(s.date + 'T00:00:00');
     const isToday = s.date === today;
     const isPast = s.date < today;
     const dayLabel = dayNames[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth()+1);
-    return `<div style="margin-bottom:0.75rem;padding:0.85rem 1rem;background:var(--card);border:1px solid ${isToday ? '#fbbf24' : 'var(--border)'};border-radius:6px;opacity:${isPast && !isToday ? '0.6' : '1'};">
+    const weekNum = Math.floor((d - tdwlStart) / (7 * 24 * 60 * 60 * 1000)) + 1;
+    let weekHeader = '';
+    if (weekNum !== lastWeek2) {
+      lastWeek2 = weekNum;
+      weekHeader = `<div style="font-family:'Bebas Neue';font-size:0.95rem;letter-spacing:0.1em;color:var(--red);margin:${weekNum === 1 ? '0' : '1rem'} 0 0.5rem;padding-bottom:0.35rem;border-bottom:1px solid var(--border);">Week ${weekNum}</div>`;
+    }
+    return weekHeader + `<div style="margin-bottom:0.75rem;padding:0.85rem 1rem;background:var(--card);border:1px solid ${isToday ? '#fbbf24' : 'var(--border)'};border-radius:6px;opacity:${isPast && !isToday ? '0.6' : '1'};">
       <div style="font-family:'Barlow Condensed';font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:${isToday ? '#fbbf24' : 'var(--muted)'};margin-bottom:0.4rem;">
         ${isToday ? '▶ TODAY — ' : ''}${dayLabel} · Session ${s.session}
       </div>
