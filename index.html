@@ -1396,7 +1396,7 @@
       // Send email notification for new member
       try {
         MailApp.sendEmail({
-          to: "calle@lerumsboxen.com",
+          to: "<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="4320222f2f26032f2631362e30212c3b262d6d202c2e">[email&#160;protected]</a>",
           subject: "🥊 New member: " + name,
           body: "A new member just registered in Lerumsboxen!\n\nName: " + name + "\nAvatar: " + avatar + "\nRegistered: " + new Date().toLocaleString() + "\n\nGo to Box Buddies in the app to grant them program access."
         });
@@ -1867,9 +1867,9 @@ function json(obj) {
   </div>
 </div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v85';
+const APP_VERSION = 'v86';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
   wods: [],
@@ -5044,10 +5044,27 @@ function renderLeaderboard() {
   allEntries.forEach(e => { window._lbEntries[e.id] = e; });
 
   el.innerHTML = Object.entries(grouped).sort(([a],[b]) => a.localeCompare(b)).map(([name, entries]) => {
-    // Sort: for strength sort by value desc, for wod just by date desc
+    // Parse score to a sortable number
+    // For Time (mm:ss or hh:mm:ss) → seconds, lower is better → negate for desc sort
+    // AMRAP/EMOM/reps → numeric, higher is better
+    function scoreToNum(e) {
+      const s = (e.score || '').toString().trim();
+      if (!s) return 0;
+      // Time format: digits:digits (For Time — lower is better, so return negative)
+      if (/^\d+:\d{2}(:\d{2})?$/.test(s)) {
+        const parts = s.split(':').map(Number);
+        const secs = parts.length === 3
+          ? parts[0]*3600 + parts[1]*60 + parts[2]
+          : parts[0]*60 + parts[1];
+        return -secs; // negate: lower time → higher sort value
+      }
+      // Numeric (reps, rounds+reps) → higher is better
+      const n = parseFloat(s.replace(/[^0-9.]/g, ''));
+      return isNaN(n) ? 0 : n;
+    }
     const sorted = [...entries].sort((a, b) => {
       if (a._type === 'strength') return (parseFloat(b.topWeight)||0) - (parseFloat(a.topWeight)||0);
-      return (b.date||'').localeCompare(a.date||'');
+      return scoreToNum(b) - scoreToNum(a); // rank by score, not by date
     });
     const ranks = ['gold','silver','bronze'];
     return `<div class="card" style="margin-bottom:0.75rem;padding:0.85rem 1rem;">
@@ -6219,14 +6236,4 @@ if ('serviceWorker' in navigator) {
   });
 }
 window._pwaInstallPrompt = null;
-window.addEventListener('beforeinstallprompt', function(e) {
-  console.log('[PWA] beforeinstallprompt fired');
-  e.preventDefault();
-  window._pwaInstallPrompt = e;
-});
-window.addEventListener('appinstalled', function() {
-  console.log('[PWA] App installed');
-});
-</script>
-</body>
-</html>
+window.addEventListener('beforeinstallprompt', function(e)
