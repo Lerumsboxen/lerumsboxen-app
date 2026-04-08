@@ -1869,7 +1869,7 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v86';
+const APP_VERSION = 'v87';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
   wods: [],
@@ -2008,7 +2008,11 @@ const DASH_SECTIONS = {
 
         ${hasWod ? `
         <div style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
-          <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:var(--text);margin-bottom:0.75rem;">Workout of the Day</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+            <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:var(--text);">Workout of the Day</div>
+            <a href="https://lerumsboxen.zoezi.se/bokapass" target="_blank" rel="noopener"
+              style="font-family:'Barlow Condensed';font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;background:var(--red);color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;text-decoration:none;white-space:nowrap;">📆 Book Class</a>
+          </div>
           ${prog.strength ? `
           <div style="margin-bottom:0.75rem;">
             <div class="program-section-label">💪 Strength</div>
