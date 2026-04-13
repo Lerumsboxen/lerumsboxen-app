@@ -1885,7 +1885,7 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v94';
+const APP_VERSION = 'v96';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
   wods: [],
@@ -3412,36 +3412,24 @@ function showToast(msg, duration) {
   setTimeout(() => t.remove(), duration || 3000);
 }
 
-// ===== SEED DATA (if fresh) =====
+// ===== SEED DATA (disabled) =====
 function seedIfEmpty() {
-  // Only seed once, and never if a profile name is set (real user)
-  if (localStorage.getItem('lerums_seeded')) return;
-  if (profile.name) return; // real account — don't inject fake data
-  if (state.wods.length > 0) return;
-  localStorage.setItem('lerums_seeded', '1');
-  const today = new Date();
-  const days = (n) => { const d = new Date(today); d.setDate(d.getDate()-n); return d.toISOString().split('T')[0]; };
-  state.wods = [
-    { id:'1', name:'Fran', date:days(1), type:'fortime', desc:'21-15-9\nThrusters 43kg\nPull-ups', score:'4:52', rx:'rx', notes:'Felt strong on thrusters' },
-    { id:'2', name:'Helen', date:days(3), type:'fortime', desc:'3 rounds:\n400m Run\n21 KB Swings 24kg\n12 Pull-ups', score:'11:34', rx:'rx', notes:'' },
-    { id:'3', name:'EMOM 20', date:days(5), type:'emom', desc:'Odd: 10 Hang Power Cleans 60kg\nEven: 15 Box Jumps 60cm', score:'Complete', rx:'scaled', notes:'Heavy on last sets' },
-  ];
-  state.prs = [
-    { id:'1', movement:'Back Squat', value:120, unit:'kg', date:days(14) },
-    { id:'2', movement:'Clean & Jerk', value:90, unit:'kg', date:days(7) },
-    { id:'3', movement:'Snatch', value:72.5, unit:'kg', date:days(21) },
-    { id:'4', movement:'Deadlift', value:155, unit:'kg', date:days(10) },
-    { id:'5', movement:'Strict Press', value:72, unit:'kg', date:days(30) },
-  ];
-  state.strength = [
-    { id:'s1', date:days(2), exercise:'Back Squat', sets:[
-      {weight:80,reps:5,rpe:6},{weight:90,reps:5,rpe:7},{weight:100,reps:3,rpe:8},{weight:105,reps:2,rpe:9}], notes:'Worked up to heavy double' },
-    { id:'s2', date:days(4), exercise:'Deadlift', sets:[
-      {weight:100,reps:5,rpe:6},{weight:120,reps:3,rpe:7},{weight:140,reps:1,rpe:9}], notes:'New heavy single attempt' },
-    { id:'s3', date:days(6), exercise:'Strict Press', sets:[
-      {weight:50,reps:5,rpe:6},{weight:55,reps:5,rpe:7},{weight:60,reps:5,rpe:8},{weight:60,reps:4,rpe:9}], notes:'' },
-  ];
-  save();
+  // Seed data removed — no demo content injected
+  // One-time cleanup: remove any legacy seed entries that may exist in old installs
+  const SEED_WOD_IDS = new Set(['1','2','3']);
+  const SEED_PR_IDS  = new Set(['1','2','3','4','5']);
+  const SEED_STR_IDS = new Set(['s1','s2','s3']);
+  let changed = false;
+  const wodsLen = state.wods.length;
+  state.wods    = state.wods.filter(w => !SEED_WOD_IDS.has(w.id));
+  const prsLen  = state.prs.length;
+  state.prs     = state.prs.filter(p => !SEED_PR_IDS.has(p.id));
+  const strLen  = state.strength.length;
+  state.strength = state.strength.filter(s => !SEED_STR_IDS.has(s.id));
+  if (state.wods.length !== wodsLen || state.prs.length !== prsLen || state.strength.length !== strLen) {
+    save();
+  }
+  localStorage.removeItem('lerums_seeded');
 }
 
 
@@ -5829,7 +5817,7 @@ function declineChallenge(challengeId) {
   renderChallenges();
 }
 
-// Check for new challenges on app load — show toast notification
+// Check for new challenges on app load — show notification banner
 async function checkNewChallenges() {
   if (!profile.name) return;
   try {
@@ -5846,14 +5834,67 @@ async function checkNewChallenges() {
       return isForMe && isNew && isNotDeclined && notExpired && c.from !== profile.name;
     });
     if (newOnes.length) {
-      // Mark as seen
       const allSeen = [...seen, ...newOnes.map(c => c.id)];
       localStorage.setItem('lerums_seen_challenges', JSON.stringify(allSeen));
       challengesCache = data;
-      const names = [...new Set(newOnes.map(c => c.from))].join(', ');
-      showToast(`⚡ ${newOnes.length} new challenge${newOnes.length > 1 ? 's' : ''} from ${names}! Check Challenges.`, 5000);
+      showChallengeNotification(newOnes);
     }
   } catch(e) { /* silent */ }
+}
+
+function showChallengeNotification(challenges) {
+  // Remove any existing notification
+  const existing = document.getElementById('challengeNotifBanner');
+  if (existing) existing.remove();
+
+  const count = challenges.length;
+  const names = [...new Set(challenges.map(c => c.from))].join(', ');
+  const firstChallenge = challenges[0];
+  const deadline = firstChallenge.deadline
+    ? ' · Deadline: ' + formatDate(firstChallenge.deadline)
+    : '';
+
+  const banner = document.createElement('div');
+  banner.id = 'challengeNotifBanner';
+  banner.style.cssText = `
+    position:fixed;top:0;left:0;right:0;bottom:0;
+    background:rgba(0,0,0,0.82);
+    display:flex;align-items:center;justify-content:center;
+    z-index:9999;padding:1.5rem;
+    animation:fadeIn 0.25s ease;
+  `;
+
+  const previewHTML = count === 1
+    ? `<div style="margin:0.75rem 0;padding:0.75rem;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.25);border-radius:6px;font-size:0.83rem;line-height:1.5;color:var(--text);white-space:pre-wrap;max-height:120px;overflow:hidden;text-overflow:ellipsis;">${(firstChallenge.name || 'Challenge') + (firstChallenge.desc ? '\n' + firstChallenge.desc.substring(0, 120) + (firstChallenge.desc.length > 120 ? '…' : '') : '')}</div>`
+    : `<div style="margin:0.75rem 0;padding:0.5rem 0.75rem;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.25);border-radius:6px;font-size:0.83rem;color:var(--muted);">${challenges.map(c => '⚡ ' + (c.name || 'Challenge') + ' — from ' + c.from).join('<br>')}</div>`;
+
+  banner.innerHTML = `
+    <div style="background:var(--card);border:1px solid rgba(251,191,36,0.4);border-radius:10px;padding:1.5rem;max-width:380px;width:100%;box-shadow:0 0 40px rgba(251,191,36,0.15);">
+      <div style="text-align:center;margin-bottom:0.75rem;">
+        <div style="font-size:2rem;margin-bottom:0.25rem;">⚡</div>
+        <div style="font-family:'Bebas Neue';font-size:1.6rem;letter-spacing:0.06em;color:#fbbf24;">
+          ${count === 1 ? 'New Challenge!' : count + ' New Challenges!'}
+        </div>
+        <div style="font-family:'Barlow Condensed';font-size:0.8rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-top:0.2rem;">
+          from ${names}${deadline}
+        </div>
+      </div>
+      ${previewHTML}
+      <div style="display:flex;gap:0.75rem;margin-top:1rem;">
+        <button onclick="document.getElementById('challengeNotifBanner').remove();selectDashSection('challenges')"
+          style="flex:1;background:#fbbf24;color:#000;font-family:'Barlow Condensed';font-size:0.9rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:5px;padding:0.65rem;cursor:pointer;">
+          ⚡ View Challenges
+        </button>
+        <button onclick="document.getElementById('challengeNotifBanner').remove()"
+          style="background:transparent;border:1px solid var(--border);border-radius:5px;padding:0.65rem 1rem;font-family:'Barlow Condensed';font-size:0.85rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);cursor:pointer;">
+          Later
+        </button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(banner);
+  // Tap outside to dismiss
+  banner.addEventListener('click', e => { if (e.target === banner) banner.remove(); });
 }
 
 // Force push ALL local data to cloud (useful after script redeploy or first setup)
@@ -6057,8 +6098,6 @@ document.getElementById('configStopwatch').style.display = 'block';
 document.getElementById('headerHomeBtn')?.classList.add('on-home');
 updateHeaderProfile();
 autoSyncProgramIfEnabled();
-// Debug startup toast — remove after debugging
-setTimeout(() => showToast('✅ App v80 loaded'), 500);
 // Always fetch members (needed for preview status even without full profile)
 setTimeout(() => fetchMembers(), 4000);
 // Auto-sync LB Lifting programs if user has access
