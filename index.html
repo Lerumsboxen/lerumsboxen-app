@@ -1938,7 +1938,7 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v101';
+const APP_VERSION = 'v102';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
   wods: [],
@@ -2086,6 +2086,15 @@ function showPage(id, goingBack) {
     if (!window._lastMembersFetch || now - window._lastMembersFetch > 30000) {
       window._lastMembersFetch = now;
       fetchMembers();
+    }
+    // Check for new challenges when returning home — throttled to once per 60s
+    if (profile.name) {
+      const nowCh = Date.now();
+      const lastCh = window._lastChallengeCheck || 0;
+      if (nowCh - lastCh > 60000) {
+        window._lastChallengeCheck = nowCh;
+        checkNewChallenges();
+      }
     }
   }
   if (id === 'log') { switchLogTab(currentLogTab); }
@@ -2346,6 +2355,15 @@ function selectDashSection(section) {
   dc.innerHTML = cfg.build();
   cfg.render();
   window.scrollTo(0, 0);
+  // Check for new challenges on every section tap (throttled to once per 60s)
+  if (section !== 'challenges' && profile.name) {
+    const now = Date.now();
+    const last = window._lastChallengeCheck || 0;
+    if (now - last > 60000) {
+      window._lastChallengeCheck = now;
+      checkNewChallenges();
+    }
+  }
 }
 
 function renderLBWLSection() {
