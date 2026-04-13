@@ -1121,6 +1121,9 @@
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1rem;height:1rem;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><polyline points="17 14 15 16 17 18"/><line x1="15" y1="16" x2="19" y2="16"/></svg>
     </button>
     <button class="header-icon-btn" id="headerCloudBtn" onclick="cloudPull(true)" title="Sync my data across devices" style="font-size:1rem;">☁</button>
+    <button class="header-icon-btn" id="headerChallengeBtn" onclick="showPage('dashboard',true);setTimeout(()=>selectDashSection('challenges'),50)" title="Challenges" style="display:none;position:relative;color:#fbbf24;border-color:#fbbf24;">
+      ⚡<span id="headerChallengeBadge" style="position:absolute;top:-4px;right:-4px;min-width:0.95rem;height:0.95rem;padding:0 0.18rem;background:#fbbf24;color:#000;border-radius:999px;font-family:'Barlow Condensed',sans-serif;font-size:0.58rem;font-weight:700;display:flex;align-items:center;justify-content:center;line-height:1;"></span>
+    </button>
     <button class="header-icon-btn" id="headerProfileBtn" onclick="openProfileModal()" title="My Profile" style="font-size:1.1rem;" id="headerProfileAvatar">👤</button>
   </div>
   <button id="headerBack" onclick="showPage('dashboard', true)">← Back</button>
@@ -1951,7 +1954,7 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v103';
+const APP_VERSION = 'v104';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
   wods: [],
@@ -2100,11 +2103,11 @@ function showPage(id, goingBack) {
       window._lastMembersFetch = now;
       fetchMembers();
     }
-    // Check for new challenges when returning home — throttled to once per 60s
+    // Check for new challenges when returning home — throttled to once per 30s
     if (profile.name) {
       const nowCh = Date.now();
       const lastCh = window._lastChallengeCheck || 0;
-      if (nowCh - lastCh > 60000) {
+      if (nowCh - lastCh > 30000) {
         window._lastChallengeCheck = nowCh;
         checkNewChallenges();
       }
@@ -2368,11 +2371,13 @@ function selectDashSection(section) {
   dc.innerHTML = cfg.build();
   cfg.render();
   window.scrollTo(0, 0);
-  // Check for new challenges on every section tap (throttled to once per 60s)
-  if (section !== 'challenges' && profile.name) {
+  // Always check for new challenges on section tap (except timer)
+  // Throttled to once per 30s to avoid hammering the server
+  if (section !== 'timer' && profile.name) {
     const now = Date.now();
     const last = window._lastChallengeCheck || 0;
-    if (now - last > 60000) {
+    // For challenges tab itself: always fetch fresh (no throttle)
+    if (section === 'challenges' || now - last > 30000) {
       window._lastChallengeCheck = now;
       checkNewChallenges();
     }
@@ -5857,9 +5862,13 @@ function openChallengeModal(prefill) {
 }
 
 function updateChallengeBadge() {
-  const badge = document.getElementById('challengeBadge');
-  if (!badge) return;
-  if (!profile.name || !challengesCache) { badge.style.display = 'none'; return; }
+  if (!profile.name || !challengesCache) {
+    const b = document.getElementById('challengeBadge');
+    if (b) b.style.display = 'none';
+    const hb = document.getElementById('headerChallengeBtn');
+    if (hb) hb.style.display = 'none';
+    return;
+  }
   const myName = profile.name.toLowerCase();
   const declined = JSON.parse(localStorage.getItem('lerums_declined_challenges') || '[]');
   const today = new Date().toISOString().split('T')[0];
@@ -5870,17 +5879,20 @@ function updateChallengeBadge() {
     const notExpired = !c.deadline || c.deadline >= today;
     return isForMe && notDeclined && notFromMe && notExpired;
   });
-  if (pending.length > 0) {
-    badge.textContent = pending.length > 99 ? '99+' : pending.length;
-    badge.style.display = 'flex';
-    // Pulse the button border yellow while there are pending challenges
-    const btn = document.getElementById('hbtn-challenges');
-    if (btn) btn.style.borderColor = '#fbbf24';
-  } else {
-    badge.style.display = 'none';
-    const btn = document.getElementById('hbtn-challenges');
-    if (btn) btn.style.borderColor = '';
-  }
+  const count = pending.length;
+  const countStr = count > 99 ? '99+' : String(count);
+
+  // Home screen button badge
+  const badge = document.getElementById('challengeBadge');
+  const homeBtn = document.getElementById('hbtn-challenges');
+  if (badge) { badge.textContent = countStr; badge.style.display = count > 0 ? 'flex' : 'none'; }
+  if (homeBtn) homeBtn.style.borderColor = count > 0 ? '#fbbf24' : '';
+
+  // Header ⚡ button — always show when there are pending challenges
+  const headerBtn = document.getElementById('headerChallengeBtn');
+  const headerBadge = document.getElementById('headerChallengeBadge');
+  if (headerBtn) headerBtn.style.display = count > 0 ? 'flex' : 'none';
+  if (headerBadge) headerBadge.textContent = countStr;
 }
 
 function openChallengeFromWod(wodId) {
@@ -5948,7 +5960,7 @@ function declineChallenge(challengeId) {
   renderChallenges();
 }
 
-// Check for new challenges on app load — show notification banner
+// Check for new challenges — always update badge count, only banner for truly new ones
 async function checkNewChallenges() {
   if (!profile.name) return;
   try {
@@ -5957,18 +5969,21 @@ async function checkNewChallenges() {
     const myName = profile.name.toLowerCase();
     const seen = JSON.parse(localStorage.getItem('lerums_seen_challenges') || '[]');
     const declined = JSON.parse(localStorage.getItem('lerums_declined_challenges') || '[]');
+    const today = new Date().toISOString().split('T')[0];
+    // Always update cache + badge with full pending count
+    challengesCache = data;
+    updateChallengeBadge();
+    // Only show banner for challenges that are brand new (not yet seen)
     const newOnes = data.challenges.filter(c => {
-      const isForMe = !c.to || c.to.toLowerCase() === myName;
+      const isForMe = !c.to || c.to.toLowerCase() === myName || c.to === '';
       const isNew = !seen.includes(c.id);
       const isNotDeclined = !declined.includes(c.id);
-      const notExpired = !c.deadline || c.deadline >= new Date().toISOString().split('T')[0];
+      const notExpired = !c.deadline || c.deadline >= today;
       return isForMe && isNew && isNotDeclined && notExpired && c.from !== profile.name;
     });
     if (newOnes.length) {
       const allSeen = [...seen, ...newOnes.map(c => c.id)];
       localStorage.setItem('lerums_seen_challenges', JSON.stringify(allSeen));
-      challengesCache = data;
-      updateChallengeBadge();
       showChallengeNotification(newOnes);
     }
   } catch(e) { /* silent */ }
@@ -6240,7 +6255,7 @@ if (!profile.name) {
 } else {
   setTimeout(() => autoCloudSync(), 1500);
   setTimeout(() => registerMember(), 3000);
-  setTimeout(() => checkNewChallenges(), 5000);
+  setTimeout(() => checkNewChallenges(), 3000); // Check challenges early on startup
   // Non-admins: auto-sync program silently on first login
   if (!isAdmin()) {
     const lastSync = localStorage.getItem('lb_lerums_program_last_sync');
