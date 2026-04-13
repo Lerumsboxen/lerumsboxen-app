@@ -1885,7 +1885,7 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v93';
+const APP_VERSION = 'v94';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
   wods: [],
@@ -2349,12 +2349,7 @@ function renderLBWLSection() {
       lastWeek = weekNum;
       weekHeader = `<div style="font-family:'Bebas Neue';font-size:0.95rem;letter-spacing:0.1em;color:var(--red);margin:${weekNum === 1 ? '0' : '1rem'} 0 0.5rem;padding-bottom:0.35rem;border-bottom:1px solid var(--border);">Week ${weekNum}</div>`;
     }
-    return weekHeader + `<div style="margin-bottom:0.75rem;padding:0.85rem 1rem;background:var(--card);border:1px solid ${isToday ? '#fbbf24' : 'var(--border)'};border-radius:6px;opacity:${isPast && !isToday ? '0.6' : '1'};">
-      <div style="font-family:'Barlow Condensed';font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:${isToday ? '#fbbf24' : 'var(--muted)'};margin-bottom:0.4rem;">
-        ${isToday ? '▶ TODAY — ' : ''}${dayLabel} · Session ${s.session}
-      </div>
-      <div style="font-size:0.83rem;line-height:1.6;white-space:pre-wrap;">${enrichProgramText(s.text)}</div>
-    </div>`;
+    return weekHeader + renderLBWLSessionCard(s, '3x', weekNum, isToday, isPast, dayLabel);
   }).join('');
 }
 
@@ -4919,6 +4914,93 @@ async function fetch2DWLProgram(silent = false) {
   }
 }
 
+// Open strength modal pre-filled for a lifting program part
+function openStrengthModalForPart(sessionLabel, partLabel, dateStr) {
+  openStrengthModal();
+  // Pre-fill exercise with "Session N — Part A" style label
+  const exEl = document.getElementById('strExercise');
+  if (exEl) exEl.value = sessionLabel + (partLabel ? ' — ' + partLabel : '');
+  // Pre-fill date
+  const dateEl = document.getElementById('strDate');
+  if (dateEl && dateStr) dateEl.value = dateStr;
+}
+
+// Split session text into named parts (Part A, Part B, etc.)
+// Returns [{label: 'Part A', text: '...'}, ...] or [{label: null, text: fullText}] if no parts found
+function splitIntoParts(text) {
+  if (!text) return [];
+  const lines = text.split('\n');
+  // Detect lines that start a new Part: "Part A", "Part A:", "A.", "A:"
+  const partHeaderRe = /^((?:Part\s+)?[A-Ea-e][\s.:)])/;
+  const partIndices = [];
+  lines.forEach(function(line, i) {
+    if (partHeaderRe.test(line.trim())) partIndices.push(i);
+  });
+  if (partIndices.length < 2) {
+    return [{ label: null, text: text.trim() }];
+  }
+  const parts = [];
+  for (let pi = 0; pi < partIndices.length; pi++) {
+    const from = partIndices[pi];
+    const to = pi + 1 < partIndices.length ? partIndices[pi + 1] : lines.length;
+    const chunk = lines.slice(from, to).join('\n').trim();
+    const label = lines[from].trim().replace(/^((?:Part\s+)?[A-Ea-e][.\s:)]+).*/, '$1').trim();
+    parts.push({ label: label, text: chunk });
+  }
+  return parts;
+}
+
+
+// Render a single LBWL-style session card with per-part logging
+function renderLBWLSessionCard(s, prefix, weekNum, isToday, isPast, dayLabel) {
+  const sessionLabel = prefix + ' Session ' + s.session;
+  const parts = splitIntoParts(s.text);
+  const hasParts = parts.length > 1 || parts[0]?.label;
+
+  const headerColor = isToday ? '#fbbf24' : 'var(--muted)';
+  const borderColor = isToday ? '#fbbf24' : 'var(--border)';
+  const opacity = (isPast && !isToday) ? '0.65' : '1';
+
+  if (!hasParts) {
+    // Single-block session — one log button for whole session
+    return `<div style="margin-bottom:0.75rem;padding:0.85rem 1rem;background:var(--card);border:1px solid ${borderColor};border-radius:6px;opacity:${opacity};">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.4rem;gap:0.5rem;">
+        <div style="font-family:'Barlow Condensed';font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:${headerColor};">
+          ${isToday ? '▶ TODAY — ' : ''}${dayLabel} · ${sessionLabel}
+        </div>
+        <button onclick="openStrengthModalForPart('${sessionLabel.replace(/'/g,"\'")}', '', '${s.date}')"
+          style="flex-shrink:0;background:transparent;border:1px solid var(--border);border-radius:3px;padding:0.2rem 0.55rem;font-family:'Barlow Condensed';font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);cursor:pointer;">📝 Log</button>
+      </div>
+      <div style="font-size:0.83rem;line-height:1.6;white-space:pre-wrap;">${enrichProgramText(parts[0].text)}</div>
+    </div>`;
+  }
+
+  // Multi-part session — each part gets its own collapsible row with a log button
+  const partsHTML = parts.map((part, pi) => {
+    const partId = prefix.replace(/\s/g,'_') + '_' + s.date + '_p' + pi;
+    const partLabel = part.label || ('Part ' + String.fromCharCode(65 + pi));
+    return `
+      <div style="border-top:1px solid var(--border);padding-top:0.5rem;margin-top:0.5rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;margin-bottom:0.35rem;">
+          <button onclick="document.getElementById('lbwl_pt_${partId}').style.display=document.getElementById('lbwl_pt_${partId}').style.display==='none'?'block':'none'"
+            style="background:transparent;border:none;font-family:'Barlow Condensed';font-size:0.8rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--red);cursor:pointer;padding:0;text-align:left;">
+            ${partLabel} ▾
+          </button>
+          <button onclick="openStrengthModalForPart('${sessionLabel.replace(/'/g,"\'")}', '${partLabel.replace(/'/g,"\'")}', '${s.date}')"
+            style="flex-shrink:0;background:transparent;border:1px solid var(--border);border-radius:3px;padding:0.2rem 0.55rem;font-family:'Barlow Condensed';font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);cursor:pointer;">📝 Log</button>
+        </div>
+        <div id="lbwl_pt_${partId}" style="font-size:0.83rem;line-height:1.6;white-space:pre-wrap;">${enrichProgramText(part.text)}</div>
+      </div>`;
+  }).join('');
+
+  return `<div style="margin-bottom:0.75rem;padding:0.85rem 1rem;background:var(--card);border:1px solid ${borderColor};border-radius:6px;opacity:${opacity};">
+    <div style="font-family:'Barlow Condensed';font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:${headerColor};margin-bottom:0.1rem;">
+      ${isToday ? '▶ TODAY — ' : ''}${dayLabel} · ${sessionLabel}
+    </div>
+    ${partsHTML}
+  </div>`;
+}
+
 function render2DWLSection() {
   const program = JSON.parse(localStorage.getItem('lerums_2dwl_program') || '{}');
   const startDate = localStorage.getItem('lerums_2dwl_start_date') || '';
@@ -4967,12 +5049,7 @@ function render2DWLSection() {
       lastWeek2 = weekNum;
       weekHeader = `<div style="font-family:'Bebas Neue';font-size:0.95rem;letter-spacing:0.1em;color:var(--red);margin:${weekNum === 1 ? '0' : '1rem'} 0 0.5rem;padding-bottom:0.35rem;border-bottom:1px solid var(--border);">Week ${weekNum}</div>`;
     }
-    return weekHeader + `<div style="margin-bottom:0.75rem;padding:0.85rem 1rem;background:var(--card);border:1px solid ${isToday ? '#fbbf24' : 'var(--border)'};border-radius:6px;opacity:${isPast && !isToday ? '0.6' : '1'};">
-      <div style="font-family:'Barlow Condensed';font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:${isToday ? '#fbbf24' : 'var(--muted)'};margin-bottom:0.4rem;">
-        ${isToday ? '▶ TODAY — ' : ''}${dayLabel} · Session ${s.session}
-      </div>
-      <div style="font-size:0.83rem;line-height:1.6;white-space:pre-wrap;">${enrichProgramText(s.text)}</div>
-    </div>`;
+    return weekHeader + renderLBWLSessionCard(s, '2x', weekNum, isToday, isPast, dayLabel);
   }).join('');
 }
 
