@@ -924,8 +924,8 @@
     #timerOverlay.open > div > div > div:first-child { display: none; }
     #timerOverlay.open .timer-close {
       position: fixed;
-      top: 0.75rem;
-      right: 0.75rem;
+      top: calc(0.75rem + env(safe-area-inset-top, 0px));
+      right: calc(0.75rem + env(safe-area-inset-right, 0px));
       z-index: 10;
     }
   }
@@ -1063,8 +1063,9 @@
   }
   #timerOverlay.open { display: flex; }
   #timerOverlay .timer-close {
-    position: absolute;
-    top: 1rem; right: 1rem;
+    position: fixed;
+    top: calc(1rem + env(safe-area-inset-top, 0px));
+    right: calc(1rem + env(safe-area-inset-right, 0px));
     background: var(--card);
     border: 1px solid var(--border);
     color: var(--muted);
@@ -1075,12 +1076,13 @@
     display: flex; align-items: center; justify-content: center;
     transition: all 0.15s;
     outline: none;
+    z-index: 10;
   }
   #timerOverlay .timer-close:hover { color: var(--text); border-color: #555; }
   #timerOverlay .timer-inner {
     width: 100%;
     max-width: 520px;
-    padding: 3.5rem 1.5rem 2rem;
+    padding: calc(3.5rem + env(safe-area-inset-top, 0px)) 1.5rem calc(2rem + env(safe-area-inset-bottom, 0px));
   }
 </style>
 </head>
@@ -1936,7 +1938,7 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v99';
+const APP_VERSION = 'v101';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
   wods: [],
@@ -3136,14 +3138,14 @@ function savePR() {
   const unit = document.getElementById('prUnit').value.replace(' — weight','').replace(' — max reps','').replace(' — time (seconds)','').replace(' — distance','').replace(' — calories','');
   const reps = parseInt(document.getElementById('prReps')?.value) || null;
   const notes = document.getElementById('prNotes')?.value.trim() || '';
-  // Store weight PRs in kg internally
+  // For weight units convert lbs→kg; for all other units store as-is
+  const isWeight = (unit === 'kg' || unit === 'lbs');
   const storedValue = (unit === 'lbs') ? Math.round(value / KG_TO_LBS * 10) / 10 : value;
-  const displayUnit = (unit === 'lbs' && profile.unit === 'kg') ? 'kg' : unit;
+  const storedUnit = (unit === 'lbs') ? 'kg' : unit;
   const pr = {
     id: Date.now().toString(),
-    movement, value: storedValue, unit: 'kg', reps, notes,
+    movement, value: storedValue, unit: storedUnit, reps, notes,
     date: document.getElementById('prDate').value || null,
-    originalUnit: unit,
   };
   state.prs.push(pr);
   save(); closePRModal(); renderPRs(); renderDashboard();
@@ -3162,7 +3164,13 @@ function editPR(id) {
   const pr = state.prs.find(p => p.id === id);
   if (!pr) return;
   document.getElementById('prMovement').value = pr.movement;
-  document.getElementById('prValue').value = pr.value;
+  // For time PRs show as mm:ss in the input
+  if (pr.unit === 's') {
+    const s = Math.round(pr.value); const mins = Math.floor(s/60); const secs = String(s%60).padStart(2,'0');
+    document.getElementById('prValue').value = mins + ':' + secs;
+  } else {
+    document.getElementById('prValue').value = pr.value;
+  }
   document.getElementById('prUnit').value = pr.unit || 'kg';
   document.getElementById('prDate').value = pr.date || '';
   if (document.getElementById('prReps')) document.getElementById('prReps').value = pr.reps || '';
@@ -3177,13 +3185,15 @@ function updatePR(id) {
   const idx = state.prs.findIndex(p => p.id === id);
   if (idx === -1) return;
   const movement = document.getElementById('prMovement').value.trim();
-  const value = parseFloat(document.getElementById('prValue').value);
-  if (!movement || isNaN(value)) { showToast('Enter a movement and value'); return; }
+  const rawVal2 = document.getElementById('prValue').value.trim();
   const unit = document.getElementById('prUnit').value.split(' ')[0];
+  const value = (unit === 's') ? parseTimeInput(rawVal2) : parseFloat(rawVal2);
+  if (!movement || value === null || isNaN(value)) { showToast('Enter a movement and value'); return; }
   const storedValue = unit === 'lbs' ? Math.round(value / KG_TO_LBS * 10) / 10 : value;
+  const storedUnit2 = (unit === 'lbs') ? 'kg' : unit;
   const updated = {
     ...state.prs[idx],
-    movement, value: storedValue, unit: 'kg',
+    movement, value: storedValue, unit: storedUnit2,
     reps: parseInt(document.getElementById('prReps')?.value) || null,
     notes: document.getElementById('prNotes')?.value.trim() || '',
     date: document.getElementById('prDate').value || null,
