@@ -1842,13 +1842,13 @@ function json(obj) {
     <div class="form-group" style="position:relative;">
       <label>Movement</label>
       <input type="text" id="prMovement" placeholder="Search or tap to browse…" autocomplete="off"
-        oninput="filterMovementDropdown()" onfocus="filterMovementDropdown()" onblur="setTimeout(hideMovementDropdown,200)">
+        oninput="updatePrModalFields(true); filterMovementDropdown()" onfocus="filterMovementDropdown()" onblur="setTimeout(hideMovementDropdown,200)">
       <div id="movementDropdown" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:200;background:var(--card);border:1px solid var(--border);border-radius:4px;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>
     </div>
     <div class="form-row cols-2">
       <div class="form-group">
         <label id="prValueLabel">Value</label>
-        <input type="number" id="prValue" placeholder="0" step="0.5" min="0">
+        <input type="text" id="prValue" placeholder="e.g. 4:30 or 120" oninput="updatePrModalFields()" style="font-variant-numeric:tabular-nums;">
       </div>
       <div class="form-group">
         <label>Unit</label>
@@ -1885,7 +1885,7 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v91';
+const APP_VERSION = 'v93';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
   wods: [],
@@ -1937,6 +1937,54 @@ const MOVEMENT_CATEGORIES = [
 ];
 
 const MOVEMENTS = MOVEMENT_CATEGORIES.flatMap(c => c.moves);
+
+// Returns the best default unit for a given movement name
+function getDefaultUnit(movement) {
+  if (!movement) return 'kg';
+  const m = movement.toLowerCase();
+  // Conditioning — time-based (runs, rows, ski, bike)
+  const timeMovements = ['run ', 'row ', 'ski ', 'air bike '];
+  if (timeMovements.some(t => m.startsWith(t))) return 's';
+  // Conditioning — calorie-based
+  if (m.includes('cal') && !m.includes('max')) return 'cal';
+  // Gymnastics & Max Set — reps
+  const gymnCat = MOVEMENT_CATEGORIES.find(c => c.cat === 'Gymnastics');
+  if (gymnCat && gymnCat.moves.some(gm => gm.toLowerCase() === m)) return 'reps';
+  if (m.startsWith('max set')) return 'reps';
+  // Default — weight
+  return 'kg';
+}
+
+// Given a run time in seconds and distance in meters, estimate other distances
+function estimateRunPaces(seconds, distanceM) {
+  const pace = seconds / distanceM; // sec per meter
+  const distances = [
+    { label: '400 m',    m: 400 },
+    { label: '800 m',    m: 800 },
+    { label: '1 000 m',  m: 1000 },
+    { label: '1,6 km',   m: 1600 },
+    { label: '5 000 m',  m: 5000 },
+  ];
+  return distances
+    .filter(d => d.m !== distanceM)
+    .map(d => {
+      const est = Math.round(pace * d.m);
+      const mins = Math.floor(est / 60);
+      const secs = String(est % 60).padStart(2, '0');
+      return `${d.label}: ${mins}:${secs}`;
+    });
+}
+
+// Parse "4:30" or "4m30s" or "270" into seconds
+function parseTimeInput(val) {
+  val = val.toString().trim();
+  const colonMatch = val.match(/^(\d+):(\d{1,2})$/);
+  if (colonMatch) return parseInt(colonMatch[1]) * 60 + parseInt(colonMatch[2]);
+  const labelMatch = val.match(/^(\d+)m(\d+)s?$/i);
+  if (labelMatch) return parseInt(labelMatch[1]) * 60 + parseInt(labelMatch[2]);
+  const n = parseFloat(val);
+  return isNaN(n) ? null : Math.round(n);
+}
 
 function save() {
   localStorage.setItem('lerums_state', JSON.stringify(state));
@@ -2954,6 +3002,12 @@ function hideMovementDropdown() {
 function openPRModalFor(movement) {
   openPRModal();
   document.getElementById('prMovement').value = movement;
+  // Auto-set unit based on movement type
+  const autoUnit = getDefaultUnit(movement);
+  const unitSel = document.getElementById('prUnit');
+  if (unitSel && autoUnit !== 'kg') unitSel.value = autoUnit;
+  else if (unitSel) unitSel.value = profile.unit === 'lbs' ? 'lbs' : 'kg';
+  updatePrModalFields();
 }
 
 function openPRModal() {
@@ -2966,15 +3020,52 @@ function openPRModal() {
   document.getElementById('prModal').style.display = 'flex';
 }
 
-function updatePrModalFields() {
+function updatePrModalFields(autoSetUnit = false) {
+  if (autoSetUnit) {
+    const mv = document.getElementById('prMovement')?.value.trim();
+    const autoUnit = getDefaultUnit(mv);
+    const unitSel = document.getElementById('prUnit');
+    if (unitSel) {
+      if (autoUnit !== 'kg') unitSel.value = autoUnit;
+      else unitSel.value = profile.unit === 'lbs' ? 'lbs' : 'kg';
+    }
+  }
   const unit = document.getElementById('prUnit')?.value || 'kg';
   const lbl = document.getElementById('prValueLabel');
   const repsRow = document.getElementById('prRepsRow');
   if (lbl) {
-    const labels = { kg:'Weight', lbs:'Weight', reps:'Max Reps', s:'Time (seconds)', m:'Distance (m)', cal:'Calories' };
+    const labels = { kg:'Weight', lbs:'Weight', reps:'Max Reps', s:'Time (mm:ss)', m:'Distance (m)', cal:'Calories' };
     lbl.textContent = labels[unit] || 'Value';
   }
   if (repsRow) repsRow.style.display = (unit === 'kg' || unit === 'lbs') ? 'grid' : 'none';
+  // Show pace predictions for run time PRs
+  let paceEl = document.getElementById('runPacePredictions');
+  if (!paceEl) {
+    paceEl = document.createElement('div');
+    paceEl.id = 'runPacePredictions';
+    paceEl.style.cssText = 'margin-top:0.5rem;font-size:0.78rem;color:var(--muted);line-height:1.8;';
+    const valueRow = document.getElementById('prValue')?.closest('div') || document.getElementById('prValue')?.parentElement;
+    if (valueRow) valueRow.after(paceEl);
+  }
+  const mv = document.getElementById('prMovement')?.value.trim().toLowerCase() || '';
+  const val = document.getElementById('prValue')?.value.trim();
+  const isRunTime = mv.startsWith('run ') && unit === 's';
+  if (isRunTime && val) {
+    const secs = parseTimeInput(val);
+    const distM = mv.includes('400') ? 400 : mv.includes('800') ? 800
+      : mv.includes('1 000') || mv.includes('1000') ? 1000
+      : mv.includes('1,6') || mv.includes('1600') ? 1600
+      : mv.includes('5 000') || mv.includes('5000') ? 5000 : null;
+    if (secs && distM) {
+      const preds = estimateRunPaces(secs, distM);
+      paceEl.innerHTML = '<b style="color:var(--text);">Estimated times:</b><br>' + preds.join('<br>');
+      paceEl.style.display = '';
+    } else {
+      paceEl.style.display = 'none';
+    }
+  } else {
+    paceEl.style.display = 'none';
+  }
 }
 
 function closePRModal(e) {
@@ -2987,8 +3078,10 @@ function closePRModal(e) {
 
 function savePR() {
   const movement = document.getElementById('prMovement').value.trim();
-  const value = parseFloat(document.getElementById('prValue').value);
-  if (!movement || isNaN(value)) { showToast('Enter a movement and value'); return; }
+  const rawVal = document.getElementById('prValue').value.trim();
+  const unit_for_parse = document.getElementById('prUnit').value;
+  const value = (unit_for_parse === 's') ? parseTimeInput(rawVal) : parseFloat(rawVal);
+  if (!movement || value === null || isNaN(value)) { showToast('Enter a movement and value'); return; }
   const unit = document.getElementById('prUnit').value.replace(' — weight','').replace(' — max reps','').replace(' — time (seconds)','').replace(' — distance','').replace(' — calories','');
   const reps = parseInt(document.getElementById('prReps')?.value) || null;
   const notes = document.getElementById('prNotes')?.value.trim() || '';
@@ -3066,7 +3159,15 @@ function renderMovements() {
         const allPrs = [...state.prs].filter(p => p.movement === m).sort((a,b) => b.value - a.value);
         const rm1 = allPrs.find(p => !p.reps || p.reps === 1) || allPrs[0];
         const hasPr = !!rm1;
-        const dispVal = hasPr ? (profile.unit === 'lbs' ? Math.round(rm1.value * KG_TO_LBS * 2)/2 + ' lbs' : rm1.value + ' kg') : null;
+        const dispVal = hasPr ? (() => {
+        if (rm1.unit === 's') {
+          const s = Math.round(rm1.value); const mins = Math.floor(s/60); const secs = String(s%60).padStart(2,'0');
+          return mins + ':' + secs;
+        }
+        if (rm1.unit === 'reps') return rm1.value + ' reps';
+        if (rm1.unit === 'cal') return rm1.value + ' cal';
+        return profile.unit === 'lbs' ? Math.round(rm1.value * KG_TO_LBS * 2)/2 + ' lbs' : rm1.value + ' kg';
+      })() : null;
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.35rem 0;border-bottom:1px solid var(--border);gap:0.5rem;">
           <div onclick="openRmModal('${m.replace(/'/g,"\\'")}',${hasPr ? rm1.value : 0},'${hasPr ? rm1.unit : 'kg'}')" style="display:flex;align-items:center;gap:0.5rem;flex:1;min-width:0;cursor:pointer;">
             <span style="font-size:clamp(0.72rem,2.5vw,0.85rem);line-height:1.2;flex:1;min-width:0;color:${hasPr ? '#4ade80' : 'var(--text)'};">${m}</span>
@@ -4380,6 +4481,13 @@ const RM_PERCENTAGES = [100, 95, 90, 85, 80, 75, 70, 65, 60, 55, 50];
 let rmModalMovement = '';
 
 function openRmModal(movement, prValue, unit) {
+  // For gymnastics/conditioning movements, skip the 1RM calculator and go straight to PR modal
+  const defUnit = getDefaultUnit(movement);
+  if (defUnit !== 'kg') {
+    openPRModalFor(movement);
+    return;
+  }
+
   rmModalMovement = movement;
   document.getElementById('rmModalTitle').textContent = movement;
   const input = document.getElementById('rmInput');
@@ -4401,9 +4509,12 @@ function openRmModal(movement, prValue, unit) {
 
   if (rm1 && existingBanner) {
     existingBanner.style.display = 'flex';
-    const dispVal = profile.unit === 'lbs'
-      ? Math.round(rm1.value * 2.20462 * 2) / 2 + ' lbs'
-      : rm1.value + ' kg';
+    const dispVal = (() => {
+      if (rm1.unit === 's') { const s=Math.round(rm1.value); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+      if (rm1.unit === 'reps') return rm1.value + ' reps';
+      if (rm1.unit === 'cal') return rm1.value + ' cal';
+      return profile.unit === 'lbs' ? Math.round(rm1.value * 2.20462 * 2)/2 + ' lbs' : rm1.value + ' kg';
+    })();
     if (existingVal) existingVal.textContent = dispVal + (rm1.date ? '  ·  ' + formatDate(rm1.date) : '');
     if (editBtn) editBtn.onclick = () => { closeRmModal(); editPR(rm1.id); };
   } else if (existingBanner) {
@@ -4418,9 +4529,12 @@ function openRmModal(movement, prValue, unit) {
     const prList = `<div style="margin-top:1.25rem;border-top:1px solid var(--border);padding-top:1rem;">
       <div style="font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:0.6rem;">Logged PRs</div>
       ${allPrs.map(p => {
-        const disp = profile.unit === 'lbs'
-          ? Math.round(p.value * 2.20462 * 2) / 2 + ' lbs'
-          : p.value + ' kg';
+        const disp = (() => {
+          if (p.unit === 's') { const s=Math.round(p.value); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+          if (p.unit === 'reps') return p.value + ' reps';
+          if (p.unit === 'cal') return p.value + ' cal';
+          return profile.unit === 'lbs' ? Math.round(p.value * 2.20462 * 2)/2 + ' lbs' : p.value + ' kg';
+        })();
         return `<div style="display:flex;align-items:center;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid var(--border);gap:0.5rem;">
           <div style="display:flex;align-items:center;gap:0.6rem;">
             <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.8rem;letter-spacing:0.08em;color:var(--red);min-width:2.5rem;">${rmLabel(p)}</span>
@@ -4456,7 +4570,8 @@ function logPRFromRmModal() {
   closeRmModal();
   openPRModalFor(rmModalMovement);
   document.getElementById('prValue').value = val;
-  document.getElementById('prUnit').value = 'kg';
+  const defUnit = getDefaultUnit(rmModalMovement);
+  document.getElementById('prUnit').value = defUnit;
   updatePrModalFields();
 }
 
