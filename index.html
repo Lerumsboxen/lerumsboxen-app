@@ -756,6 +756,32 @@
     background: rgba(232,0,29,0.1);
     box-shadow: 0 2px 12px rgba(232,0,29,0.2);
   }
+  .challenge-badge {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.25rem;
+    min-width: 1.1rem;
+    height: 1.1rem;
+    padding: 0 0.25rem;
+    background: #fbbf24;
+    color: #000;
+    border-radius: 999px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    pointer-events: none;
+    z-index: 2;
+    animation: badge-pop 0.3s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  @keyframes badge-pop {
+    from { transform: scale(0); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+  }
   .home-btn:hover {
     border-color: var(--red);
     background: rgba(232,0,29,0.07);
@@ -1129,6 +1155,7 @@
           <span class="home-btn-icon">⚡</span>
           <span class="home-btn-label">Challenges</span>
           <span class="home-btn-sub">Send & receive challenges</span>
+          <span id="challengeBadge" class="challenge-badge" style="display:none;"></span>
         </button>
         <button class="home-btn" id="hbtn-members" onclick="selectDashSection('members')" style="flex:1;max-width:25%;">
           <span class="home-btn-icon">👥</span>
@@ -1909,7 +1936,7 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v98';
+const APP_VERSION = 'v99';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
   wods: [],
@@ -5520,6 +5547,7 @@ async function fetchChallenges() {
     if (data.error) throw new Error(data.error);
     challengesCache = data;
     renderChallenges();
+    updateChallengeBadge();
   } catch(e) {
     if (el) el.innerHTML = `<div style="text-align:center;color:var(--muted);padding:2rem;">Could not load challenges.<br><small>${e.message}</small></div>`;
   }
@@ -5787,6 +5815,33 @@ function openChallengeModal(prefill) {
   document.getElementById('challengeModal').style.display = 'flex';
 }
 
+function updateChallengeBadge() {
+  const badge = document.getElementById('challengeBadge');
+  if (!badge) return;
+  if (!profile.name || !challengesCache) { badge.style.display = 'none'; return; }
+  const myName = profile.name.toLowerCase();
+  const declined = JSON.parse(localStorage.getItem('lerums_declined_challenges') || '[]');
+  const today = new Date().toISOString().split('T')[0];
+  const pending = (challengesCache.challenges || []).filter(c => {
+    const isForMe = !c.to || c.to.toLowerCase() === myName || c.to === '';
+    const notDeclined = !declined.includes(c.id);
+    const notFromMe = c.from !== profile.name;
+    const notExpired = !c.deadline || c.deadline >= today;
+    return isForMe && notDeclined && notFromMe && notExpired;
+  });
+  if (pending.length > 0) {
+    badge.textContent = pending.length > 99 ? '99+' : pending.length;
+    badge.style.display = 'flex';
+    // Pulse the button border yellow while there are pending challenges
+    const btn = document.getElementById('hbtn-challenges');
+    if (btn) btn.style.borderColor = '#fbbf24';
+  } else {
+    badge.style.display = 'none';
+    const btn = document.getElementById('hbtn-challenges');
+    if (btn) btn.style.borderColor = '';
+  }
+}
+
 function openChallengeFromWod(wodId) {
   const wod = state.wods.find(w => w.id === wodId);
   if (!wod) return;
@@ -5828,6 +5883,10 @@ async function sendChallenge() {
 function acceptChallenge(challengeId) {
   const c = (challengesCache?.challenges || []).find(x => x.id === challengeId);
   if (!c) return;
+  // Mark as declined (acted on) so badge updates
+  const dec = JSON.parse(localStorage.getItem('lerums_declined_challenges') || '[]');
+  if (!dec.includes(challengeId)) { dec.push(challengeId); localStorage.setItem('lerums_declined_challenges', JSON.stringify(dec)); }
+  updateChallengeBadge();
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('wodDate').value = today;
   document.getElementById('wodName').value = c.name;
@@ -5843,6 +5902,7 @@ function declineChallenge(challengeId) {
   const seen = JSON.parse(localStorage.getItem('lerums_declined_challenges') || '[]');
   seen.push(challengeId);
   localStorage.setItem('lerums_declined_challenges', JSON.stringify(seen));
+  updateChallengeBadge();
   showToast('Challenge declined');
   renderChallenges();
 }
@@ -5867,6 +5927,7 @@ async function checkNewChallenges() {
       const allSeen = [...seen, ...newOnes.map(c => c.id)];
       localStorage.setItem('lerums_seen_challenges', JSON.stringify(allSeen));
       challengesCache = data;
+      updateChallengeBadge();
       showChallengeNotification(newOnes);
     }
   } catch(e) { /* silent */ }
