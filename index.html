@@ -1954,7 +1954,7 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v104';
+const APP_VERSION = 'v105';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
   wods: [],
@@ -6253,14 +6253,16 @@ setTimeout(() => { if (is2DWLEnabled()) fetch2DWLProgram(true); }, 7000);
 if (!profile.name) {
   setTimeout(() => { showToast('👋 Welcome! Tap your avatar to set up your profile.'); }, 1000);
 } else {
-  setTimeout(() => autoCloudSync(), 1500);
-  setTimeout(() => registerMember(), 3000);
-  setTimeout(() => checkNewChallenges(), 3000); // Check challenges early on startup
+  // Fetch challenges immediately — highest priority, no delay
+  checkNewChallenges();
+  // Stagger everything else to avoid hammering the Apps Script at once
+  setTimeout(() => registerMember(), 1000);
+  setTimeout(() => autoCloudSync(), 2000);
   // Non-admins: auto-sync program silently on first login
   if (!isAdmin()) {
     const lastSync = localStorage.getItem('lb_lerums_program_last_sync');
     if (!lastSync) {
-      setTimeout(() => fetchDailyProgram(true), 2000);
+      setTimeout(() => fetchDailyProgram(true), 3000);
     }
   }
 }
