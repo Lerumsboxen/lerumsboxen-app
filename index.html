@@ -1954,7 +1954,7 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v105';
+const APP_VERSION = 'v106';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
   wods: [],
@@ -5020,13 +5020,16 @@ function openStrengthModalForPart(sessionLabel, partLabel, dateStr) {
 function splitIntoParts(text) {
   if (!text) return [];
   const lines = text.split('\n');
-  // Detect lines that start a new Part: "Part A", "Part A:", "A.", "A:"
-  const partHeaderRe = /^((?:Part\s+)?[A-Ea-e][\s.:)])/;
+  // Strip HTML tags for matching, but keep original line for display
+  const plain = lines.map(l => l.replace(/<[^>]+>/g, '').trim());
+  // Detect part headers: "Part A", "Part A:", "A.", "A:", "PART A", also bold wrapped
+  const partHeaderRe = /^(?:Part\s+)?([A-E])[.:)\s]/i;
   const partIndices = [];
-  lines.forEach(function(line, i) {
-    if (partHeaderRe.test(line.trim())) partIndices.push(i);
+  plain.forEach(function(p, i) {
+    if (partHeaderRe.test(p)) partIndices.push(i);
   });
-  if (partIndices.length < 2) {
+  // Need at least 1 detected part header to split
+  if (partIndices.length < 1) {
     return [{ label: null, text: text.trim() }];
   }
   const parts = [];
@@ -5034,7 +5037,10 @@ function splitIntoParts(text) {
     const from = partIndices[pi];
     const to = pi + 1 < partIndices.length ? partIndices[pi + 1] : lines.length;
     const chunk = lines.slice(from, to).join('\n').trim();
-    const label = lines[from].trim().replace(/^((?:Part\s+)?[A-Ea-e][.\s:)]+).*/, '$1').trim();
+    // Extract clean label like "Part A" or "A."
+    const rawLabel = plain[from];
+    const letterMatch = rawLabel.match(/^(?:Part\s+)?([A-E])[.:)]/i);
+    const label = letterMatch ? 'Part ' + letterMatch[1].toUpperCase() : rawLabel.substring(0, 8).trim();
     parts.push({ label: label, text: chunk });
   }
   return parts;
@@ -5045,7 +5051,7 @@ function splitIntoParts(text) {
 function renderLBWLSessionCard(s, prefix, weekNum, isToday, isPast, dayLabel) {
   const sessionLabel = prefix + ' Session ' + s.session;
   const parts = splitIntoParts(s.text);
-  const hasParts = parts.length > 1 || parts[0]?.label;
+  const hasParts = parts.length >= 1 && parts[0]?.label;
 
   const headerColor = isToday ? '#fbbf24' : 'var(--muted)';
   const borderColor = isToday ? '#fbbf24' : 'var(--border)';
