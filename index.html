@@ -1954,7 +1954,7 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v106';
+const APP_VERSION = 'v108';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
   wods: [],
@@ -4208,21 +4208,56 @@ function enrichProgramText(text) {
     const rmMatch = plainLine.match(/of\s+(\d+)\s*RM/i);
     const rmReps = rmMatch ? parseInt(rmMatch[1]) : 1;
 
-    // Find the matched PR for this line
+    // Find the matched PR — look at CURRENT LINE first, then previous lines
     let matchedPR = null;
+
+    // Step 1: check only the current line for a movement name
     for (const mv of sortedMovements) {
-      if (searchText.toLowerCase().includes(mv.toLowerCase())) {
+      if (plainLine.toLowerCase().includes(mv.toLowerCase())) {
         const pr = getBestPR(mv, rmReps);
         if (pr) { matchedPR = pr; break; }
       }
     }
+
+    // Step 2: if no match on current line, check for explicit movement
+    //         word after "of 1RM" on this line (e.g. "85 % of 1RM Clean")
     if (!matchedPR) {
-      const words = searchText.replace(/[^a-zA-ZåäöÅÄÖ\s]/g, ' ').split(/\s+/).filter(w => w.length > 3);
+      const ofRmMovement = plainLine.match(/of\s+(?:\d+\s*)?RM\s+([A-Za-zåäöÅÄÖ][A-Za-zåäöÅÄÖ\s&+]+?)(?:\s*$|\s*at|\s*with|\s*\()/i);
+      if (ofRmMovement) {
+        const mvName = ofRmMovement[1].trim();
+        // Try full name first, then individual words
+        const pr = getBestPR(mvName, rmReps);
+        if (pr) { matchedPR = pr; }
+        if (!matchedPR) {
+          for (const mv of sortedMovements) {
+            if (mvName.toLowerCase().includes(mv.toLowerCase())) {
+              const pr2 = getBestPR(mv, rmReps);
+              if (pr2) { matchedPR = pr2; break; }
+            }
+          }
+        }
+      }
+    }
+
+    // Step 3: fall back to context (previous lines) if still no match
+    if (!matchedPR) {
+      for (const mv of sortedMovements) {
+        if (sectionContext.toLowerCase().includes(mv.toLowerCase())) {
+          const pr = getBestPR(mv, rmReps);
+          if (pr) { matchedPR = pr; break; }
+        }
+      }
+    }
+
+    // Step 4: word-by-word fallback on full context
+    if (!matchedPR) {
+      const words = sectionContext.replace(/[^a-zA-ZåäöÅÄÖ\s]/g, ' ').split(/\s+/).filter(w => w.length > 3);
       for (const word of words) {
         const pr = getBestPR(word, rmReps);
         if (pr) { matchedPR = pr; break; }
       }
     }
+
     if (!matchedPR) return line;
 
     let rmValue = matchedPR.value;
@@ -4233,43 +4268,41 @@ function enrichProgramText(text) {
     // Find ALL individual percentages in the line and annotate each one
     let resultLine = line;
 
-    // Pattern 0: dash-range percentages — "90-100 %" or "40-45 % of 5RM"
-    // Shows both endpoints as kg: "90-100 % → 115/127.5 kg"
-    resultLine = resultLine.replace(/(?<![\/\d])(\d{1,3}(?:[.,]\d+)?)\s*[-–]\s*(\d{1,3}(?:[.,]\d+)?)\s*%(\+?)(?:\s*of\s*(\d+)\s*RM)?/gi,
+    // Pattern 0: dash-range percentages — "90-100 % of 5RM Movement"
+    // Consumes optional trailing movement name so it stays before the arrow
+    resultLine = resultLine.replace(/(?<![\/\d])(\d{1,3}(?:[.,]\d+)?)\s*[-–]\s*(\d{1,3}(?:[.,]\d+)?)\s*%(\+?)(?:\s*of\s*(\d+)\s*RM(?:\s+[A-ZÅÄÖa-zåäö][A-Za-zåäöÅÄÖ\s&+]*?)?)?(?=\s*$|\s*[.,(\n<])/gi,
       (match, lo, hi, plus, rmNum) => {
-        if (resultLine.includes('→')) return match; // already annotated
+        if (resultLine.includes('→')) return match;
         const loN = parseFloat(lo.replace(',', '.'));
         const hiN = parseFloat(hi.replace(',', '.'));
         if (loN <= 0 || loN > 100 || hiN <= 0 || hiN > 100) return match;
         const loKg = calcWeight(rmValue, loN);
         const hiKg = calcWeight(rmValue, hiN);
-        const suffix = rmNum ? ` % of ${rmNum}RM` : ' %';
-        return `${lo}-${hi}${suffix}<span style="color:#4ade80;font-weight:700;"> → ${loKg}/${hiKg}${plus} </span>`;
+        return `${match.trimEnd()}<span style="color:#4ade80;font-weight:700;"> → ${loKg}/${hiKg}${plus||''} </span>`;
       }
     );
 
-    // Pattern 1: slash-separated percentages — "60/65/70 %" or "30/37,5/45 %"
-    // Format: keep original pcts, then append "→ X/Y/Z kg" at end
-    resultLine = resultLine.replace(/(\b\d{1,3}(?:[.,]\d+)?)((?:\/\d{1,3}(?:[.,]\d+)?)+)\s*%(\+?)(?:\s*of\s*(\d+)\s*RM)?/gi,
+    // Pattern 1: slash-separated percentages — "60/65/70 % of 1RM Movement"
+    // Consumes optional trailing movement name so it stays before the arrow
+    resultLine = resultLine.replace(/(\b\d{1,3}(?:[.,]\d+)?)((?:\/\d{1,3}(?:[.,]\d+)?)+)\s*%(\+?)(?:\s*of\s*(\d+)\s*RM(?:\s+[A-ZÅÄÖa-zåäö][A-Za-zåäöÅÄÖ\s&+]*?)?)?(?=\s*$|\s*[.,(\n<])/gi,
       (match, first, rest, plus, rmNum) => {
         const parseNum = s => parseFloat(s.replace(',', '.'));
         const nums = [first, ...rest.slice(1).split('/')].map(parseNum).filter(n => n > 0 && n <= 100);
         if (!nums.length) return match;
         const kgValues = nums.map(n => calcWeight(rmValue, n)).join('/');
-        const suffix = rmNum ? ` % of ${rmNum}RM` : ' %';
-        return `${[first, ...rest.slice(1).split('/')].join('/')}${suffix}<span style="color:#4ade80;font-weight:700;"> → ${kgValues}${plus} </span>`;
+        return `${match.trimEnd()}<span style="color:#4ade80;font-weight:700;"> → ${kgValues}${plus||''} </span>`;
       }
     );
 
-    // Pattern 2: single percentage — only if no slash group was already annotated on this line
-    // and not preceded by a dash/slash/digit (avoids rep schemes)
+    // Pattern 2: single percentage "85 % of 1RM Clean & Jerk"
+    // Consumes optional trailing movement name so it stays before the arrow
     if (!resultLine.includes('→')) {
-      resultLine = resultLine.replace(/(?<![\/\-\d])(\b\d{1,3}(?:[.,]\d+)?)\s*%\s*(\+?)(?:\s*of\s*\d+\s*RM)?/g,
+      resultLine = resultLine.replace(/(?<![\/\-\d])(\b\d{1,3}(?:[.,]\d+)?)\s*%\s*(\+?)(?:\s*of\s*\d+\s*RM(?:\s+[A-ZÅÄÖa-zåäö][A-Za-zåäöÅÄÖ\s&+]*?)?)?(?=\s*$|\s*[.,(\n<])/g,
         (match, numStr, plus) => {
           const n = parseFloat(numStr.replace(',', '.'));
           if (n <= 0 || n > 100) return match;
           const w = calcWeight(rmValue, n);
-          return match + `<span style="color:#4ade80;font-weight:700;"> → ${w}${plus} </span>`;
+          return `${match.trimEnd()}<span style="color:#4ade80;font-weight:700;"> → ${w}${plus||''} </span>`;
         }
       );
     }
@@ -5005,14 +5038,164 @@ async function fetch2DWLProgram(silent = false) {
 }
 
 // Open strength modal pre-filled for a lifting program part
-function openStrengthModalForPart(sessionLabel, partLabel, dateStr) {
+// Parse a lifting part's text to extract sets, reps, and optional weight
+function parsePartScheme(text) {
+  if (!text) return { sets: null, reps: null, weight: null, movement: null };
+  // Strip HTML tags, split into plain lines
+  const lines = text.replace(/<[^>]+>/g, '').split('\n').map(l => l.trim()).filter(Boolean);
+
+  let sets = null, reps = null, pct = null, movement = null;
+
+  // 1. Look for "NxM" pattern (e.g. "6x3", "5x1") — first number = sets, second = reps
+  for (const line of lines) {
+    const nxm = line.match(/\b(\d+)\s*[xX×]\s*(\d+)\b/);
+    if (nxm) {
+      // Make sure this isn't inside a weight like "100x3" where 100 looks like a weight
+      // Heuristic: if first number > 20 it's likely a weight, not sets
+      const s = parseInt(nxm[1]), r = parseInt(nxm[2]);
+      if (s <= 20 && r <= 30) { sets = s; reps = r; }
+      break;
+    }
+  }
+
+  // 2. Look for EMOM-style: "E90S x9", "E2M x7", "Every 90s x8" → xN = sets
+  //    Then reps come from the next meaningful line: "2 Power Snatch" → 2 reps
+  if (sets === null) {
+    for (let i = 0; i < lines.length; i++) {
+      // Match interval patterns: E90S, E2M, E1M30S, Every X, EMOM etc.
+      const intervalMatch = lines[i].match(/(?:E\d+[MS]\d*[MS]?|Every\s+\d+|EMOM).*?[xX×]\s*(\d+)/i);
+      if (intervalMatch) {
+        sets = parseInt(intervalMatch[1]);
+        // Look for reps on surrounding lines
+        for (let j = 1; j <= 3; j++) {
+          const nextLine = lines[i + j] || '';
+          // "2 Power Snatch", "1 Clean & Jerk", "3 reps"
+          const repsMatch = nextLine.match(/^(\d+)\s+(?:rep|reps|[A-Z])/i);
+          if (repsMatch) { reps = parseInt(repsMatch[1]); break; }
+          // Also look for "NxM" type on nearby lines
+          const nxm2 = nextLine.match(/\b(\d+)\s*[xX×]\s*(\d+)\b/);
+          if (nxm2 && parseInt(nxm2[1]) <= 20) { reps = parseInt(nxm2[2]); break; }
+        }
+        break;
+      }
+    }
+  }
+
+  // 3. If still no sets/reps, try "xN" standalone on any line (e.g. "x7")
+  if (sets === null) {
+    for (const line of lines) {
+      const xn = line.match(/^[xX×]\s*(\d+)$/);
+      if (xn) { sets = parseInt(xn[1]); break; }
+    }
+  }
+
+  // 4. Find a single percentage (e.g. "80%", "85 %") — but NOT a range like "70-85%"
+  for (const line of lines) {
+    // Range pattern — skip
+    if (/\d+\s*[-–]\s*\d+\s*%/.test(line)) continue;
+    const pctMatch = line.match(/(\d+(?:\.\d+)?)\s*%/);
+    if (pctMatch) { pct = parseFloat(pctMatch[1]); break; }
+  }
+
+  // 5. Extract movement name to look up 1RM
+  //    Look for lines that contain a known lift or movement keyword
+  const liftKeywords = /snatch|clean|jerk|squat|deadlift|press|pull|row|swing|carry|step.up|lunge|thruster|push.up|pull.up|muscle.up|burpee|box.jump/i;
+  for (const line of lines) {
+    if (liftKeywords.test(line) && !/^\d+\s*%/.test(line)) {
+      // Strip leading rep count: "2 Power Snatch" → "Power Snatch"
+      movement = line.replace(/^\d+\s+/, '').replace(/\s+at\s+.*$/i, '').trim();
+      break;
+    }
+  }
+
+  // 6. Calculate weight from % + 1RM if we have both
+  let weight = null;
+  if (pct !== null && movement) {
+    // Find best matching PR in state.prs
+    const movLower = movement.toLowerCase();
+    const match = (state.prs || [])
+      .filter(p => (p.unit === 'kg' || p.unit === 'lbs') && p.movement)
+      .sort((a, b) => b.value - a.value)
+      .find(p => {
+        const pl = p.movement.toLowerCase();
+        return pl.includes(movLower) || movLower.includes(pl) ||
+          // Fuzzy: check key word overlap (e.g. "Snatch" matches "Power Snatch")
+          movLower.split(/\s+/).some(w => w.length > 3 && pl.includes(w));
+      });
+    if (match) {
+      const rm1kg = match.unit === 'lbs' ? match.value / KG_TO_LBS : match.value;
+      const calc = Math.round(rm1kg * pct / 100 * 2) / 2; // round to nearest 0.5
+      weight = profile.unit === 'lbs' ? Math.round(calc * KG_TO_LBS * 2) / 2 : calc;
+    }
+  }
+
+  return { sets, reps, weight, movement, pct };
+}
+
+function openStrengthModalForPart(sessionLabel, partLabel, dateStr, partText) {
   openStrengthModal();
-  // Pre-fill exercise with "Session N — Part A" style label
+
+  // Pre-fill exercise
   const exEl = document.getElementById('strExercise');
   if (exEl) exEl.value = sessionLabel + (partLabel ? ' — ' + partLabel : '');
+
   // Pre-fill date
   const dateEl = document.getElementById('strDate');
   if (dateEl && dateStr) dateEl.value = dateStr;
+
+  // Unescape newlines if text came from a data attribute
+  const text = (partText || '').replace(/\\n/g, '\n');
+
+  // Parse sets/reps/weight from part text
+  const scheme = parsePartScheme(text);
+  const { sets, reps, weight } = scheme;
+
+  if (sets !== null && sets > 0) {
+    // Clear default 3 rows, add exactly 'sets' rows pre-filled
+    setRowCount = 0;
+    document.getElementById('setsContainer').innerHTML = '';
+    const numSets = Math.min(sets, 20); // cap at 20 for safety
+    for (let i = 0; i < numSets; i++) {
+      addSetRowPreFilled(weight, reps);
+    }
+    // Show a subtle note if weight was auto-calculated
+    if (weight !== null && scheme.pct !== null) {
+      const notesEl = document.getElementById('strNotes');
+      if (notesEl && !notesEl.value) {
+        notesEl.value = scheme.pct + '% of ' + (scheme.movement || '1RM');
+      }
+    }
+  } else if (reps !== null) {
+    // We know reps but not sets — pre-fill existing 3 rows with reps
+    document.querySelectorAll('#setsContainer .set-row').forEach(row => {
+      const id = row.dataset.setId;
+      const rEl = document.getElementById('sr-' + id);
+      if (rEl) rEl.value = reps;
+      if (weight !== null) {
+        const wEl = document.getElementById('sw-' + id);
+        if (wEl) wEl.value = weight;
+      }
+    });
+  }
+}
+
+// addSetRowPreFilled: like addSetRow but with explicit weight and reps
+function addSetRowPreFilled(weight, reps) {
+  setRowCount++;
+  const id = setRowCount;
+  const row = document.createElement('div');
+  row.className = 'set-row';
+  row.id = 'set-row-' + id;
+  row.dataset.setId = id;
+  row.innerHTML = `
+    <div class="set-row-label">S?</div>
+    <input type="number" id="sw-${id}" placeholder="kg" step="0.5" min="0" value="${weight !== null ? weight : ''}">
+    <input type="number" id="sr-${id}" placeholder="reps" min="1" value="${reps !== null ? reps : ''}">
+    <input type="number" id="se-${id}" placeholder="1-10" min="1" max="10" step="0.5" value="">
+    <button class="del-set-btn" onclick="removeSetRow(${id})">✕</button>
+  `;
+  document.getElementById('setsContainer').appendChild(row);
+  renumberSetRows();
 }
 
 // Split session text into named parts (Part A, Part B, etc.)
@@ -5022,8 +5205,8 @@ function splitIntoParts(text) {
   const lines = text.split('\n');
   // Strip HTML tags for matching, but keep original line for display
   const plain = lines.map(l => l.replace(/<[^>]+>/g, '').trim());
-  // Detect part headers: "Part A", "Part A:", "A.", "A:", "PART A", also bold wrapped
-  const partHeaderRe = /^(?:Part\s+)?([A-E])[.:)\s]/i;
+  // Detect part headers: "Part A", "Part A:", "A.", "A:", "PART A", A through Z
+  const partHeaderRe = /^(?:Part\s+)?([A-Za-z])[.:)]/;
   const partIndices = [];
   plain.forEach(function(p, i) {
     if (partHeaderRe.test(p)) partIndices.push(i);
@@ -5039,7 +5222,7 @@ function splitIntoParts(text) {
     const chunk = lines.slice(from, to).join('\n').trim();
     // Extract clean label like "Part A" or "A."
     const rawLabel = plain[from];
-    const letterMatch = rawLabel.match(/^(?:Part\s+)?([A-E])[.:)]/i);
+    const letterMatch = rawLabel.match(/^(?:Part\s+)?([A-Za-z])[.:)]/);
     const label = letterMatch ? 'Part ' + letterMatch[1].toUpperCase() : rawLabel.substring(0, 8).trim();
     parts.push({ label: label, text: chunk });
   }
@@ -5064,7 +5247,7 @@ function renderLBWLSessionCard(s, prefix, weekNum, isToday, isPast, dayLabel) {
         <div style="font-family:'Barlow Condensed';font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:${headerColor};">
           ${isToday ? '▶ TODAY — ' : ''}${dayLabel} · ${sessionLabel}
         </div>
-        <button onclick="openStrengthModalForPart('${sessionLabel.replace(/'/g,"\'")}', '', '${s.date}')"
+        <button onclick="openStrengthModalForPart('${sessionLabel.replace(/'/g,"\'")}', '', '${s.date}', this.dataset.pt)" data-pt="${parts[0].text.replace(/"/g,'&quot;').replace(/\n/g,'\\n')}"
           style="flex-shrink:0;background:transparent;border:1px solid var(--border);border-radius:3px;padding:0.2rem 0.55rem;font-family:'Barlow Condensed';font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);cursor:pointer;">📝 Log</button>
       </div>
       <div style="font-size:0.83rem;line-height:1.6;white-space:pre-wrap;">${enrichProgramText(parts[0].text)}</div>
@@ -5082,7 +5265,7 @@ function renderLBWLSessionCard(s, prefix, weekNum, isToday, isPast, dayLabel) {
             style="background:transparent;border:none;font-family:'Barlow Condensed';font-size:0.8rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--red);cursor:pointer;padding:0;text-align:left;">
             ${partLabel} ▾
           </button>
-          <button onclick="openStrengthModalForPart('${sessionLabel.replace(/'/g,"\'")}', '${partLabel.replace(/'/g,"\'")}', '${s.date}')"
+          <button onclick="openStrengthModalForPart('${sessionLabel.replace(/'/g,"\'")}', '${partLabel.replace(/'/g,"\'")}', '${s.date}', this.dataset.pt)" data-pt="${part.text.replace(/"/g,'&quot;').replace(/\n/g,'\\n')}"
             style="flex-shrink:0;background:transparent;border:1px solid var(--border);border-radius:3px;padding:0.2rem 0.55rem;font-family:'Barlow Condensed';font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);cursor:pointer;">📝 Log</button>
         </div>
         <div id="lbwl_pt_${partId}" style="font-size:0.83rem;line-height:1.6;white-space:pre-wrap;">${enrichProgramText(part.text)}</div>
