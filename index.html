@@ -1192,6 +1192,7 @@
       <div class="section-title" style="margin:0;flex:1;">Log</div>
       <div style="display:flex;gap:0.6rem;">
         <button class="btn btn-outline" onclick="openStrengthModal()" style="border-color:#e0e0e0;color:#e0e0e0;">+ STRENGTH</button>
+        <button class="btn btn-outline" onclick="openCondModal()" style="border-color:#38bdf8;color:#38bdf8;">+ CONDITIONING</button>
         <button class="btn btn-red" onclick="openWodModal()">+ WORKOUT</button>
       </div>
     </div>
@@ -1212,9 +1213,10 @@
 
     <!-- Sub-tabs -->
     <div style="display:flex;gap:0;margin-bottom:1.25rem;border-bottom:1px solid var(--border);margin-top:0.75rem;">
-      <button id="lt-all" onclick="switchLogTab('all')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.4rem;background:none;border:none;border-bottom:3px solid var(--text);color:var(--text);cursor:pointer;transition:all 0.2s;">All</button>
-      <button id="lt-strength" onclick="switchLogTab('strength')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.4rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;transition:all 0.2s;">Strength</button>
-      <button id="lt-wod" onclick="switchLogTab('wod')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.4rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;transition:all 0.2s;">Workouts</button>
+      <button id="lt-all" onclick="switchLogTab('all')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.1rem;background:none;border:none;border-bottom:3px solid var(--text);color:var(--text);cursor:pointer;transition:all 0.2s;">All</button>
+      <button id="lt-strength" onclick="switchLogTab('strength')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.1rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;transition:all 0.2s;">Strength</button>
+      <button id="lt-cond" onclick="switchLogTab('cond')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.1rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;transition:all 0.2s;">Conditioning</button>
+      <button id="lt-wod" onclick="switchLogTab('wod')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.1rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;transition:all 0.2s;">Workouts</button>
     </div>
 
     <!-- All section -->
@@ -1225,6 +1227,11 @@
     <!-- Strength section -->
     <div id="log-strength-section" style="display:none;">
       <div id="strengthList"></div>
+    </div>
+
+    <!-- Conditioning section -->
+    <div id="log-cond-section" style="display:none;">
+      <div id="condList"></div>
     </div>
 
     <!-- WOD section -->
@@ -1954,16 +1961,18 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v109';
+const APP_VERSION = 'v110';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
   wods: [],
   prs: [],
   strength: [],
+  conditioning: [],
   dailyProgram: {},
 };
 // migrate older saves
 if (!state.strength) state.strength = [];
+if (!state.conditioning) state.conditioning = [];
 if (!state.dailyProgram) state.dailyProgram = {};
 
 // ===== HARDCODED WEB APP URL =====
@@ -2210,6 +2219,7 @@ const DASH_SECTIONS = {
         <div class="section-title" style="margin:0;flex:1;">Log</div>
         <div style="display:flex;gap:0.6rem;">
           <button class="btn btn-outline" onclick="openStrengthModal()" style="border-color:#e0e0e0;color:#e0e0e0;">+ STRENGTH</button>
+          <button class="btn btn-outline" onclick="openCondModal()" style="border-color:#38bdf8;color:#38bdf8;">+ CONDITIONING</button>
           <button class="btn btn-red" onclick="openWodModal()">+ WORKOUT</button>
         </div>
       </div>
@@ -3753,17 +3763,20 @@ function clearDateFilter() {
 function renderCurrentLogTab() {
   if (currentLogTab === 'strength') renderStrengthList();
   else if (currentLogTab === 'wod') renderWodList();
+  else if (currentLogTab === 'cond') renderCondList();
   else renderAllList();
 }
 
 function switchLogTab(tab) {
   currentLogTab = tab;
-  const wodSec = document.getElementById('log-wod-section');
-  const strSec = document.getElementById('log-strength-section');
-  const allSec = document.getElementById('log-all-section');
-  if (wodSec) wodSec.style.display      = tab === 'wod'      ? 'block' : 'none';
-  if (strSec) strSec.style.display = tab === 'strength' ? 'block' : 'none';
-  if (allSec) allSec.style.display      = tab === 'all'      ? 'block' : 'none';
+  const wodSec  = document.getElementById('log-wod-section');
+  const strSec  = document.getElementById('log-strength-section');
+  const allSec  = document.getElementById('log-all-section');
+  const condSec = document.getElementById('log-cond-section');
+  if (wodSec)  wodSec.style.display  = tab === 'wod'      ? 'block' : 'none';
+  if (strSec)  strSec.style.display  = tab === 'strength' ? 'block' : 'none';
+  if (allSec)  allSec.style.display  = tab === 'all'      ? 'block' : 'none';
+  if (condSec) condSec.style.display = tab === 'cond'     ? 'block' : 'none';
 
   const strFilters = document.getElementById('log-strength-filters');
   if (strFilters) strFilters.style.display = (tab === 'strength') ? 'flex' : 'none';
@@ -3772,6 +3785,7 @@ function switchLogTab(tab) {
     strength: { el:'lt-strength', color:'#e0e0e0' },
     wod:      { el:'lt-wod',      color:'var(--red)' },
     all:      { el:'lt-all',      color:'var(--text)' },
+    cond:     { el:'lt-cond',     color:'#38bdf8' },
   };
   Object.entries(tabs).forEach(([t, cfg]) => {
     const btn = document.getElementById(cfg.el);
@@ -3792,27 +3806,28 @@ function renderAllList() {
   const el = document.getElementById('allList');
   if (!el) return;
 
-  // Merge wods and strength sessions into one timeline
   const wods = state.wods
     .filter(w => inDateRange(w.date))
     .map(w => ({ _type: 'wod', date: w.date, _data: w }));
-
   const sessions = state.strength
     .filter(s => inDateRange(s.date))
     .map(s => ({ _type: 'strength', date: s.date, _data: s }));
+  const conds = (state.conditioning || [])
+    .filter(c => inDateRange(c.date))
+    .map(c => ({ _type: 'cond', date: c.date, _data: c }));
 
-  const all = [...wods, ...sessions].sort((a, b) => b.date.localeCompare(a.date));
+  const all = [...wods, ...sessions, ...conds].sort((a, b) => b.date.localeCompare(a.date));
 
   if (!all.length) {
     el.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><p>No entries for this period.</p></div>`;
     return;
   }
 
-  el.innerHTML = all.map(item =>
-    item._type === 'wod'
-      ? wodCardHTML(item._data, true)
-      : strengthCardHTML(item._data)
-  ).join('');
+  el.innerHTML = all.map(item => {
+    if (item._type === 'wod') return wodCardHTML(item._data, true);
+    if (item._type === 'strength') return strengthCardHTML(item._data);
+    return condCardHTML(item._data, true);
+  }).join('');
 }
 
 // ===== STRENGTH LOG =====
@@ -6472,6 +6487,332 @@ function autoCloudSync() {
   }
 }
 
+
+// ===== CONDITIONING LOG =====
+// ═══════════════════════════════════════════════════════════════
+// CONDITIONING LOG — Run / Row / Ski / Bike
+// ═══════════════════════════════════════════════════════════════
+
+// ── Helpers ──────────────────────────────────────────────────
+function secsToMMSS(s) {
+  s = Math.round(s);
+  const m = Math.floor(s / 60);
+  return m + ':' + String(s % 60).padStart(2, '0');
+}
+function parseMMSS(val) {
+  if (!val) return null;
+  val = val.toString().trim();
+  const colonMatch = val.match(/^(\d+):(\d{1,2})$/);
+  if (colonMatch) return parseInt(colonMatch[1]) * 60 + parseInt(colonMatch[2]);
+  const n = parseFloat(val);
+  return isNaN(n) ? null : Math.round(n);
+}
+function calcPace(secs, distM) {
+  // min/km
+  if (!secs || !distM) return null;
+  const secPerKm = secs / (distM / 1000);
+  return secsToMMSS(Math.round(secPerKm));
+}
+function calcSplit500(secs, distM) {
+  // 500m split (rowing)
+  if (!secs || !distM) return null;
+  const secPer500 = secs / (distM / 500);
+  return secsToMMSS(Math.round(secPer500));
+}
+
+// ── Interval row counter ──────────────────────────────────────
+let condIntervalCount = 0;
+
+function addIntervalRow(time, distance, notes) {
+  condIntervalCount++;
+  const id = condIntervalCount;
+  const container = document.getElementById('condIntervals');
+  if (!container) return;
+  const row = document.createElement('div');
+  row.className = 'cond-interval-row';
+  row.id = 'cond-int-' + id;
+  row.dataset.intId = id;
+  row.style.cssText = 'display:grid;grid-template-columns:auto 1fr 1fr 1fr auto;gap:0.4rem;align-items:center;margin-bottom:0.4rem;';
+  row.innerHTML = `
+    <div style="font-family:'Barlow Condensed';font-size:0.75rem;font-weight:700;color:var(--muted);width:2rem;text-align:center;">I${id}</div>
+    <input type="text" id="ci-time-${id}" placeholder="mm:ss" value="${time||''}"
+      oninput="updateIntervalPace(${id})"
+      style="padding:0.35rem 0.5rem;font-size:0.82rem;background:var(--card2);border:1px solid var(--border);border-radius:3px;color:var(--text);width:100%;">
+    <input type="number" id="ci-dist-${id}" placeholder="m" value="${distance||''}"
+      oninput="updateIntervalPace(${id})"
+      style="padding:0.35rem 0.5rem;font-size:0.82rem;background:var(--card2);border:1px solid var(--border);border-radius:3px;color:var(--text);width:100%;">
+    <div id="ci-pace-${id}" style="font-size:0.75rem;color:#38bdf8;font-family:'Barlow Condensed';padding:0 0.3rem;"></div>
+    <button onclick="removeIntervalRow(${id})" style="background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:1rem;padding:0 0.2rem;">✕</button>
+  `;
+  container.appendChild(row);
+}
+
+function removeIntervalRow(id) {
+  const el = document.getElementById('cond-int-' + id);
+  if (el) el.remove();
+}
+
+function updateIntervalPace(id) {
+  const timeEl = document.getElementById('ci-time-' + id);
+  const distEl = document.getElementById('ci-dist-' + id);
+  const paceEl = document.getElementById('ci-pace-' + id);
+  if (!timeEl || !distEl || !paceEl) return;
+  const secs = parseMMSS(timeEl.value);
+  const dist = parseFloat(distEl.value);
+  const type = document.getElementById('condType')?.value || 'run';
+  if (secs && dist) {
+    const pace = (type === 'row' || type === 'ski') ? calcSplit500(secs, dist) : calcPace(secs, dist);
+    const label = (type === 'row' || type === 'ski') ? '/500m' : '/km';
+    paceEl.textContent = pace ? pace + label : '';
+  } else {
+    paceEl.textContent = '';
+  }
+}
+
+function updateAllIntervalPaces() {
+  document.querySelectorAll('.cond-interval-row').forEach(row => {
+    updateIntervalPace(row.dataset.intId);
+  });
+  updateCondSummary();
+}
+
+function updateCondSummary() {
+  const mode = document.getElementById('condMode')?.value;
+  const type = document.getElementById('condType')?.value || 'run';
+  const summaryEl = document.getElementById('condSummary');
+  if (!summaryEl) return;
+
+  if (mode === 'intervals') {
+    // Collect all interval times and distances
+    const rows = document.querySelectorAll('.cond-interval-row');
+    let totalSecs = 0, totalDist = 0, count = 0;
+    rows.forEach(row => {
+      const id = row.dataset.intId;
+      const secs = parseMMSS(document.getElementById('ci-time-' + id)?.value);
+      const dist = parseFloat(document.getElementById('ci-dist-' + id)?.value);
+      if (secs) { totalSecs += secs; count++; }
+      if (dist) totalDist += dist;
+    });
+    if (count === 0) { summaryEl.textContent = ''; return; }
+    const avgSecs = totalSecs / count;
+    const parts = [`${count} intervals`, `Total: ${secsToMMSS(totalSecs)}`];
+    if (totalDist) parts.push(`${totalDist}m`);
+    if (totalDist && totalSecs) {
+      const pace = (type === 'row' || type === 'ski') ? calcSplit500(totalSecs, totalDist) + '/500m' : calcPace(totalSecs, totalDist) + '/km';
+      parts.push(`Avg pace: ${pace}`);
+    }
+    parts.push(`Avg: ${secsToMMSS(Math.round(avgSecs))}`);
+    summaryEl.textContent = parts.join(' · ');
+  } else {
+    // Distance or Time mode
+    const secs = parseMMSS(document.getElementById('condTime')?.value);
+    const dist = parseFloat(document.getElementById('condDist')?.value);
+    const parts = [];
+    if (dist) parts.push(dist >= 1000 ? (dist/1000).toFixed(2).replace(/\.?0+$/, '') + ' km' : dist + ' m');
+    if (secs) parts.push(secsToMMSS(secs));
+    if (secs && dist) {
+      const pace = (type === 'row' || type === 'ski') ? calcSplit500(secs, dist) + '/500m' : calcPace(secs, dist) + '/km';
+      parts.push(pace);
+    }
+    summaryEl.textContent = parts.join(' · ');
+  }
+}
+
+function switchCondMode(mode) {
+  document.getElementById('condIntervalSection').style.display = mode === 'intervals' ? 'block' : 'none';
+  document.getElementById('condDistTimeSection').style.display = mode !== 'intervals' ? 'block' : 'none';
+  ['cond-mode-intervals','cond-mode-distance','cond-mode-time'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    const active = id === 'cond-mode-' + mode;
+    btn.style.background = active ? '#38bdf8' : 'transparent';
+    btn.style.color = active ? '#000' : 'var(--muted)';
+    btn.style.borderColor = active ? '#38bdf8' : 'var(--border)';
+  });
+  document.getElementById('condMode').value = mode;
+  updateCondSummary();
+}
+
+function openCondModal(prefill) {
+  condIntervalCount = 0;
+  document.getElementById('condDate').value = prefill?.date || new Date().toISOString().split('T')[0];
+  document.getElementById('condType').value = prefill?.type || 'run';
+  document.getElementById('condNotes').value = prefill?.notes || '';
+  document.getElementById('condIntervals').innerHTML = '';
+  document.getElementById('condTime').value = prefill?.time ? secsToMMSS(prefill.time) : '';
+  document.getElementById('condDist').value = prefill?.distance || '';
+  document.getElementById('condSummary').textContent = '';
+  updateCondTypeLabel();
+  // Default to intervals mode
+  switchCondMode(prefill?.mode || 'intervals');
+  if (prefill?.intervals?.length) {
+    prefill.intervals.forEach(iv => addIntervalRow(iv.time ? secsToMMSS(iv.time) : '', iv.distance, ''));
+  } else {
+    addIntervalRow(); addIntervalRow(); addIntervalRow();
+  }
+  const saveBtn = document.querySelector('#condModal .btn-red');
+  if (saveBtn) { saveBtn.textContent = 'SAVE SESSION'; saveBtn.onclick = saveCond; }
+  document.getElementById('condModal').style.display = 'flex';
+}
+
+function closeCondModal(e) {
+  if (!e || e.target === document.getElementById('condModal') || e === undefined) {
+    document.getElementById('condModal').style.display = 'none';
+  }
+}
+
+function updateCondTypeLabel() {
+  const type = document.getElementById('condType')?.value || 'run';
+  const icons = { run: '🏃', row: '🚣', ski: '⛷️', bike: '🚴' };
+  const labels = { run: 'Running', row: 'Rowing', ski: 'Ski Erg', bike: 'Biking' };
+  const paceLabels = { run: 'min/km', row: '/500m', ski: '/500m', bike: 'min/km' };
+  const el = document.getElementById('condTypeLabel');
+  if (el) el.textContent = (icons[type] || '') + ' ' + (labels[type] || type);
+  // Update pace column header
+  const paceHdr = document.getElementById('condPaceHeader');
+  if (paceHdr) paceHdr.textContent = paceLabels[type] || 'pace';
+  updateAllIntervalPaces();
+}
+
+function saveCond() {
+  const date = document.getElementById('condDate').value;
+  const type = document.getElementById('condType').value;
+  const mode = document.getElementById('condMode').value;
+  const notes = document.getElementById('condNotes').value.trim();
+
+  let entry = { id: Date.now().toString(), date, type, mode, notes };
+
+  if (mode === 'intervals') {
+    const intervals = [];
+    document.querySelectorAll('.cond-interval-row').forEach(row => {
+      const id = row.dataset.intId;
+      const secs = parseMMSS(document.getElementById('ci-time-' + id)?.value);
+      const dist = parseFloat(document.getElementById('ci-dist-' + id)?.value) || null;
+      if (secs || dist) intervals.push({ time: secs, distance: dist });
+    });
+    if (!intervals.length) { showToast('Add at least one interval!'); return; }
+    entry.intervals = intervals;
+    entry.totalTime = intervals.reduce((a, iv) => a + (iv.time || 0), 0);
+    entry.totalDistance = intervals.reduce((a, iv) => a + (iv.distance || 0), 0) || null;
+  } else {
+    entry.time = parseMMSS(document.getElementById('condTime').value) || null;
+    entry.distance = parseFloat(document.getElementById('condDist').value) || null;
+    if (!entry.time && !entry.distance) { showToast('Enter a time or distance!'); return; }
+  }
+
+  state.conditioning.push(entry);
+  save();
+  closeCondModal();
+  renderCondList();
+  renderDashboard();
+  if (currentLogTab === 'cond') switchLogTab('cond');
+  showToast('Conditioning session saved! 🏃');
+}
+
+function deleteCondEntry(id) {
+  state.conditioning = state.conditioning.filter(c => c.id !== id);
+  save(); renderCondList(); renderDashboard();
+  showToast('Entry removed');
+}
+
+function editCondEntry(id) {
+  const entry = state.conditioning.find(c => c.id === id);
+  if (!entry) return;
+  openCondModal(entry);
+  const saveBtn = document.querySelector('#condModal .btn-red');
+  if (saveBtn) {
+    saveBtn.textContent = 'UPDATE SESSION';
+    saveBtn.onclick = () => {
+      state.conditioning = state.conditioning.filter(c => c.id !== id);
+      saveCond();
+    };
+  }
+}
+
+function condCardHTML(c, showActions) {
+  const icons = { run: '🏃', row: '🚣', ski: '⛷️', bike: '🚴' };
+  const typeLabel = { run: 'Run', row: 'Row', ski: 'Ski', bike: 'Bike' };
+  const icon = icons[c.type] || '🏃';
+  const label = typeLabel[c.type] || c.type;
+
+  let summaryLine = '';
+  if (c.mode === 'intervals' && c.intervals?.length) {
+    const count = c.intervals.length;
+    const totalSecs = c.totalTime || c.intervals.reduce((a, iv) => a + (iv.time || 0), 0);
+    const totalDist = c.totalDistance || c.intervals.reduce((a, iv) => a + (iv.distance || 0), 0);
+    summaryLine = `${count} intervals`;
+    if (totalSecs) summaryLine += ` · ${secsToMMSS(totalSecs)}`;
+    if (totalDist) summaryLine += ` · ${totalDist}m`;
+    if (totalSecs && totalDist) {
+      const pace = (c.type === 'row' || c.type === 'ski') ? calcSplit500(totalSecs, totalDist) + '/500m' : calcPace(totalSecs, totalDist) + '/km';
+      summaryLine += ` · ${pace}`;
+    }
+  } else {
+    if (c.distance) summaryLine += c.distance >= 1000 ? (c.distance/1000).toFixed(2).replace(/\.?0+$/,'') + ' km' : c.distance + ' m';
+    if (c.time) summaryLine += (summaryLine ? ' · ' : '') + secsToMMSS(c.time);
+    if (c.time && c.distance) {
+      const pace = (c.type === 'row' || c.type === 'ski') ? calcSplit500(c.time, c.distance) + '/500m' : calcPace(c.time, c.distance) + '/km';
+      summaryLine += ` · ${pace}`;
+    }
+  }
+
+  // Interval detail rows
+  let intervalHTML = '';
+  if (c.mode === 'intervals' && c.intervals?.length) {
+    const paceLabel = (c.type === 'row' || c.type === 'ski') ? '/500m' : '/km';
+    intervalHTML = `<div style="margin-top:0.6rem;border-top:1px solid var(--border);padding-top:0.5rem;">
+      <div style="display:grid;grid-template-columns:2rem 1fr 1fr 1fr;gap:0.3rem;font-family:'Barlow Condensed';font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:0.3rem;">
+        <span></span><span>Time</span><span>Dist</span><span>Pace${paceLabel}</span>
+      </div>
+      ${c.intervals.map((iv, i) => {
+        const pace = iv.time && iv.distance
+          ? ((c.type === 'row' || c.type === 'ski') ? calcSplit500(iv.time, iv.distance) : calcPace(iv.time, iv.distance))
+          : '—';
+        return `<div style="display:grid;grid-template-columns:2rem 1fr 1fr 1fr;gap:0.3rem;align-items:center;padding:0.2rem 0;border-top:1px solid rgba(255,255,255,0.04);">
+          <span style="font-family:'Barlow Condensed';font-size:0.72rem;font-weight:700;color:var(--muted);">I${i+1}</span>
+          <span style="font-family:'Bebas Neue';font-size:0.95rem;">${iv.time ? secsToMMSS(iv.time) : '—'}</span>
+          <span style="font-size:0.82rem;color:var(--muted);">${iv.distance ? iv.distance+'m' : '—'}</span>
+          <span style="font-size:0.82rem;color:#38bdf8;">${pace}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  const actions = showActions ? `<div class="wod-actions" style="margin-top:0.5rem;">
+    <button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();editCondEntry('${c.id}')">✏️</button>
+    <button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();deleteCondEntry('${c.id}')">🗑</button>
+  </div>` : '';
+
+  return `<div class="wod-card" onclick="toggleCard(this)">
+    <div class="wod-compact">
+      <span class="wod-compact-date">${formatDate(c.date)}</span>
+      <span class="tag" style="background:rgba(56,189,248,0.12);color:#38bdf8;border-color:rgba(56,189,248,0.3);">${icon} ${label.toUpperCase()}</span>
+      <span class="wod-compact-name">${summaryLine}</span>
+    </div>
+    <div class="wod-detail">
+      <div class="wod-meta">
+        <div class="wod-date">${formatDate(c.date)}</div>
+        <span class="tag" style="background:rgba(56,189,248,0.12);color:#38bdf8;border-color:rgba(56,189,248,0.3);">${icon} ${label}</span>
+      </div>
+      <div class="wod-name">${summaryLine}</div>
+      ${intervalHTML}
+      ${c.notes ? `<div style="font-size:0.8rem;color:#777;margin-top:0.35rem;">💬 ${c.notes}</div>` : ''}
+      ${actions}
+    </div>
+  </div>`;
+}
+
+function renderCondList() {
+  const el = document.getElementById('condList');
+  if (!el) return;
+  const entries = (state.conditioning || []).filter(c => inDateRange(c.date)).sort((a,b) => b.date.localeCompare(a.date));
+  if (!entries.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">🏃</div><p>No conditioning logged yet.</p><button class="btn btn-red" onclick="openCondModal()">LOG YOUR FIRST SESSION</button></div>`;
+    return;
+  }
+  el.innerHTML = entries.map(c => condCardHTML(c, true)).join('');
+}
+
 // ===== INIT =====
 updateDate();
 seedIfEmpty();
@@ -6889,3 +7230,83 @@ if ('serviceWorker' in navigator) {
 }
 window._pwaInstallPrompt = null;
 window.addEventListener('beforeinstallprompt', function(e)
+<!-- CONDITIONING MODAL -->
+<div class="modal-overlay" id="condModal" style="display:none;" onclick="closeCondModal(event)">
+  <div class="modal" style="max-width:480px;width:100%;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
+      <h2 style="font-family:'Bebas Neue';font-size:1.6rem;letter-spacing:0.06em;">LOG CONDITIONING</h2>
+      <button onclick="closeCondModal()" style="background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1;">×</button>
+    </div>
+
+    <input type="hidden" id="condMode" value="intervals">
+
+    <!-- Type selector -->
+    <div class="form-group" style="margin-bottom:0.75rem;">
+      <label>Type</label>
+      <select id="condType" onchange="updateCondTypeLabel()" style="padding:0.45rem 0.7rem;font-size:0.9rem;background:var(--card2);border:1px solid var(--border);border-radius:3px;color:var(--text);width:100%;">
+        <option value="run">🏃 Running</option>
+        <option value="row">🚣 Rowing</option>
+        <option value="ski">⛷️ Ski Erg</option>
+        <option value="bike">🚴 Biking</option>
+      </select>
+    </div>
+
+    <!-- Date -->
+    <div class="form-group" style="margin-bottom:0.75rem;">
+      <label>Date</label>
+      <input type="date" id="condDate" style="padding:0.45rem 0.7rem;font-size:0.9rem;width:100%;">
+    </div>
+
+    <!-- Mode selector -->
+    <div style="display:flex;gap:0.4rem;margin-bottom:1rem;">
+      <button id="cond-mode-intervals" onclick="switchCondMode('intervals')"
+        style="flex:1;background:#38bdf8;color:#000;border:1px solid #38bdf8;border-radius:4px;padding:0.4rem 0;font-family:'Barlow Condensed';font-size:0.8rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;">⚡ Intervals</button>
+      <button id="cond-mode-distance" onclick="switchCondMode('distance')"
+        style="flex:1;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:4px;padding:0.4rem 0;font-family:'Barlow Condensed';font-size:0.8rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;">📏 Distance</button>
+      <button id="cond-mode-time" onclick="switchCondMode('time')"
+        style="flex:1;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:4px;padding:0.4rem 0;font-family:'Barlow Condensed';font-size:0.8rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;">⏱ Time</button>
+    </div>
+
+    <!-- Intervals section -->
+    <div id="condIntervalSection">
+      <div style="display:grid;grid-template-columns:2rem 1fr 1fr 1fr auto;gap:0.4rem;margin-bottom:0.3rem;">
+        <div></div>
+        <div style="font-family:'Barlow Condensed';font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);">Time</div>
+        <div style="font-family:'Barlow Condensed';font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);">Dist (m)</div>
+        <div id="condPaceHeader" style="font-family:'Barlow Condensed';font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);">Pace</div>
+        <div></div>
+      </div>
+      <div id="condIntervals"></div>
+      <button onclick="addIntervalRow()" style="margin-top:0.4rem;background:transparent;border:1px dashed var(--border);border-radius:3px;color:var(--muted);padding:0.3rem 0.8rem;font-family:'Barlow Condensed';font-size:0.78rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;width:100%;">+ ADD INTERVAL</button>
+    </div>
+
+    <!-- Distance / Time section -->
+    <div id="condDistTimeSection" style="display:none;">
+      <div class="form-row cols-2" style="margin-bottom:0.75rem;">
+        <div class="form-group">
+          <label>Distance (m)</label>
+          <input type="number" id="condDist" placeholder="e.g. 5000" step="1" min="0" oninput="updateCondSummary()" style="padding:0.45rem 0.7rem;font-size:0.9rem;width:100%;">
+        </div>
+        <div class="form-group">
+          <label>Time (mm:ss)</label>
+          <input type="text" id="condTime" placeholder="e.g. 21:30" oninput="updateCondSummary()" style="padding:0.45rem 0.7rem;font-size:0.9rem;width:100%;">
+        </div>
+      </div>
+    </div>
+
+    <!-- Live summary -->
+    <div id="condSummary" style="font-family:'Barlow Condensed';font-size:0.82rem;color:#38bdf8;letter-spacing:0.05em;min-height:1.2em;margin-bottom:0.75rem;"></div>
+
+    <!-- Notes -->
+    <div class="form-group" style="margin-bottom:1rem;">
+      <label>Notes</label>
+      <textarea id="condNotes" rows="2" placeholder="Felt strong, HR 165 avg, weather…" style="padding:0.45rem 0.7rem;font-size:0.82rem;width:100%;resize:vertical;"></textarea>
+    </div>
+
+    <div style="display:flex;gap:0.75rem;">
+      <button class="btn" onclick="closeCondModal()" style="flex:1;background:var(--card);border:1px solid var(--border);">CANCEL</button>
+      <button class="btn btn-red" onclick="saveCond()" style="flex:1;">SAVE SESSION</button>
+    </div>
+  </div>
+</div>
+
