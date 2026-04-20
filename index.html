@@ -1961,7 +1961,7 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v112';
+const APP_VERSION = 'v113';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
   wods: [],
@@ -2231,9 +2231,10 @@ const DASH_SECTIONS = {
         <button class="btn btn-ghost btn-sm" onclick="clearDashDateFilter()" style="font-size:0.75rem;">✕ Clear</button>
       </div>
       <div style="display:flex;gap:0;margin-bottom:1.25rem;border-bottom:1px solid var(--border);">
-        <button id="dlt-all" onclick="switchDashLogTab('all')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.4rem;background:none;border:none;border-bottom:3px solid var(--text);color:var(--text);cursor:pointer;">All</button>
-        <button id="dlt-strength" onclick="switchDashLogTab('strength')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.4rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;">Strength</button>
-        <button id="dlt-wod" onclick="switchDashLogTab('wod')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.4rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;">Workouts</button>
+        <button id="dlt-all" onclick="switchDashLogTab('all')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.1rem;background:none;border:none;border-bottom:3px solid var(--text);color:var(--text);cursor:pointer;">All</button>
+        <button id="dlt-strength" onclick="switchDashLogTab('strength')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.1rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;">Strength</button>
+        <button id="dlt-cond" onclick="switchDashLogTab('cond')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.1rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;">Conditioning</button>
+        <button id="dlt-wod" onclick="switchDashLogTab('wod')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.1rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;">Workouts</button>
       </div>
       <div id="dash-log-list"></div>
       ${isLBWLEnabled() ? `
@@ -2459,13 +2460,19 @@ function renderDashLogTab() {
   const to = document.getElementById('logDateTo2')?.value || '';
   const inRange = d => (!from || d >= from) && (!to || d <= to);
   if (currentDashLogTab === 'all') {
-    const wods = state.wods.filter(w => inRange(w.date)).map(w => ({_type:'wod',date:w.date,_data:w}));
-    const sessions = state.strength.filter(s => inRange(s.date)).map(s => ({_type:'strength',date:s.date,_data:s}));
-    const all = [...wods,...sessions].sort((a,b)=>b.date.localeCompare(a.date));
-    list.innerHTML = all.length ? all.map(i => i._type==='wod' ? wodCardHTML(i._data,true) : strengthCardHTML(i._data)).join('') : `<div class="empty-state"><div class="empty-icon">📋</div><p>No entries for this period.</p></div>`;
+    const wods  = state.wods.filter(w => inRange(w.date)).map(w => ({_type:'wod',date:w.date,_data:w}));
+    const strs  = state.strength.filter(s => inRange(s.date)).map(s => ({_type:'strength',date:s.date,_data:s}));
+    const conds = (state.conditioning||[]).filter(c => inRange(c.date)).map(c => ({_type:'cond',date:c.date,_data:c}));
+    const all   = [...wods,...strs,...conds].sort((a,b)=>b.date.localeCompare(a.date));
+    list.innerHTML = all.length
+      ? all.map(i => i._type==='wod' ? wodCardHTML(i._data,true) : i._type==='cond' ? condCardHTML(i._data,true) : strengthCardHTML(i._data)).join('')
+      : `<div class="empty-state"><div class="empty-icon">📋</div><p>No entries for this period.</p></div>`;
   } else if (currentDashLogTab === 'wod') {
     const wods = state.wods.filter(w=>inRange(w.date)).sort((a,b)=>b.date.localeCompare(a.date));
     list.innerHTML = wods.length ? wods.map(w=>wodCardHTML(w,true)).join('') : `<div class="empty-state"><div class="empty-icon">🏋️</div><p>No workouts logged yet.</p><button class="btn btn-red" onclick="openWodModal()">LOG YOUR FIRST WOD</button></div>`;
+  } else if (currentDashLogTab === 'cond') {
+    const conds = (state.conditioning||[]).filter(c=>inRange(c.date)).sort((a,b)=>b.date.localeCompare(a.date));
+    list.innerHTML = conds.length ? conds.map(c=>condCardHTML(c,true)).join('') : `<div class="empty-state"><div class="empty-icon">🏃</div><p>No conditioning logged yet.</p><button class="btn btn-red" onclick="openCondModal()">LOG YOUR FIRST SESSION</button></div>`;
   } else {
     const sessions = state.strength.filter(s=>inRange(s.date)).sort((a,b)=>b.date.localeCompare(a.date));
     list.innerHTML = sessions.length ? sessions.map(s=>strengthCardHTML(s)).join('') : `<div class="empty-state"><div class="empty-icon">🏋️</div><p>No strength sessions.</p></div>`;
@@ -2474,9 +2481,14 @@ function renderDashLogTab() {
 
 function switchDashLogTab(tab) {
   currentDashLogTab = tab;
-  ['all','strength','wod'].forEach(t => {
+  const colors = { all:'var(--text)', strength:'#e0e0e0', cond:'#38bdf8', wod:'var(--red)' };
+  ['all','strength','cond','wod'].forEach(t => {
     const b = document.getElementById('dlt-'+t);
-    if (b) { b.style.color = t===tab ? 'var(--text)' : 'var(--muted)'; b.style.borderBottom = t===tab ? '3px solid var(--text)' : '3px solid transparent'; }
+    if (!b) return;
+    const active = t === tab;
+    const c = colors[t] || 'var(--text)';
+    b.style.color = active ? c : 'var(--muted)';
+    b.style.borderBottom = active ? '3px solid ' + c : '3px solid transparent';
   });
   renderDashLogTab();
 }
