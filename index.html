@@ -2446,11 +2446,17 @@ function renderLBWLSection() {
     const isToday = s.date === today;
     const isPast = s.date < today;
     const dayLabel = dayNames[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth()+1);
-    const weekNum = Math.floor(Math.round((d - lbwlStart) / 86400000) / 7) + 1;
+    const weekNum = Math.max(1, Math.floor(Math.round((d - lbwlStart) / 86400000) / 7) + 1);
     let weekHeader = '';
     if (weekNum !== lastWeek) {
       lastWeek = weekNum;
-      weekHeader = `<div style="font-family:'Bebas Neue';font-size:0.95rem;letter-spacing:0.1em;color:var(--red);margin:${weekNum === 1 ? '0' : '1rem'} 0 0.5rem;padding-bottom:0.35rem;border-bottom:1px solid var(--border);">Week ${weekNum}</div>`;
+      const allSessionsInWeekArePast = sessions.filter(ss => {
+        const sd = new Date(ss.date + 'T00:00:00');
+        const wn = Math.max(1, Math.floor(Math.round((sd - lbwlStart) / 86400000) / 7) + 1);
+        return wn === weekNum;
+      }).every(ss => ss.date < today);
+      const headerOpacity = allSessionsInWeekArePast ? '0.5' : '1';
+      weekHeader = `<div style="font-family:'Bebas Neue';font-size:0.95rem;letter-spacing:0.1em;color:var(--red);margin:${weekNum === 1 ? '0' : '1rem'} 0 0.5rem;padding-bottom:0.35rem;border-bottom:1px solid var(--border);opacity:${headerOpacity};">Week ${weekNum}</div>`;
     }
     return weekHeader + renderLBWLSessionCard(s, '3x', weekNum, isToday, isPast, dayLabel);
   }).join('');
@@ -5396,11 +5402,17 @@ function render2DWLSection() {
     const isToday = s.date === today;
     const isPast = s.date < today;
     const dayLabel = dayNames[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth()+1);
-    const weekNum = Math.floor(Math.round((d - tdwlStart) / 86400000) / 7) + 1;
+    const weekNum = Math.max(1, Math.floor(Math.round((d - tdwlStart) / 86400000) / 7) + 1);
     let weekHeader = '';
     if (weekNum !== lastWeek2) {
       lastWeek2 = weekNum;
-      weekHeader = `<div style="font-family:'Bebas Neue';font-size:0.95rem;letter-spacing:0.1em;color:var(--red);margin:${weekNum === 1 ? '0' : '1rem'} 0 0.5rem;padding-bottom:0.35rem;border-bottom:1px solid var(--border);">Week ${weekNum}</div>`;
+      const allSessionsInWeekArePast = sessions.filter(ss => {
+        const sd = new Date(ss.date + 'T00:00:00');
+        const wn = Math.max(1, Math.floor(Math.round((sd - tdwlStart) / 86400000) / 7) + 1);
+        return wn === weekNum;
+      }).every(ss => ss.date < today);
+      const headerOpacity = allSessionsInWeekArePast ? '0.5' : '1';
+      weekHeader = `<div style="font-family:'Bebas Neue';font-size:0.95rem;letter-spacing:0.1em;color:var(--red);margin:${weekNum === 1 ? '0' : '1rem'} 0 0.5rem;padding-bottom:0.35rem;border-bottom:1px solid var(--border);opacity:${headerOpacity};">Week ${weekNum}</div>`;
     }
     return weekHeader + renderLBWLSessionCard(s, '2x', weekNum, isToday, isPast, dayLabel);
   }).join('');
@@ -6836,9 +6848,9 @@ updateHeaderProfile();
 autoSyncProgramIfEnabled();
 // Always fetch members (needed for preview status even without full profile)
 setTimeout(() => fetchMembers(), 4000);
-// Auto-sync LB Lifting programs if user has access
-setTimeout(() => { if (isLBWLEnabled()) fetchLBWLProgram(true); }, 6000);
-setTimeout(() => { if (is2DWLEnabled()) fetch2DWLProgram(true); }, 7000);
+// Always auto-sync LB Lifting programs on startup if user has access and start date is set
+setTimeout(() => { if (isLBWLEnabled() && localStorage.getItem('lerums_lbwl_start_date')) fetchLBWLProgram(true); }, 6000);
+setTimeout(() => { if (is2DWLEnabled() && localStorage.getItem('lerums_2dwl_start_date')) fetch2DWLProgram(true); }, 7000);
 if (!profile.name) {
   setTimeout(() => { showToast('👋 Welcome! Tap your avatar to set up your profile.'); }, 1000);
 } else {
