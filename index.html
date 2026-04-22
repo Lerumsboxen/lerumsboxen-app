@@ -2417,13 +2417,16 @@ function renderLBWLSection() {
   }
 
   const today = new Date().toISOString().split('T')[0];
-  // Show 14 days from today
+  // Window: prev week → current week start + 13 days (= 2 full weeks ahead)
   const todayDate = new Date(today + 'T00:00:00');
-  const windowEnd = new Date(todayDate);
-  windowEnd.setDate(todayDate.getDate() + 13);
+  const _3wkStart = new Date(todayDate);
+  const _3dow = _3wkStart.getDay();
+  _3wkStart.setDate(_3wkStart.getDate() - (_3dow === 0 ? 6 : _3dow - 1)); // Monday
+  const _3winStart = new Date(_3wkStart); _3winStart.setDate(_3wkStart.getDate() - 7); // prev week
+  const _3winEnd   = new Date(_3wkStart); _3winEnd.setDate(_3wkStart.getDate() + 13);  // +2 weeks
 
   const windowDates = [];
-  for (let d = new Date(todayDate); d <= windowEnd; d.setDate(d.getDate() + 1)) {
+  for (let d = new Date(_3winStart); d <= _3winEnd; d.setDate(d.getDate() + 1)) {
     windowDates.push(d.toISOString().split('T')[0]);
   }
 
@@ -2443,7 +2446,7 @@ function renderLBWLSection() {
     const isToday = s.date === today;
     const isPast = s.date < today;
     const dayLabel = dayNames[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth()+1);
-    const weekNum = Math.floor((d - lbwlStart) / (7 * 24 * 60 * 60 * 1000)) + 1;
+    const weekNum = Math.floor(Math.round((d - lbwlStart) / 86400000) / 7) + 1;
     let weekHeader = '';
     if (weekNum !== lastWeek) {
       lastWeek = weekNum;
@@ -5366,12 +5369,16 @@ function render2DWLSection() {
   }
 
   const today = new Date().toISOString().split('T')[0];
+  // Window: current week start -7 days (prev week) through current week start +13 days (2 weeks ahead)
   const todayDate = new Date(today + 'T00:00:00');
-  const windowEnd = new Date(todayDate);
-  windowEnd.setDate(todayDate.getDate() + 13); // 14 days from today
+  const _2wkStart = new Date(todayDate);
+  const _2dow = _2wkStart.getDay();
+  _2wkStart.setDate(_2wkStart.getDate() - (_2dow === 0 ? 6 : _2dow - 1)); // Monday
+  const _2winStart = new Date(_2wkStart); _2winStart.setDate(_2wkStart.getDate() - 7);
+  const _2winEnd   = new Date(_2wkStart); _2winEnd.setDate(_2wkStart.getDate() + 13);
 
   const windowDates = [];
-  for (let d = new Date(todayDate); d <= windowEnd; d.setDate(d.getDate() + 1)) {
+  for (let d = new Date(_2winStart); d <= _2winEnd; d.setDate(d.getDate() + 1)) {
     windowDates.push(d.toISOString().split('T')[0]);
   }
 
@@ -5389,7 +5396,7 @@ function render2DWLSection() {
     const isToday = s.date === today;
     const isPast = s.date < today;
     const dayLabel = dayNames[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth()+1);
-    const weekNum = Math.floor((d - tdwlStart) / (7 * 24 * 60 * 60 * 1000)) + 1;
+    const weekNum = Math.floor(Math.round((d - tdwlStart) / 86400000) / 7) + 1;
     let weekHeader = '';
     if (weekNum !== lastWeek2) {
       lastWeek2 = weekNum;
