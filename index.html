@@ -2417,15 +2417,15 @@ function renderLBWLSection() {
   }
 
   const today = new Date().toISOString().split('T')[0];
-  // Window anchored to program start date, not calendar weeks.
-  // Show: previous program week + current program week + 2 weeks ahead
-  const lbwlStartDate = new Date(startDate + 'T00:00:00');
   const todayDate = new Date(today + 'T00:00:00');
-  const daysSinceStart = Math.floor((todayDate - lbwlStartDate) / 86400000);
-  const currentProgramWeek = Math.max(0, Math.floor(daysSinceStart / 7)); // 0-indexed
-  const winStartWeek = Math.max(0, currentProgramWeek - 1);
-  const _3winStart = new Date(lbwlStartDate); _3winStart.setDate(lbwlStartDate.getDate() + winStartWeek * 7);
-  const _3winEnd   = new Date(lbwlStartDate); _3winEnd.setDate(lbwlStartDate.getDate() + (currentProgramWeek + 2) * 7 + 6);
+  const lbwlStartDate = new Date(startDate + 'T00:00:00');
+  // Window anchored to program start: prev program week + current + 2 weeks ahead
+  const daysSinceStart3 = Math.floor((todayDate - lbwlStartDate) / 86400000);
+  const curWeek3 = Math.max(0, Math.floor(daysSinceStart3 / 7)); // 0-indexed
+  const _3winStart = new Date(lbwlStartDate);
+  _3winStart.setDate(lbwlStartDate.getDate() + Math.max(0, curWeek3 - 1) * 7);
+  const _3winEnd = new Date(lbwlStartDate);
+  _3winEnd.setDate(lbwlStartDate.getDate() + (curWeek3 + 3) * 7 - 1); // +2 full weeks ahead
 
   const windowDates = [];
   for (let d = new Date(_3winStart); d <= _3winEnd; d.setDate(d.getDate() + 1)) {
@@ -2452,13 +2452,11 @@ function renderLBWLSection() {
     let weekHeader = '';
     if (weekNum !== lastWeek) {
       lastWeek = weekNum;
-      const allSessionsInWeekArePast = sessions.filter(ss => {
+      const allPast = sessions.filter(ss => {
         const sd = new Date(ss.date + 'T00:00:00');
-        const wn = Math.max(1, Math.floor(Math.round((sd - lbwlStart) / 86400000) / 7) + 1);
-        return wn === weekNum;
+        return Math.max(1, Math.floor(Math.round((sd - lbwlStart) / 86400000) / 7) + 1) === weekNum;
       }).every(ss => ss.date < today);
-      const headerOpacity = allSessionsInWeekArePast ? '0.5' : '1';
-      weekHeader = `<div style="font-family:'Bebas Neue';font-size:0.95rem;letter-spacing:0.1em;color:var(--red);margin:${weekNum === 1 ? '0' : '1rem'} 0 0.5rem;padding-bottom:0.35rem;border-bottom:1px solid var(--border);opacity:${headerOpacity};">Week ${weekNum}</div>`;
+      weekHeader = `<div style="font-family:'Bebas Neue';font-size:0.95rem;letter-spacing:0.1em;color:var(--red);margin:${weekNum === 1 ? '0' : '1rem'} 0 0.5rem;padding-bottom:0.35rem;border-bottom:1px solid var(--border);opacity:${allPast ? '0.5' : '1'};">Week ${weekNum}</div>`;
     }
     return weekHeader + renderLBWLSessionCard(s, '3x', weekNum, isToday, isPast, dayLabel);
   }).join('');
@@ -4975,15 +4973,14 @@ async function fetchLBWLProgram(silent = false) {
     if (!data.entries) throw new Error('No entries returned');
 
     const startDay = new Date(startDate + 'T00:00:00');
-    // Place sessions purely relative to startDate by sequential index.
-    // 3 sessions per 7-day block: index 0→day0, 1→day2, 2→day4, 3→day7, 4→day9, 5→day11, ...
-    const SESSION_SPACING_3X = [0, 2, 4];
+    // Map sessions by sequential index — ignore entry.week/entry.day for date math
+    // 3 sessions per 7-day block: i%3=0→+0d, i%3=1→+2d, i%3=2→+4d
+    const SPACING_3X = [0, 2, 4];
     const program = {};
     data.entries.forEach((entry, i) => {
       const weekBlock = Math.floor(i / 3);
-      const withinWeek = SESSION_SPACING_3X[i % 3];
       const d = new Date(startDay);
-      d.setDate(startDay.getDate() + weekBlock * 7 + withinWeek);
+      d.setDate(startDay.getDate() + weekBlock * 7 + SPACING_3X[i % 3]);
       const iso = d.toISOString().split('T')[0];
       program[iso] = { session: (i % 3) + 1, text: entry.text };
     });
@@ -5049,8 +5046,8 @@ async function fetch2DWLProgram(silent = false) {
     if (!data.entries) throw new Error('No entries returned');
 
     const startDay = new Date(startDate + 'T00:00:00');
-    // Place sessions purely relative to startDate by sequential index.
-    // 2 sessions per 7-day block: index 0→day0, 1→day3, 2→day7, 3→day10, ...
+    // Map sessions by sequential index — ignore entry.week/entry.day for date math
+    // 2 sessions per 7-day block: i%2=0→+0d, i%2=1→+3d
     const program = {};
     data.entries.forEach((entry, i) => {
       const weekBlock = Math.floor(i / 2);
@@ -5380,15 +5377,15 @@ function render2DWLSection() {
   }
 
   const today = new Date().toISOString().split('T')[0];
-  // Window anchored to program start date, not calendar weeks.
-  // Show: previous program week + current program week + 2 weeks ahead
-  const tdwlStartDate = new Date(startDate + 'T00:00:00');
   const todayDate = new Date(today + 'T00:00:00');
+  const tdwlStartDate = new Date(startDate + 'T00:00:00');
+  // Window anchored to program start: prev program week + current + 2 weeks ahead
   const daysSinceStart2 = Math.floor((todayDate - tdwlStartDate) / 86400000);
-  const currentProgramWeek2 = Math.max(0, Math.floor(daysSinceStart2 / 7)); // 0-indexed
-  const winStartWeek2 = Math.max(0, currentProgramWeek2 - 1);
-  const _2winStart = new Date(tdwlStartDate); _2winStart.setDate(tdwlStartDate.getDate() + winStartWeek2 * 7);
-  const _2winEnd   = new Date(tdwlStartDate); _2winEnd.setDate(tdwlStartDate.getDate() + (currentProgramWeek2 + 2) * 7 + 6);
+  const curWeek2 = Math.max(0, Math.floor(daysSinceStart2 / 7)); // 0-indexed
+  const _2winStart = new Date(tdwlStartDate);
+  _2winStart.setDate(tdwlStartDate.getDate() + Math.max(0, curWeek2 - 1) * 7);
+  const _2winEnd = new Date(tdwlStartDate);
+  _2winEnd.setDate(tdwlStartDate.getDate() + (curWeek2 + 3) * 7 - 1); // +2 full weeks ahead
 
   const windowDates = [];
   for (let d = new Date(_2winStart); d <= _2winEnd; d.setDate(d.getDate() + 1)) {
@@ -5413,13 +5410,11 @@ function render2DWLSection() {
     let weekHeader = '';
     if (weekNum !== lastWeek2) {
       lastWeek2 = weekNum;
-      const allSessionsInWeekArePast = sessions.filter(ss => {
+      const allPast = sessions.filter(ss => {
         const sd = new Date(ss.date + 'T00:00:00');
-        const wn = Math.max(1, Math.floor(Math.round((sd - tdwlStart) / 86400000) / 7) + 1);
-        return wn === weekNum;
+        return Math.max(1, Math.floor(Math.round((sd - tdwlStart) / 86400000) / 7) + 1) === weekNum;
       }).every(ss => ss.date < today);
-      const headerOpacity = allSessionsInWeekArePast ? '0.5' : '1';
-      weekHeader = `<div style="font-family:'Bebas Neue';font-size:0.95rem;letter-spacing:0.1em;color:var(--red);margin:${weekNum === 1 ? '0' : '1rem'} 0 0.5rem;padding-bottom:0.35rem;border-bottom:1px solid var(--border);opacity:${headerOpacity};">Week ${weekNum}</div>`;
+      weekHeader = `<div style="font-family:'Bebas Neue';font-size:0.95rem;letter-spacing:0.1em;color:var(--red);margin:${weekNum === 1 ? '0' : '1rem'} 0 0.5rem;padding-bottom:0.35rem;border-bottom:1px solid var(--border);opacity:${allPast ? '0.5' : '1'};">Week ${weekNum}</div>`;
     }
     return weekHeader + renderLBWLSessionCard(s, '2x', weekNum, isToday, isPast, dayLabel);
   }).join('');
@@ -6855,7 +6850,7 @@ updateHeaderProfile();
 autoSyncProgramIfEnabled();
 // Always fetch members (needed for preview status even without full profile)
 setTimeout(() => fetchMembers(), 4000);
-// Always auto-sync LB Lifting programs on startup if user has access and start date is set
+// Always auto-sync LB Lifting programs on startup if start date is configured
 setTimeout(() => { if (isLBWLEnabled() && localStorage.getItem('lerums_lbwl_start_date')) fetchLBWLProgram(true); }, 6000);
 setTimeout(() => { if (is2DWLEnabled() && localStorage.getItem('lerums_2dwl_start_date')) fetch2DWLProgram(true); }, 7000);
 if (!profile.name) {
