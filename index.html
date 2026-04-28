@@ -717,7 +717,7 @@
   @media (min-width: 400px) {
     .home-grid { gap: 0.75rem; padding: 1.25rem 1.25rem 1rem; }
   }
-  /* Big centered state (nothing selected) */
+  /* Big centered state (nothing selected) — clean 2-column grid */
   .home-grid.expanded {
     grid-template-columns: 1fr 1fr;
     gap: clamp(0.75rem, 3vw, 1.25rem);
@@ -746,19 +746,6 @@
     gap: 0.45rem;
     border-radius: 10px;
     grid-column: auto;
-  }
-  /* Expanded home view: bottom row wrapper becomes a column with Members centered below */
-  .home-grid.expanded #bottom-btns-row {
-    flex-direction: column;
-    align-items: center;
-    gap: 1.25rem;
-  }
-  .home-grid.expanded #bottom-btns-row .home-btn {
-    max-width: 100% !important;
-    width: 100%;
-  }
-  .home-grid.expanded #hbtn-members {
-    max-width: calc(50% - 0.625rem) !important;
   }
   /* Collapsed state: buttons match the mini grid height */
   .home-grid:not(.expanded) #bottom-btns-row {
@@ -800,6 +787,45 @@
     background: rgba(232,0,29,0.07);
   }
   .home-btn:active { transform: scale(0.97); }
+
+  /* ── Sticky nav strip (shown when a section is open) ── */
+  #dashNavStrip {
+    display: none;
+    position: sticky;
+    top: calc(48px + env(safe-area-inset-top, 0px));
+    z-index: 90;
+    background: rgba(10,10,10,0.97);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(10px);
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    width: 100%;
+  }
+  #dashNavStrip.visible { display: grid; }
+  .dash-nav-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15rem;
+    padding: 0.45rem 0.2rem 0.4rem;
+    background: none;
+    border: none;
+    border-right: 1px solid var(--border);
+    cursor: pointer;
+    outline: none;
+    transition: background 0.15s;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.6rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .dash-nav-btn:last-child { border-right: none; }
+  .dash-nav-btn:hover { background: rgba(232,0,29,0.08); color: var(--text); }
+  .dash-nav-btn.active { color: var(--red); background: rgba(232,0,29,0.08); }
+  .dash-nav-btn .nav-icon { font-size: 1rem; line-height: 1; }
   .home-btn-icon {
     font-size: clamp(1rem, 3vw, 1.3rem);
     line-height: 1;
@@ -1140,18 +1166,46 @@
 
 <main>
 
+  <!-- STICKY NAV STRIP (visible when a section is open) -->
+  <div id="dashNavStrip">
+    <button class="dash-nav-btn" id="dnav-log" onclick="selectDashSection('log')">
+      <span class="nav-icon">📋</span>Log
+    </button>
+    <button class="dash-nav-btn" id="dnav-programming" onclick="selectDashSection('programming')">
+      <span class="nav-icon">📅</span>Program
+    </button>
+    <button class="dash-nav-btn" id="dnav-timer" onclick="selectDashSection('timer')">
+      <span class="nav-icon">⏱</span>Timer
+    </button>
+    <button class="dash-nav-btn" id="dnav-prs" onclick="selectDashSection('prs')">
+      <span class="nav-icon">🏆</span>PRs
+    </button>
+    <button class="dash-nav-btn" id="dnav-movements" onclick="selectDashSection('movements')">
+      <span class="nav-icon">💪</span>Moves
+    </button>
+    <button class="dash-nav-btn" id="dnav-leaderboard" onclick="selectDashSection('leaderboard')">
+      <span class="nav-icon">🥇</span>Board
+    </button>
+    <button class="dash-nav-btn" id="dnav-challenges" onclick="selectDashSection('challenges')">
+      <span class="nav-icon">⚡</span>Challenges
+    </button>
+    <button class="dash-nav-btn" id="dnav-members" onclick="selectDashSection('members')">
+      <span class="nav-icon">👥</span>Buddies
+    </button>
+  </div>
+
   <!-- DASHBOARD -->
   <div class="page active" id="page-dashboard">
     <div class="home-grid expanded" id="homeGrid">
       <button class="home-btn" id="hbtn-log" onclick="selectDashSection('log')">
         <span class="home-btn-icon">📋</span>
         <span class="home-btn-label">Log</span>
-        <span class="home-btn-sub">Your workouts & strength</span>
+        <span class="home-btn-sub">Workouts & strength</span>
       </button>
       <button class="home-btn" id="hbtn-programming" onclick="selectDashSection('programming')">
         <span class="home-btn-icon">📅</span>
         <span class="home-btn-label">Programming</span>
-        <span class="home-btn-sub">WOD, lifting & schedule</span>
+        <span class="home-btn-sub">WOD & lifting</span>
       </button>
       <button class="home-btn" id="hbtn-timer" onclick="selectDashSection('timer')">
         <span class="home-btn-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;display:inline-block;vertical-align:middle;"><circle cx="12" cy="13" r="8"/><polyline points="12 9 12 13 14.5 15.5"/><path d="M9 3h6"/><path d="M12 3v2"/></svg></span>
@@ -1168,24 +1222,22 @@
         <span class="home-btn-label">Movements</span>
         <span class="home-btn-sub">Exercise library</span>
       </button>
-      <div id="bottom-btns-row" style="grid-column: 1 / -1; display: flex; gap: 0.75rem; justify-content: center;">
-        <button class="home-btn" id="hbtn-leaderboard" onclick="selectDashSection('leaderboard')" style="flex:1;max-width:25%;">
-          <span class="home-btn-icon">🥇</span>
-          <span class="home-btn-label">Leaderboard</span>
-          <span class="home-btn-sub">Box scores & rankings</span>
-        </button>
-        <button class="home-btn" id="hbtn-challenges" onclick="selectDashSection('challenges')" style="flex:1;max-width:25%;">
-          <span class="home-btn-icon">⚡</span>
-          <span class="home-btn-label">Challenges</span>
-          <span class="home-btn-sub">Send & receive challenges</span>
-          <span id="challengeBadge" class="challenge-badge" style="display:none;"></span>
-        </button>
-        <button class="home-btn" id="hbtn-members" onclick="selectDashSection('members')" style="flex:1;max-width:25%;">
-          <span class="home-btn-icon">👥</span>
-          <span class="home-btn-label">Box Buddies</span>
-          <span class="home-btn-sub">Box members & their PRs</span>
-        </button>
-      </div>
+      <button class="home-btn" id="hbtn-leaderboard" onclick="selectDashSection('leaderboard')">
+        <span class="home-btn-icon">🥇</span>
+        <span class="home-btn-label">Leaderboard</span>
+        <span class="home-btn-sub">Box scores & rankings</span>
+      </button>
+      <button class="home-btn" id="hbtn-challenges" onclick="selectDashSection('challenges')">
+        <span class="home-btn-icon">⚡</span>
+        <span class="home-btn-label">Challenges</span>
+        <span class="home-btn-sub">Send & receive</span>
+        <span id="challengeBadge" class="challenge-badge" style="display:none;"></span>
+      </button>
+      <button class="home-btn" id="hbtn-members" onclick="selectDashSection('members')">
+        <span class="home-btn-icon">👥</span>
+        <span class="home-btn-label">Box Buddies</span>
+        <span class="home-btn-sub">Members & PRs</span>
+      </button>
     </div>
     <div id="dash-content" class="hidden"></div>
   </div>
@@ -1836,7 +1888,7 @@ function json(obj) {
         <div>🏋️ WODs tracked: <strong id="sumWods" style="color:var(--text);">0</strong></div>
         <div>🏆 PRs logged: <strong id="sumPRs" style="color:var(--text);">0</strong></div>
         <div>☁ Last synced: <strong id="sumLastSync" style="color:var(--text);">Never</strong></div>
-        <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border);">📦 App version: <strong id="sumVersion" style="color:var(--green);">v118</strong></div>
+        <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border);">📦 App version: <strong id="sumVersion" style="color:var(--green);">v119</strong></div>
         <div>🔑 Admin: <strong id="sumAdmin" style="color:var(--text);">—</strong></div>
       </div>
     </div>
@@ -1966,7 +2018,7 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v118';
+const APP_VERSION = 'v119';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 
 // Returns YYYY-MM-DD in LOCAL time — avoids UTC shift bug from toISOString()
@@ -2116,6 +2168,9 @@ function showPage(id, goingBack) {
     const grid = document.getElementById('homeGrid');
     if (grid) grid.classList.add('expanded');
     document.querySelectorAll('.home-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.dash-nav-btn').forEach(b => b.classList.remove('active'));
+    const navStrip = document.getElementById('dashNavStrip');
+    if (navStrip) navStrip.classList.remove('visible');
     const dc = document.getElementById('dash-content');
     if (dc) { dc.classList.add('hidden'); dc.innerHTML = ''; }
     currentDashSection = null;
@@ -2336,10 +2391,15 @@ function selectDashSection(section) {
   const cfg = DASH_SECTIONS[section];
   const grid = document.getElementById('homeGrid');
   const dc = document.getElementById('dash-content');
+  const navStrip = document.getElementById('dashNavStrip');
   grid.classList.remove('expanded');
   document.querySelectorAll('.home-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.dash-nav-btn').forEach(b => b.classList.remove('active'));
   const activeBtn = document.getElementById('hbtn-' + section);
   if (activeBtn) activeBtn.classList.add('active');
+  const activeDNav = document.getElementById('dnav-' + section);
+  if (activeDNav) activeDNav.classList.add('active');
+  if (navStrip) navStrip.classList.add('visible');
   currentDashSection = section;
   dc.classList.remove('hidden');
   dc.innerHTML = cfg.build();
@@ -4937,18 +4997,17 @@ async function fetchLBWLProgram(silent = false) {
     if (!data.entries) throw new Error('No entries returned');
 
     const startDay = new Date(startDate + 'T00:00:00');
-    // Map sessions by sequential index — ignore entry.week/entry.day for date math
-    // 3 sessions per 7-day block: i%3=0→+0d, i%3=1→+2d, i%3=2→+4d
+    // Map using entry.week (1-based) and entry.day (1, 2, or 3) from server
+    // 3 sessions per 7-day block: day1=+0d, day2=+2d, day3=+4d
     const SPACING_3X = [0, 2, 4];
-    // Merge with existing stored program so past weeks are preserved
-    const existing3 = JSON.parse(localStorage.getItem('lerums_lbwl_program') || '{}');
-    const program = Object.assign({}, existing3);
-    data.entries.forEach((entry, i) => {
-      const weekBlock = Math.floor(i / 3);
+    const program = {};
+    data.entries.forEach((entry) => {
+      const weekBlock = (entry.week - 1);  // 0-indexed weeks
+      const withinWeek = SPACING_3X[(entry.day - 1) % 3];
       const d = new Date(startDay);
-      d.setDate(startDay.getDate() + weekBlock * 7 + SPACING_3X[i % 3]);
+      d.setDate(startDay.getDate() + weekBlock * 7 + withinWeek);
       const iso = localIso(d);
-      program[iso] = { session: (i % 3) + 1, text: entry.text };
+      program[iso] = { session: entry.day, text: entry.text };
     });
 
     localStorage.setItem('lerums_lbwl_program', JSON.stringify(program));
@@ -5013,18 +5072,16 @@ async function fetch2DWLProgram(silent = false) {
     if (!data.entries) throw new Error('No entries returned');
 
     const startDay = new Date(startDate + 'T00:00:00');
-    // Map sessions by sequential index — ignore entry.week/entry.day for date math
-    // 2 sessions per 7-day block: i%2=0→+0d, i%2=1→+3d
-    // Merge with existing stored program so past weeks are preserved
-    const existing = JSON.parse(localStorage.getItem('lerums_2dwl_program') || '{}');
-    const program = Object.assign({}, existing);
-    data.entries.forEach((entry, i) => {
-      const weekBlock = Math.floor(i / 2);
-      const withinWeek = (i % 2) === 0 ? 0 : 3;
+    // Map using entry.week (1-based) and entry.day (1 or 2) from server
+    // 2 sessions per 7-day block: session 1 = +0d, session 2 = +3d within each week block
+    const program = {};
+    data.entries.forEach((entry) => {
+      const weekBlock = (entry.week - 1);  // 0-indexed weeks
+      const withinWeek = (entry.day === 1) ? 0 : 3;
       const d = new Date(startDay);
       d.setDate(startDay.getDate() + weekBlock * 7 + withinWeek);
       const iso = localIso(d);
-      program[iso] = { session: (i % 2) + 1, text: entry.text };
+      program[iso] = { session: entry.day, text: entry.text };
     });
 
     localStorage.setItem('lerums_2dwl_program', JSON.stringify(program));
