@@ -1888,7 +1888,7 @@ function json(obj) {
         <div>🏋️ WODs tracked: <strong id="sumWods" style="color:var(--text);">0</strong></div>
         <div>🏆 PRs logged: <strong id="sumPRs" style="color:var(--text);">0</strong></div>
         <div>☁ Last synced: <strong id="sumLastSync" style="color:var(--text);">Never</strong></div>
-        <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border);">📦 App version: <strong id="sumVersion" style="color:var(--green);">v119</strong></div>
+        <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border);">📦 App version: <strong id="sumVersion" style="color:var(--green);">v120</strong></div>
         <div>🔑 Admin: <strong id="sumAdmin" style="color:var(--text);">—</strong></div>
       </div>
     </div>
@@ -2018,7 +2018,7 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v119';
+const APP_VERSION = 'v120';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 
 // Returns YYYY-MM-DD in LOCAL time — avoids UTC shift bug from toISOString()
@@ -4986,13 +4986,15 @@ async function fetchLBWLProgram(silent = false) {
   }
   try {
     const lbwlSheet = localStorage.getItem('lerums_lbwl_sheet') || 'LBWT';
-    const data = await xhrPost(LBWL_SCRIPT_URL, {
-      action: 'getProgram',
-      sheet: lbwlSheet,
-      cols: { date: 0, strength: 1, workout: 2 },
-      programStartDate: startDate,
-      weeksAhead: 6
-    });
+    const todayIso = localIso(new Date());
+    const aheadDate3 = new Date(todayIso + 'T00:00:00');
+    aheadDate3.setDate(aheadDate3.getDate() + 14);
+    const aheadIso3 = localIso(aheadDate3);
+
+    const [data, dataAhead] = await Promise.all([
+      xhrPost(LBWL_SCRIPT_URL, { action: 'getProgram', sheet: lbwlSheet, cols: { date: 0, strength: 1, workout: 2 }, programStartDate: todayIso }),
+      xhrPost(LBWL_SCRIPT_URL, { action: 'getProgram', sheet: lbwlSheet, cols: { date: 0, strength: 1, workout: 2 }, programStartDate: aheadIso3 })
+    ]);
     if (data.error) throw new Error(data.error);
     if (!data.entries) throw new Error('No entries returned');
 
@@ -5001,14 +5003,18 @@ async function fetchLBWLProgram(silent = false) {
     // 3 sessions per 7-day block: day1=+0d, day2=+2d, day3=+4d
     const SPACING_3X = [0, 2, 4];
     const program = {};
-    data.entries.forEach((entry) => {
-      const weekBlock = (entry.week - 1);  // 0-indexed weeks
-      const withinWeek = SPACING_3X[(entry.day - 1) % 3];
-      const d = new Date(startDay);
-      d.setDate(startDay.getDate() + weekBlock * 7 + withinWeek);
-      const iso = localIso(d);
-      program[iso] = { session: entry.day, text: entry.text };
-    });
+    const mapEntries3 = (entries) => {
+      (entries || []).forEach((entry) => {
+        const weekBlock = (entry.week - 1);  // 0-indexed weeks
+        const withinWeek = SPACING_3X[(entry.day - 1) % 3];
+        const d = new Date(startDay);
+        d.setDate(startDay.getDate() + weekBlock * 7 + withinWeek);
+        const iso = localIso(d);
+        program[iso] = { session: entry.day, text: entry.text };
+      });
+    };
+    mapEntries3(data.entries);
+    if (!dataAhead.error && dataAhead.entries) mapEntries3(dataAhead.entries);
 
     localStorage.setItem('lerums_lbwl_program', JSON.stringify(program));
     localStorage.setItem('lerums_lbwl_last_sync', new Date().toLocaleString('en-SE'));
@@ -5061,13 +5067,17 @@ async function fetch2DWLProgram(silent = false) {
     return;
   }
   try {
-    const data = await xhrPost(LBWL_SCRIPT_URL, {
-      action: 'getProgram',
-      sheet: '2DWL',
-      cols: { date: 0, strength: 1, workout: 2 },
-      programStartDate: startDate,
-      weeksAhead: 6
-    });
+    // The server only returns ~2 weeks from the requested date.
+    // Make two fetches: one anchored at today, one 14 days ahead — then merge.
+    const todayIso = localIso(new Date());
+    const aheadDate = new Date(todayIso + 'T00:00:00');
+    aheadDate.setDate(aheadDate.getDate() + 14);
+    const aheadIso = localIso(aheadDate);
+
+    const [data, dataAhead] = await Promise.all([
+      xhrPost(LBWL_SCRIPT_URL, { action: 'getProgram', sheet: '2DWL', cols: { date: 0, strength: 1, workout: 2 }, programStartDate: todayIso }),
+      xhrPost(LBWL_SCRIPT_URL, { action: 'getProgram', sheet: '2DWL', cols: { date: 0, strength: 1, workout: 2 }, programStartDate: aheadIso })
+    ]);
     if (data.error) throw new Error(data.error);
     if (!data.entries) throw new Error('No entries returned');
 
@@ -5075,14 +5085,18 @@ async function fetch2DWLProgram(silent = false) {
     // Map using entry.week (1-based) and entry.day (1 or 2) from server
     // 2 sessions per 7-day block: session 1 = +0d, session 2 = +3d within each week block
     const program = {};
-    data.entries.forEach((entry) => {
-      const weekBlock = (entry.week - 1);  // 0-indexed weeks
-      const withinWeek = (entry.day === 1) ? 0 : 3;
-      const d = new Date(startDay);
-      d.setDate(startDay.getDate() + weekBlock * 7 + withinWeek);
-      const iso = localIso(d);
-      program[iso] = { session: entry.day, text: entry.text };
-    });
+    const mapEntries = (entries) => {
+      (entries || []).forEach((entry) => {
+        const weekBlock = (entry.week - 1);  // 0-indexed weeks
+        const withinWeek = (entry.day === 1) ? 0 : 3;
+        const d = new Date(startDay);
+        d.setDate(startDay.getDate() + weekBlock * 7 + withinWeek);
+        const iso = localIso(d);
+        program[iso] = { session: entry.day, text: entry.text };
+      });
+    };
+    mapEntries(data.entries);
+    if (!dataAhead.error && dataAhead.entries) mapEntries(dataAhead.entries);
 
     localStorage.setItem('lerums_2dwl_program', JSON.stringify(program));
     localStorage.setItem('lerums_2dwl_last_sync', new Date().toLocaleString('en-SE'));
