@@ -713,9 +713,21 @@
     padding: 0.75rem 0.75rem 0.5rem;
     transition: all 0.35s ease;
     box-sizing: border-box;
+    /* Sticky when collapsed so navigation is always reachable */
+    position: sticky;
+    top: calc(48px + env(safe-area-inset-top, 0px));
+    z-index: 80;
+    background: var(--dark);
+    border-bottom: 1px solid var(--border);
+  }
+  /* Expanded home view — not sticky, no border */
+  .home-grid.expanded {
+    position: static;
+    background: transparent;
+    border-bottom: none;
   }
   @media (min-width: 400px) {
-    .home-grid { gap: 0.75rem; padding: 1.25rem 1.25rem 1rem; }
+    .home-grid:not(.expanded) { gap: 0.75rem; padding: 1.25rem 1.25rem 1rem; }
   }
   /* Big centered state (nothing selected) — clean 2-column grid */
   .home-grid.expanded {
@@ -788,44 +800,7 @@
   }
   .home-btn:active { transform: scale(0.97); }
 
-  /* ── Sticky nav strip (shown when a section is open) ── */
-  #dashNavStrip {
-    display: none;
-    position: sticky;
-    top: calc(48px + env(safe-area-inset-top, 0px));
-    z-index: 90;
-    background: rgba(10,10,10,0.97);
-    border-bottom: 1px solid var(--border);
-    backdrop-filter: blur(10px);
-    grid-template-columns: repeat(4, 1fr);
-    gap: 0;
-    width: 100%;
-  }
-  #dashNavStrip.visible { display: grid; }
-  .dash-nav-btn {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.15rem;
-    padding: 0.45rem 0.2rem 0.4rem;
-    background: none;
-    border: none;
-    border-right: 1px solid var(--border);
-    cursor: pointer;
-    outline: none;
-    transition: background 0.15s;
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700;
-    font-size: 0.6rem;
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-  .dash-nav-btn:last-child { border-right: none; }
-  .dash-nav-btn:hover { background: rgba(232,0,29,0.08); color: var(--text); }
-  .dash-nav-btn.active { color: var(--red); background: rgba(232,0,29,0.08); }
-  .dash-nav-btn .nav-icon { font-size: 1rem; line-height: 1; }
+  /* dashNavStrip removed — collapsed home-grid is now sticky */
   .home-btn-icon {
     font-size: clamp(1rem, 3vw, 1.3rem);
     line-height: 1;
@@ -1165,34 +1140,6 @@
 </nav>
 
 <main>
-
-  <!-- STICKY NAV STRIP (visible when a section is open) -->
-  <div id="dashNavStrip">
-    <button class="dash-nav-btn" id="dnav-log" onclick="selectDashSection('log')">
-      <span class="nav-icon">📋</span>Log
-    </button>
-    <button class="dash-nav-btn" id="dnav-programming" onclick="selectDashSection('programming')">
-      <span class="nav-icon">📅</span>Program
-    </button>
-    <button class="dash-nav-btn" id="dnav-timer" onclick="selectDashSection('timer')">
-      <span class="nav-icon">⏱</span>Timer
-    </button>
-    <button class="dash-nav-btn" id="dnav-prs" onclick="selectDashSection('prs')">
-      <span class="nav-icon">🏆</span>PRs
-    </button>
-    <button class="dash-nav-btn" id="dnav-movements" onclick="selectDashSection('movements')">
-      <span class="nav-icon">💪</span>Moves
-    </button>
-    <button class="dash-nav-btn" id="dnav-leaderboard" onclick="selectDashSection('leaderboard')">
-      <span class="nav-icon">🥇</span>Board
-    </button>
-    <button class="dash-nav-btn" id="dnav-challenges" onclick="selectDashSection('challenges')">
-      <span class="nav-icon">⚡</span>Challenges
-    </button>
-    <button class="dash-nav-btn" id="dnav-members" onclick="selectDashSection('members')">
-      <span class="nav-icon">👥</span>Buddies
-    </button>
-  </div>
 
   <!-- DASHBOARD -->
   <div class="page active" id="page-dashboard">
@@ -1888,7 +1835,7 @@ function json(obj) {
         <div>🏋️ WODs tracked: <strong id="sumWods" style="color:var(--text);">0</strong></div>
         <div>🏆 PRs logged: <strong id="sumPRs" style="color:var(--text);">0</strong></div>
         <div>☁ Last synced: <strong id="sumLastSync" style="color:var(--text);">Never</strong></div>
-        <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border);">📦 App version: <strong id="sumVersion" style="color:var(--green);">v121</strong></div>
+        <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border);">📦 App version: <strong id="sumVersion" style="color:var(--green);">v122</strong></div>
         <div>🔑 Admin: <strong id="sumAdmin" style="color:var(--text);">—</strong></div>
       </div>
     </div>
@@ -2018,7 +1965,7 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v121';
+const APP_VERSION = 'v122';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 
 // Returns YYYY-MM-DD in LOCAL time — avoids UTC shift bug from toISOString()
@@ -2168,9 +2115,6 @@ function showPage(id, goingBack) {
     const grid = document.getElementById('homeGrid');
     if (grid) grid.classList.add('expanded');
     document.querySelectorAll('.home-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.dash-nav-btn').forEach(b => b.classList.remove('active'));
-    const navStrip = document.getElementById('dashNavStrip');
-    if (navStrip) navStrip.classList.remove('visible');
     const dc = document.getElementById('dash-content');
     if (dc) { dc.classList.add('hidden'); dc.innerHTML = ''; }
     currentDashSection = null;
@@ -2391,15 +2335,10 @@ function selectDashSection(section) {
   const cfg = DASH_SECTIONS[section];
   const grid = document.getElementById('homeGrid');
   const dc = document.getElementById('dash-content');
-  const navStrip = document.getElementById('dashNavStrip');
   grid.classList.remove('expanded');
   document.querySelectorAll('.home-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.dash-nav-btn').forEach(b => b.classList.remove('active'));
   const activeBtn = document.getElementById('hbtn-' + section);
   if (activeBtn) activeBtn.classList.add('active');
-  const activeDNav = document.getElementById('dnav-' + section);
-  if (activeDNav) activeDNav.classList.add('active');
-  if (navStrip) navStrip.classList.add('visible');
   currentDashSection = section;
   dc.classList.remove('hidden');
   dc.innerHTML = cfg.build();
@@ -5002,13 +4941,13 @@ async function fetchLBWLProgram(silent = false) {
   try {
     const lbwlSheet = localStorage.getItem('lerums_lbwl_sheet') || 'LBWT';
     const todayIso = localIso(new Date());
-    const aheadDate3 = new Date(todayIso + 'T00:00:00');
-    aheadDate3.setDate(aheadDate3.getDate() + 14);
-    const aheadIso3 = localIso(aheadDate3);
+    const ahead14b = new Date(todayIso + 'T00:00:00'); ahead14b.setDate(ahead14b.getDate() + 14);
+    const ahead28b = new Date(todayIso + 'T00:00:00'); ahead28b.setDate(ahead28b.getDate() + 28);
 
-    const [data, dataAhead] = await Promise.all([
+    const [data, dataAhead, dataAhead2] = await Promise.all([
       xhrPost(LBWL_SCRIPT_URL, { action: 'getProgram', sheet: lbwlSheet, cols: { date: 0, strength: 1, workout: 2 }, programStartDate: todayIso }),
-      xhrPost(LBWL_SCRIPT_URL, { action: 'getProgram', sheet: lbwlSheet, cols: { date: 0, strength: 1, workout: 2 }, programStartDate: aheadIso3 })
+      xhrPost(LBWL_SCRIPT_URL, { action: 'getProgram', sheet: lbwlSheet, cols: { date: 0, strength: 1, workout: 2 }, programStartDate: localIso(ahead14b) }),
+      xhrPost(LBWL_SCRIPT_URL, { action: 'getProgram', sheet: lbwlSheet, cols: { date: 0, strength: 1, workout: 2 }, programStartDate: localIso(ahead28b) })
     ]);
     if (data.error) throw new Error(data.error);
     if (!data.entries) throw new Error('No entries returned');
@@ -5030,6 +4969,7 @@ async function fetchLBWLProgram(silent = false) {
     };
     mapEntries3(data.entries);
     if (!dataAhead.error && dataAhead.entries) mapEntries3(dataAhead.entries);
+    if (!dataAhead2.error && dataAhead2.entries) mapEntries3(dataAhead2.entries);
 
     localStorage.setItem('lerums_lbwl_program', JSON.stringify(program));
     localStorage.setItem('lerums_lbwl_last_sync', new Date().toLocaleString('en-SE'));
@@ -5082,16 +5022,15 @@ async function fetch2DWLProgram(silent = false) {
     return;
   }
   try {
-    // The server only returns ~2 weeks from the requested date.
-    // Make two fetches: one anchored at today, one 14 days ahead — then merge.
+    // The server returns ~2 weeks per request. Fetch 3 windows in parallel to cover 6 weeks.
     const todayIso = localIso(new Date());
-    const aheadDate = new Date(todayIso + 'T00:00:00');
-    aheadDate.setDate(aheadDate.getDate() + 14);
-    const aheadIso = localIso(aheadDate);
+    const ahead14 = new Date(todayIso + 'T00:00:00'); ahead14.setDate(ahead14.getDate() + 14);
+    const ahead28 = new Date(todayIso + 'T00:00:00'); ahead28.setDate(ahead28.getDate() + 28);
 
-    const [data, dataAhead] = await Promise.all([
+    const [data, dataAhead, dataAhead2] = await Promise.all([
       xhrPost(LBWL_SCRIPT_URL, { action: 'getProgram', sheet: '2DWL', cols: { date: 0, strength: 1, workout: 2 }, programStartDate: todayIso }),
-      xhrPost(LBWL_SCRIPT_URL, { action: 'getProgram', sheet: '2DWL', cols: { date: 0, strength: 1, workout: 2 }, programStartDate: aheadIso })
+      xhrPost(LBWL_SCRIPT_URL, { action: 'getProgram', sheet: '2DWL', cols: { date: 0, strength: 1, workout: 2 }, programStartDate: localIso(ahead14) }),
+      xhrPost(LBWL_SCRIPT_URL, { action: 'getProgram', sheet: '2DWL', cols: { date: 0, strength: 1, workout: 2 }, programStartDate: localIso(ahead28) })
     ]);
     if (data.error) throw new Error(data.error);
     if (!data.entries) throw new Error('No entries returned');
@@ -5112,6 +5051,7 @@ async function fetch2DWLProgram(silent = false) {
     };
     mapEntries(data.entries);
     if (!dataAhead.error && dataAhead.entries) mapEntries(dataAhead.entries);
+    if (!dataAhead2.error && dataAhead2.entries) mapEntries(dataAhead2.entries);
 
     localStorage.setItem('lerums_2dwl_program', JSON.stringify(program));
     localStorage.setItem('lerums_2dwl_last_sync', new Date().toLocaleString('en-SE'));
