@@ -1835,7 +1835,7 @@ function json(obj) {
         <div>🏋️ WODs tracked: <strong id="sumWods" style="color:var(--text);">0</strong></div>
         <div>🏆 PRs logged: <strong id="sumPRs" style="color:var(--text);">0</strong></div>
         <div>☁ Last synced: <strong id="sumLastSync" style="color:var(--text);">Never</strong></div>
-        <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border);">📦 App version: <strong id="sumVersion" style="color:var(--green);">v122</strong></div>
+        <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border);">📦 App version: <strong id="sumVersion" style="color:var(--green);">v123</strong></div>
         <div>🔑 Admin: <strong id="sumAdmin" style="color:var(--text);">—</strong></div>
       </div>
     </div>
@@ -1965,7 +1965,7 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v122';
+const APP_VERSION = 'v123';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 
 // Returns YYYY-MM-DD in LOCAL time — avoids UTC shift bug from toISOString()
@@ -2379,31 +2379,22 @@ function renderLBWLSection() {
   }
 
   const today = localIso(new Date());
-  const todayDate = new Date(today + 'T00:00:00');
-  const lbwlStartDate = new Date(startDate + 'T00:00:00');
-  // Window anchored to program start: prev program week + current + 2 weeks ahead
-  const daysSinceStart3 = Math.floor((todayDate - lbwlStartDate) / 86400000);
-  const curWeek3 = Math.max(0, Math.floor(daysSinceStart3 / 7)); // 0-indexed
-  const _3winStart = new Date(lbwlStartDate);
-  _3winStart.setDate(lbwlStartDate.getDate() + Math.max(0, curWeek3 - 1) * 7);
-  const _3winEnd = new Date(lbwlStartDate);
-  _3winEnd.setDate(lbwlStartDate.getDate() + (curWeek3 + 3) * 7 - 1); // +2 full weeks ahead
-
-  const windowDates = [];
-  for (let d = new Date(_3winStart); d <= _3winEnd; d.setDate(d.getDate() + 1)) {
-    windowDates.push(localIso(d));
-  }
-
-  const sessions = windowDates.filter(d => program[d]).map(d => ({ date: d, ...program[d] }));
+  // Show ALL sessions stored in the program (no date window limit)
+  const sessions = Object.keys(program).sort().map(d => ({ date: d, ...program[d] }));
 
   if (!sessions.length) {
     return setupUI + `<div style="padding:1rem;background:var(--card);border:1px solid var(--border);border-radius:6px;font-size:0.83rem;color:var(--muted);text-align:center;">
-      ${lastSync ? 'No sessions in the next two weeks.' : 'Tap ⟳ Sync to load the LB Lifting program.'}
+      ${lastSync ? 'No sessions found.' : 'Tap ⟳ Sync to load the LB Lifting program.'}
     </div>`;
   }
 
   const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const lbwlStart = new Date(startDate + 'T00:00:00');
+  // Determine current week number (1-indexed)
+  const todayDate3 = new Date(today + 'T00:00:00');
+  const daysSinceStart3 = Math.floor((todayDate3 - lbwlStart) / 86400000);
+  const currentWeekNum3 = Math.max(1, Math.floor(daysSinceStart3 / 7) + 1);
+
   // Group sessions by week
   const weekGroups3 = {};
   sessions.forEach(s => {
@@ -2415,8 +2406,11 @@ function renderLBWLSection() {
   const html3 = Object.keys(weekGroups3).sort((a,b) => a-b).map(weekNum => {
     const wSessions = weekGroups3[weekNum];
     const allPast = wSessions.every(ss => ss.date < today);
+    const isCurrentWeek3 = parseInt(weekNum) === currentWeekNum3;
+    const startCollapsed3 = !isCurrentWeek3;
     const collapseId = 'lbwl3x-week-' + weekNum;
-    const weekHeader = `<div onclick="toggleWLWeek('${collapseId}',this)" style="font-family:'Bebas Neue';font-size:0.95rem;letter-spacing:0.1em;color:var(--red);margin:${weekNum === 1 ? '0' : '1rem'} 0 0.5rem;padding-bottom:0.35rem;border-bottom:1px solid var(--border);opacity:${allPast ? '0.5' : '1'};cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;">Week ${weekNum}<span class="wl-week-chevron" style="font-size:0.75rem;transition:transform 0.2s;">▼</span></div>`;
+    const chevronStyle3 = startCollapsed3 ? 'transform:rotate(-90deg);' : '';
+    const weekHeader = `<div onclick="toggleWLWeek('${collapseId}',this)" style="font-family:'Bebas Neue';font-size:0.95rem;letter-spacing:0.1em;color:var(--red);margin:${weekNum === 1 ? '0' : '1rem'} 0 0.5rem;padding-bottom:0.35rem;border-bottom:1px solid var(--border);opacity:${allPast ? '0.5' : '1'};cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;">Week ${weekNum}<span class="wl-week-chevron" style="font-size:0.75rem;transition:transform 0.2s;${chevronStyle3}">▼</span></div>`;
     const cards = wSessions.map(s => {
       const d = new Date(s.date + 'T00:00:00');
       const isToday = s.date === today;
@@ -2424,7 +2418,7 @@ function renderLBWLSection() {
       const dayLabel = dayNames[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth()+1);
       return renderLBWLSessionCard(s, '3x', parseInt(weekNum), isToday, isPast, dayLabel);
     }).join('');
-    return weekHeader + `<div id="${collapseId}">${cards}</div>`;
+    return weekHeader + `<div id="${collapseId}" style="${startCollapsed3 ? 'display:none;' : ''}">${cards}</div>`;
   }).join('');
   return setupUI + html3;
 }
