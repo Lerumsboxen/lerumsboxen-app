@@ -1146,7 +1146,12 @@
       <button class="home-btn" id="hbtn-log" onclick="selectDashSection('log')">
         <span class="home-btn-icon">📋</span>
         <span class="home-btn-label">Log</span>
-        <span class="home-btn-sub">Track workouts & strength</span>
+        <span class="home-btn-sub">Your workouts & strength</span>
+      </button>
+      <button class="home-btn" id="hbtn-programming" onclick="selectDashSection('programming')">
+        <span class="home-btn-icon">📅</span>
+        <span class="home-btn-label">Programming</span>
+        <span class="home-btn-sub">WOD, lifting & schedule</span>
       </button>
       <button class="home-btn" id="hbtn-timer" onclick="selectDashSection('timer')">
         <span class="home-btn-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;display:inline-block;vertical-align:middle;"><circle cx="12" cy="13" r="8"/><polyline points="12 9 12 13 14.5 15.5"/><path d="M9 3h6"/><path d="M12 3v2"/></svg></span>
@@ -1831,7 +1836,7 @@ function json(obj) {
         <div>🏋️ WODs tracked: <strong id="sumWods" style="color:var(--text);">0</strong></div>
         <div>🏆 PRs logged: <strong id="sumPRs" style="color:var(--text);">0</strong></div>
         <div>☁ Last synced: <strong id="sumLastSync" style="color:var(--text);">Never</strong></div>
-        <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border);">📦 App version: <strong id="sumVersion" style="color:var(--green);">v117</strong></div>
+        <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border);">📦 App version: <strong id="sumVersion" style="color:var(--green);">v118</strong></div>
         <div>🔑 Admin: <strong id="sumAdmin" style="color:var(--text);">—</strong></div>
       </div>
     </div>
@@ -1961,7 +1966,7 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v117';
+const APP_VERSION = 'v118';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 
 // Returns YYYY-MM-DD in LOCAL time — avoids UTC shift bug from toISOString()
@@ -2143,96 +2148,16 @@ const DASH_SECTIONS = {
   log: {
     render: () => { renderDashLogTab(); },
     build: () => {
-      const today = new Date().toISOString().split('T')[0];
-      // Use stored program date — admin can go to future, others capped at today
-      if (!window.programViewDate) window.programViewDate = today;
-      // Only cap at today if admin status is confirmed (members already fetched)
-      const _adminConfirmed = !!localStorage.getItem('lerums_admin_members');
-      if (_adminConfirmed && !isAdmin() && !isProgramPreview() && window.programViewDate > today) window.programViewDate = today;
-      const viewDate = window.programViewDate;
-      const prog = state.dailyProgram[viewDate];
-      const isToday = viewDate === today;
-      const isFuture = viewDate > today;
-      const label = isToday ? 'Today' : formatDate(viewDate);
-      const nextDisabled = (_adminConfirmed && !isAdmin() && !isProgramPreview()) ? isToday : false;
-
-      const dateNav = `
-      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.85rem;">
-        <button data-prog-nav="prev" style="width:2rem;height:2rem;border-radius:4px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">‹</button>
-        <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.85rem;letter-spacing:0.08em;text-transform:uppercase;color:${isFuture ? '#a78bfa' : '#fbbf24'};flex:1;text-align:center;">${label}</span>
-        <button data-prog-nav="next" ${nextDisabled ? 'disabled' : ''} style="width:2rem;height:2rem;border-radius:4px;border:1px solid var(--border);background:var(--card);color:${nextDisabled ? 'var(--border)' : 'var(--text)'};cursor:${nextDisabled ? 'default' : 'pointer'};font-size:1rem;display:flex;align-items:center;justify-content:center;">›</button>
-      </div>`;
-
-      const hasWod = prog && (prog.strength || prog.workout);
-      const banner = `
-      <div style="margin-bottom:1rem;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
-          <span style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#fbbf24;">📅 Program</span>
-        </div>
-        ${dateNav}
-
-        ${hasWod ? `
-        <div style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
-            <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:var(--text);">Workout of the Day</div>
-            <a href="https://lerumsboxen.zoezi.se/bokapass" target="_blank" rel="noopener"
-              style="font-family:'Barlow Condensed';font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;background:var(--red);color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;text-decoration:none;white-space:nowrap;">📆 Book Class</a>
-          </div>
-          ${prog.strength ? `
-          <div style="margin-bottom:0.75rem;">
-            <div class="program-section-label">💪 Strength</div>
-            <div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.strength)}</div>
-            <button data-log="strength" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#e0e0e0;color:#000;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG</button>
-          </div>` : ''}
-          ${prog.strength && prog.workout ? `<div style="border-top:1px solid var(--border);margin:0.75rem 0;"></div>` : ''}
-          ${prog.workout ? `
-          <div>
-            <div class="program-section-label">🏋️ WOD</div>
-            <div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.workout)}</div>
-            <button data-log="workout" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:var(--red);color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ WORKOUT</button>
-          </div>` : ''}
-        </div>` : (prog ? '' : '<div style="color:var(--muted);font-size:0.82rem;text-align:center;padding:0.5rem 0;margin-bottom:0.75rem;">No program for this day</div>')}
-
-        ${prog && prog.club ? `
-        <div style="background:var(--card);border:1px solid rgba(167,139,250,0.4);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
-          <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#a78bfa;margin-bottom:0.5rem;">🏆 Club Series Simulation</div>
-          <div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.club)}</div>
-          <button data-log="club" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#7c3aed;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ WORKOUT</button>
-        </div>` : ''}
-
-        ${prog && prog.hyrox ? `
-        <div style="background:var(--card);border:1px solid rgba(56,189,248,0.4);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
-          <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#38bdf8;margin-bottom:0.5rem;">🏃 Hyrox</div>
-          <div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.hyrox)}</div>
-          <button data-log="hyrox" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#0369a1;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ WORKOUT</button>
-        </div>` : ''}
-
-        ${prog && prog.endurance ? `
-        <div style="background:var(--card);border:1px solid rgba(52,211,153,0.4);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
-          <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#34d399;margin-bottom:0.5rem;">🏅 Endurance</div>
-          <div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.endurance)}</div>
-          <button data-log="endurance" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#065f46;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ WORKOUT</button>
-        </div>` : ''}
-
-        ${prog && prog.oly ? `
-        <div style="background:var(--card);border:1px solid rgba(251,191,36,0.4);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
-          <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#fbbf24;margin-bottom:0.5rem;">🏅 OLY</div>
-          <div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.oly)}</div>
-          <button data-log="oly" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#b45309;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ WORKOUT</button>
-        </div>` : ''}
-
-      </div>`;
       return `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.75rem;">
         <div class="section-title" style="margin:0;flex:1;">Log</div>
         <div style="display:flex;gap:0.4rem;flex-wrap:wrap;justify-content:flex-end;align-items:center;">
-          <button onclick="openStrengthModal()" style="font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.78rem;padding:0.45rem 0.75rem;background:transparent;border:1.5px solid #e0e0e0;color:#e0e0e0;border-radius:2px;cursor:pointer;display:flex;align-items:center;justify-content:center;white-space:nowrap;">+ STRENGTH</button>
-          <button onclick="openCondModal()" style="font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.78rem;padding:0.45rem 0.75rem;background:transparent;border:1.5px solid #38bdf8;color:#38bdf8;border-radius:2px;cursor:pointer;display:flex;align-items:center;justify-content:center;white-space:nowrap;">+ CONDITIONING</button>
-          <button onclick="openWodModal()" style="font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.78rem;padding:0.45rem 0.75rem;background:var(--red);color:#fff;border:none;border-radius:2px;cursor:pointer;display:flex;align-items:center;justify-content:center;white-space:nowrap;">+ WORKOUT</button>
+          <button onclick="openStrengthModal()" style="font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.78rem;padding:0.45rem 0.75rem;background:transparent;border:1.5px solid #e0e0e0;color:#e0e0e0;border-radius:2px;cursor:pointer;white-space:nowrap;">+ STRENGTH</button>
+          <button onclick="openCondModal()" style="font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.78rem;padding:0.45rem 0.75rem;background:transparent;border:1.5px solid #38bdf8;color:#38bdf8;border-radius:2px;cursor:pointer;white-space:nowrap;">+ CONDITIONING</button>
+          <button onclick="openWodModal()" style="font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.78rem;padding:0.45rem 0.75rem;background:var(--red);color:#fff;border:none;border-radius:2px;cursor:pointer;white-space:nowrap;">+ WORKOUT</button>
         </div>
       </div>
-      ${banner}
-      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem;flex-wrap:wrap;margin-top:1rem;">
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem;flex-wrap:wrap;">
         <input type="date" id="logDateFrom2" onchange="renderDashLogTab()" style="padding:0.45rem 0.7rem;font-size:0.82rem;max-width:148px;">
         <span style="color:var(--muted);font-size:0.8rem;">→</span>
         <input type="date" id="logDateTo2" onchange="renderDashLogTab()" style="padding:0.45rem 0.7rem;font-size:0.82rem;max-width:148px;">
@@ -2244,21 +2169,51 @@ const DASH_SECTIONS = {
         <button id="dlt-cond" onclick="switchDashLogTab('cond')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.1rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;">Conditioning</button>
         <button id="dlt-wod" onclick="switchDashLogTab('wod')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.1rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;">Workouts</button>
       </div>
-      <div id="dash-log-list"></div>
-      ${isLBWLEnabled() ? `
-      <div id="dash-lbwl-section" style="margin-top:1.5rem;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
-          <span style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#fbbf24;">🏋️ LB Weightlifting (3x)</span>
-        </div>
-        ${renderLBWLSection()}
-      </div>` : ''}
-      ${is2DWLEnabled() ? `
-      <div id="dash-2dwl-section" style="margin-top:1.5rem;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
-          <span style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#fbbf24;">🏋️ LB Weightlifting (2x)</span>
-        </div>
-        ${render2DWLSection()}
-      </div>` : ''}`;
+      <div id="dash-log-list"></div>`;
+    }
+  },
+  programming: {
+    render: () => {},
+    build: () => {
+      const today = localIso(new Date());
+      if (!window.programViewDate) window.programViewDate = today;
+      const _adminConfirmed = !!localStorage.getItem('lerums_admin_members');
+      if (_adminConfirmed && !isAdmin() && !isProgramPreview() && window.programViewDate > today) window.programViewDate = today;
+      const viewDate = window.programViewDate;
+      const prog = state.dailyProgram[viewDate];
+      const isToday = viewDate === today;
+      const isFuture = viewDate > today;
+      const label = isToday ? 'Today' : formatDate(viewDate);
+      const nextDisabled = (_adminConfirmed && !isAdmin() && !isProgramPreview()) ? isToday : false;
+      const dateNav = `
+        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.85rem;">
+          <button data-prog-nav="prev" style="width:2rem;height:2rem;border-radius:4px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">‹</button>
+          <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.85rem;letter-spacing:0.08em;text-transform:uppercase;color:${isFuture ? '#a78bfa' : '#fbbf24'};flex:1;text-align:center;">${label}</span>
+          <button data-prog-nav="next" ${nextDisabled ? 'disabled' : ''} style="width:2rem;height:2rem;border-radius:4px;border:1px solid var(--border);background:var(--card);color:${nextDisabled ? 'var(--border)' : 'var(--text)'};cursor:${nextDisabled ? 'default' : 'pointer'};font-size:1rem;display:flex;align-items:center;justify-content:center;">›</button>
+        </div>`;
+      const hasWod = prog && (prog.strength || prog.workout);
+      return `
+      <div class="section-title" style="margin-bottom:1rem;">Programming</div>
+      <div style="margin-bottom:1rem;">
+        <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#fbbf24;margin-bottom:0.75rem;">📅 Workout of the Day</div>
+        ${dateNav}
+        ${hasWod ? `
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+            <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:var(--text);">Workout of the Day</div>
+            <a href="https://lerumsboxen.zoezi.se/bokapass" target="_blank" rel="noopener" style="font-family:'Barlow Condensed';font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;background:var(--red);color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;text-decoration:none;white-space:nowrap;">📆 Book Class</a>
+          </div>
+          ${prog.strength ? `<div style="margin-bottom:0.75rem;"><div class="program-section-label">💪 Strength</div><div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.strength)}</div><button data-log="strength" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#e0e0e0;color:#000;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG</button></div>` : ''}
+          ${prog.strength && prog.workout ? `<div style="border-top:1px solid var(--border);margin:0.75rem 0;"></div>` : ''}
+          ${prog.workout ? `<div><div class="program-section-label">🏋️ WOD</div><div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.workout)}</div><button data-log="workout" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:var(--red);color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ WORKOUT</button></div>` : ''}
+        </div>` : (prog ? '' : '<div style="color:var(--muted);font-size:0.82rem;text-align:center;padding:0.5rem 0;margin-bottom:0.75rem;">No program for this day</div>')}
+        ${prog && prog.club ? `<div style="background:var(--card);border:1px solid rgba(167,139,250,0.4);border-radius:6px;padding:1rem;margin-bottom:0.75rem;"><div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#a78bfa;margin-bottom:0.5rem;">🏆 Club Series Simulation</div><div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.club)}</div><button data-log="club" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#7c3aed;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ WORKOUT</button></div>` : ''}
+        ${prog && prog.hyrox ? `<div style="background:var(--card);border:1px solid rgba(56,189,248,0.4);border-radius:6px;padding:1rem;margin-bottom:0.75rem;"><div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#38bdf8;margin-bottom:0.5rem;">🏃 Hyrox</div><div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.hyrox)}</div><button data-log="hyrox" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#0369a1;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ WORKOUT</button></div>` : ''}
+        ${prog && prog.endurance ? `<div style="background:var(--card);border:1px solid rgba(52,211,153,0.4);border-radius:6px;padding:1rem;margin-bottom:0.75rem;"><div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#34d399;margin-bottom:0.5rem;">🏅 Endurance</div><div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.endurance)}</div><button data-log="endurance" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#065f46;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ WORKOUT</button></div>` : ''}
+        ${prog && prog.oly ? `<div style="background:var(--card);border:1px solid rgba(251,191,36,0.4);border-radius:6px;padding:1rem;margin-bottom:0.75rem;"><div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#fbbf24;margin-bottom:0.5rem;">🏅 OLY</div><div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.oly)}</div><button data-log="oly" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#b45309;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ WORKOUT</button></div>` : ''}
+      </div>
+      ${isLBWLEnabled() ? `<div id="dash-lbwl-section" style="margin-top:1.5rem;"><div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#fbbf24;margin-bottom:0.75rem;">🏋️ LB Weightlifting (3x)</div>${renderLBWLSection()}</div>` : ''}
+      ${is2DWLEnabled() ? `<div id="dash-2dwl-section" style="margin-top:1.5rem;"><div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#fbbf24;margin-bottom:0.75rem;">🏋️ LB Weightlifting (2x)</div>${render2DWLSection()}</div>` : ''}`;
     }
   },
   prs: {
@@ -2852,7 +2807,7 @@ document.addEventListener('click', function(e) {
     const next = `${y}-${m}-${d}`;
     // Admin or preview users can go to future, others are capped at today
     window.programViewDate = (!isAdmin() && !isProgramPreview() && next > today) ? today : next;
-    if (currentDashSection === 'log') selectDashSection('log');
+    if (currentDashSection === 'log') selectDashSection('log'); else if (currentDashSection === 'programming') selectDashSection('programming');
   }
 
   const lbNav = e.target.closest('[data-lb-nav]');
@@ -4559,7 +4514,7 @@ async function diagProgramSync() {
 
     state.dailyProgram = { ...state.dailyProgram, ...prog };
     save();
-    if (currentDashSection === 'log') selectDashSection('log');
+    if (currentDashSection === 'log') selectDashSection('log'); else if (currentDashSection === 'programming') selectDashSection('programming');
   } catch(e) {
     if (statusEl) { statusEl.textContent = '✗ ' + e.message; statusEl.style.color = 'var(--red)'; }
   }
@@ -4617,7 +4572,7 @@ async function fetchDailyProgram(silent = false) {
       statusEl.style.color = (hasClub && hasOly) ? 'var(--success)' : '#fbbf24';
     }
     if (!silent) showToast('Daily program synced! 📅');
-    if (currentDashSection === 'log') selectDashSection('log');
+    if (currentDashSection === 'log') selectDashSection('log'); else if (currentDashSection === 'programming') selectDashSection('programming');
 
   } catch(e) {
     if (statusEl && !silent) { statusEl.textContent = '✗ ' + e.message; statusEl.style.color = 'var(--red)'; }
@@ -5000,7 +4955,7 @@ async function fetchLBWLProgram(silent = false) {
     localStorage.setItem('lerums_lbwl_last_sync', new Date().toLocaleString('en-SE'));
     if (!silent) showToast('🏋️ LB Lifting program synced!');
     // Re-render if in log section
-    if (currentDashSection === 'log') selectDashSection('log');
+    if (currentDashSection === 'log') selectDashSection('log'); else if (currentDashSection === 'programming') selectDashSection('programming');
   } catch(e) {
     if (!silent) showToast('🏋️ LB Lifting sync failed: ' + e.message);
   }
@@ -5074,7 +5029,7 @@ async function fetch2DWLProgram(silent = false) {
 
     localStorage.setItem('lerums_2dwl_program', JSON.stringify(program));
     localStorage.setItem('lerums_2dwl_last_sync', new Date().toLocaleString('en-SE'));
-    if (currentDashSection === 'log') selectDashSection('log');
+    if (currentDashSection === 'log') selectDashSection('log'); else if (currentDashSection === 'programming') selectDashSection('programming');
   } catch(e) {
     if (!silent) showToast('🏋️ 2x Lifting sync failed: ' + e.message);
   }
