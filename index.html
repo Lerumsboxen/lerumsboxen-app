@@ -1831,7 +1831,7 @@ function json(obj) {
         <div>🏋️ WODs tracked: <strong id="sumWods" style="color:var(--text);">0</strong></div>
         <div>🏆 PRs logged: <strong id="sumPRs" style="color:var(--text);">0</strong></div>
         <div>☁ Last synced: <strong id="sumLastSync" style="color:var(--text);">Never</strong></div>
-        <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border);">📦 App version: <strong id="sumVersion" style="color:var(--green);">v115</strong></div>
+        <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border);">📦 App version: <strong id="sumVersion" style="color:var(--green);">v116</strong></div>
         <div>🔑 Admin: <strong id="sumAdmin" style="color:var(--text);">—</strong></div>
       </div>
     </div>
@@ -1961,7 +1961,7 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v115';
+const APP_VERSION = 'v116';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
   wods: [],
@@ -5045,6 +5045,11 @@ async function fetch2DWLProgram(silent = false) {
     if (data.error) throw new Error(data.error);
     if (!data.entries) throw new Error('No entries returned');
 
+    // Debug: show raw data from server
+    const first = data.entries[0] || {};
+    const debugMsg = `2x: ${data.entries.length} entries. startDate=${startDate}. Entry[0]: week=${first.week}, day=${first.day}, keys=${Object.keys(first).join(',')}`;
+    showToast(debugMsg, 10000);
+
     const startDay = new Date(startDate + 'T00:00:00');
     // Map sessions by sequential index — ignore entry.week/entry.day for date math
     // 2 sessions per 7-day block: i%2=0→+0d, i%2=1→+3d
@@ -5057,11 +5062,6 @@ async function fetch2DWLProgram(silent = false) {
       const iso = d.toISOString().split('T')[0];
       program[iso] = { session: (i % 2) + 1, text: entry.text };
     });
-
-    // Debug: show entry count + first/last computed dates
-    const programKeys = Object.keys(program).sort();
-    const debugMsg = `2x: ${data.entries.length} entries → ${programKeys[0] || '?'} to ${programKeys[programKeys.length-1] || '?'}`;
-    showToast(debugMsg, 6000);
 
     localStorage.setItem('lerums_2dwl_program', JSON.stringify(program));
     localStorage.setItem('lerums_2dwl_last_sync', new Date().toLocaleString('en-SE'));
