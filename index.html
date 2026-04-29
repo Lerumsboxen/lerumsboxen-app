@@ -60,6 +60,7 @@
     backdrop-filter: blur(12px);
     padding: env(safe-area-inset-top, 0px) 0.75rem 0;
     display: flex; align-items: center; justify-content: space-between; gap: 0.4rem;
+    flex-wrap: wrap;
     min-height: calc(48px + env(safe-area-inset-top, 0px));
     box-shadow: 0 4px 40px rgba(232,0,29,0.15);
     width: 100%;
@@ -713,18 +714,6 @@
     padding: 0.75rem 0.75rem 0.5rem;
     transition: all 0.35s ease;
     box-sizing: border-box;
-    /* Sticky when collapsed so navigation is always reachable */
-    position: sticky;
-    top: calc(48px + env(safe-area-inset-top, 0px));
-    z-index: 80;
-    background: var(--dark);
-    border-bottom: 1px solid var(--border);
-  }
-  /* Expanded home view — not sticky, no border */
-  .home-grid.expanded {
-    position: static;
-    background: transparent;
-    border-bottom: none;
   }
   @media (min-width: 400px) {
     .home-grid:not(.expanded) { gap: 0.75rem; padding: 1.25rem 1.25rem 1rem; }
@@ -799,6 +788,41 @@
     background: rgba(232,0,29,0.07);
   }
   .home-btn:active { transform: scale(0.97); }
+
+  /* Compact nav row inside header (visible when a section is active) */
+  #headerNavRow {
+    display: none;
+    width: 100%;
+    grid-template-columns: repeat(4, 1fr);
+    border-top: 1px solid var(--border);
+    margin: 0 -0.75rem;
+    width: calc(100% + 1.5rem);
+  }
+  #headerNavRow.visible { display: grid; }
+  .hnav-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.1rem;
+    padding: 0.35rem 0.1rem 0.3rem;
+    background: none;
+    border: none;
+    border-right: 1px solid var(--border);
+    cursor: pointer;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 0.58rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--muted);
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+  }
+  .hnav-btn:last-child { border-right: none; }
+  .hnav-btn:hover { background: rgba(232,0,29,0.08); color: var(--text); }
+  .hnav-btn.active { color: var(--red); background: rgba(232,0,29,0.06); border-bottom: 2px solid var(--red); }
+  .hnav-btn .hni { font-size: 0.9rem; line-height: 1; }
 
   /* dashNavStrip removed — collapsed home-grid is now sticky */
   .home-btn-icon {
@@ -1128,6 +1152,17 @@
     <button class="header-icon-btn" id="headerProfileBtn" onclick="openProfileModal()" title="My Profile" style="font-size:1.1rem;" id="headerProfileAvatar">👤</button>
   </div>
   <button id="headerBack" onclick="showPage('dashboard', true)">← Back</button>
+  <!-- Compact nav (shown when a section is open) -->
+  <div id="headerNavRow">
+    <button class="hnav-btn" id="hnav-log" onclick="selectDashSection('log')"><span class="hni">📋</span>Log</button>
+    <button class="hnav-btn" id="hnav-programming" onclick="selectDashSection('programming')"><span class="hni">📅</span>Program</button>
+    <button class="hnav-btn" id="hnav-timer" onclick="selectDashSection('timer')"><span class="hni">⏱</span>Timer</button>
+    <button class="hnav-btn" id="hnav-prs" onclick="selectDashSection('prs')"><span class="hni">🏆</span>PRs</button>
+    <button class="hnav-btn" id="hnav-movements" onclick="selectDashSection('movements')"><span class="hni">💪</span>Moves</button>
+    <button class="hnav-btn" id="hnav-leaderboard" onclick="selectDashSection('leaderboard')"><span class="hni">🥇</span>Board</button>
+    <button class="hnav-btn" id="hnav-challenges" onclick="selectDashSection('challenges')"><span class="hni">⚡</span>Challenges</button>
+    <button class="hnav-btn" id="hnav-members" onclick="selectDashSection('members')"><span class="hni">👥</span>Buddies</button>
+  </div>
 </header>
 
 <nav id="mainNav" style="display:none;">
@@ -1835,7 +1870,7 @@ function json(obj) {
         <div>🏋️ WODs tracked: <strong id="sumWods" style="color:var(--text);">0</strong></div>
         <div>🏆 PRs logged: <strong id="sumPRs" style="color:var(--text);">0</strong></div>
         <div>☁ Last synced: <strong id="sumLastSync" style="color:var(--text);">Never</strong></div>
-        <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border);">📦 App version: <strong id="sumVersion" style="color:var(--green);">v123</strong></div>
+        <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--border);">📦 App version: <strong id="sumVersion" style="color:var(--green);">v124</strong></div>
         <div>🔑 Admin: <strong id="sumAdmin" style="color:var(--text);">—</strong></div>
       </div>
     </div>
@@ -1965,7 +2000,7 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v123';
+const APP_VERSION = 'v124';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 
 // Returns YYYY-MM-DD in LOCAL time — avoids UTC shift bug from toISOString()
@@ -2115,6 +2150,9 @@ function showPage(id, goingBack) {
     const grid = document.getElementById('homeGrid');
     if (grid) grid.classList.add('expanded');
     document.querySelectorAll('.home-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.hnav-btn').forEach(b => b.classList.remove('active'));
+    const navRow = document.getElementById('headerNavRow');
+    if (navRow) navRow.classList.remove('visible');
     const dc = document.getElementById('dash-content');
     if (dc) { dc.classList.add('hidden'); dc.innerHTML = ''; }
     currentDashSection = null;
@@ -2206,10 +2244,10 @@ const DASH_SECTIONS = {
           ${prog.strength && prog.workout ? `<div style="border-top:1px solid var(--border);margin:0.75rem 0;"></div>` : ''}
           ${prog.workout ? `<div><div class="program-section-label">🏋️ WOD</div><div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.workout)}</div><button data-log="workout" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:var(--red);color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ WORKOUT</button></div>` : ''}
         </div>` : (prog ? '' : '<div style="color:var(--muted);font-size:0.82rem;text-align:center;padding:0.5rem 0;margin-bottom:0.75rem;">No program for this day</div>')}
-        ${prog && prog.club ? `<div style="background:var(--card);border:1px solid rgba(167,139,250,0.4);border-radius:6px;padding:1rem;margin-bottom:0.75rem;"><div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#a78bfa;margin-bottom:0.5rem;">🏆 Club Series Simulation</div><div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.club)}</div><button data-log="club" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#7c3aed;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ WORKOUT</button></div>` : ''}
-        ${prog && prog.hyrox ? `<div style="background:var(--card);border:1px solid rgba(56,189,248,0.4);border-radius:6px;padding:1rem;margin-bottom:0.75rem;"><div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#38bdf8;margin-bottom:0.5rem;">🏃 Hyrox</div><div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.hyrox)}</div><button data-log="hyrox" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#0369a1;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ WORKOUT</button></div>` : ''}
-        ${prog && prog.endurance ? `<div style="background:var(--card);border:1px solid rgba(52,211,153,0.4);border-radius:6px;padding:1rem;margin-bottom:0.75rem;"><div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#34d399;margin-bottom:0.5rem;">🏅 Endurance</div><div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.endurance)}</div><button data-log="endurance" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#065f46;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ WORKOUT</button></div>` : ''}
-        ${prog && prog.oly ? `<div style="background:var(--card);border:1px solid rgba(251,191,36,0.4);border-radius:6px;padding:1rem;margin-bottom:0.75rem;"><div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#fbbf24;margin-bottom:0.5rem;">🏅 OLY</div><div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.oly)}</div><button data-log="oly" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#b45309;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ WORKOUT</button></div>` : ''}
+        ${prog && prog.club ? `<div style="background:var(--card);border:1px solid rgba(167,139,250,0.4);border-radius:6px;margin-bottom:0.75rem;overflow:hidden;"><div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none';this.querySelector('.pc').style.transform=this.nextElementSibling.style.display===''?'rotate(-90deg)':''" style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1rem;cursor:pointer;user-select:none;"><span style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#a78bfa;">🏆 Club Series Simulation</span><span class="pc" style="color:#a78bfa;font-size:0.75rem;transition:transform 0.2s;transform:rotate(-90deg);">▼</span></div><div style="display:none;padding:0 1rem 1rem;"><div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.club)}</div><button data-log="club" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#7c3aed;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ WORKOUT</button></div></div>` : ''}
+        ${prog && prog.hyrox ? `<div style="background:var(--card);border:1px solid rgba(56,189,248,0.4);border-radius:6px;margin-bottom:0.75rem;overflow:hidden;"><div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none';this.querySelector('.pc').style.transform=this.nextElementSibling.style.display===''?'rotate(-90deg)':''" style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1rem;cursor:pointer;user-select:none;"><span style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#38bdf8;">🏃 Hyrox</span><span class="pc" style="color:#38bdf8;font-size:0.75rem;transition:transform 0.2s;transform:rotate(-90deg);">▼</span></div><div style="display:none;padding:0 1rem 1rem;"><div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.hyrox)}</div><button data-log="hyrox" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#0369a1;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ WORKOUT</button></div></div>` : ''}
+        ${prog && prog.endurance ? `<div style="background:var(--card);border:1px solid rgba(52,211,153,0.4);border-radius:6px;margin-bottom:0.75rem;overflow:hidden;"><div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none';this.querySelector('.pc').style.transform=this.nextElementSibling.style.display===''?'rotate(-90deg)':''" style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1rem;cursor:pointer;user-select:none;"><span style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#34d399;">🏅 Endurance</span><span class="pc" style="color:#34d399;font-size:0.75rem;transition:transform 0.2s;transform:rotate(-90deg);">▼</span></div><div style="display:none;padding:0 1rem 1rem;"><div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.endurance)}</div><button data-log="endurance" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#065f46;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ WORKOUT</button></div></div>` : ''}
+        ${prog && prog.oly ? `<div style="background:var(--card);border:1px solid rgba(251,191,36,0.4);border-radius:6px;margin-bottom:0.75rem;overflow:hidden;"><div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'':'none';this.querySelector('.pc').style.transform=this.nextElementSibling.style.display===''?'rotate(-90deg)':''" style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1rem;cursor:pointer;user-select:none;"><span style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#fbbf24;">🏅 OLY</span><span class="pc" style="color:#fbbf24;font-size:0.75rem;transition:transform 0.2s;transform:rotate(-90deg);">▼</span></div><div style="display:none;padding:0 1rem 1rem;"><div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.oly)}</div><button data-log="oly" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#b45309;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ WORKOUT</button></div></div>` : ''}
       </div>
       ${isLBWLEnabled() ? `<div id="dash-lbwl-section" style="margin-top:1.5rem;"><div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#fbbf24;margin-bottom:0.75rem;">🏋️ LB Weightlifting (3x)</div>${renderLBWLSection()}</div>` : ''}
       ${is2DWLEnabled() ? `<div id="dash-2dwl-section" style="margin-top:1.5rem;"><div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#fbbf24;margin-bottom:0.75rem;">🏋️ LB Weightlifting (2x)</div>${render2DWLSection()}</div>` : ''}`;
@@ -2335,10 +2373,15 @@ function selectDashSection(section) {
   const cfg = DASH_SECTIONS[section];
   const grid = document.getElementById('homeGrid');
   const dc = document.getElementById('dash-content');
+  const navRow = document.getElementById('headerNavRow');
   grid.classList.remove('expanded');
   document.querySelectorAll('.home-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.hnav-btn').forEach(b => b.classList.remove('active'));
   const activeBtn = document.getElementById('hbtn-' + section);
   if (activeBtn) activeBtn.classList.add('active');
+  const activeNav = document.getElementById('hnav-' + section);
+  if (activeNav) activeNav.classList.add('active');
+  if (navRow) navRow.classList.add('visible');
   currentDashSection = section;
   dc.classList.remove('hidden');
   dc.innerHTML = cfg.build();
@@ -5365,30 +5408,19 @@ function render2DWLSection() {
   }
 
   const today = localIso(new Date());
-  const todayDate = new Date(today + 'T00:00:00');
-  const tdwlStartDate = new Date(startDate + 'T00:00:00');
-  // Window anchored to program start: prev program week + current + 2 weeks ahead
-  const daysSinceStart2 = Math.floor((todayDate - tdwlStartDate) / 86400000);
-  const curWeek2 = Math.max(0, Math.floor(daysSinceStart2 / 7)); // 0-indexed
-  const _2winStart = new Date(tdwlStartDate);
-  _2winStart.setDate(tdwlStartDate.getDate() + Math.max(0, curWeek2 - 1) * 7);
-  const _2winEnd = new Date(tdwlStartDate);
-  _2winEnd.setDate(tdwlStartDate.getDate() + (curWeek2 + 3) * 7 - 1); // +2 full weeks ahead
-
-  const windowDates = [];
-  for (let d = new Date(_2winStart); d <= _2winEnd; d.setDate(d.getDate() + 1)) {
-    windowDates.push(localIso(d));
-  }
-
-  const sessions = windowDates.filter(d => program[d]).map(d => ({ date: d, ...program[d] }));
+  // Show ALL sessions — no date window limit
+  const sessions = Object.keys(program).sort().map(d => ({ date: d, ...program[d] }));
 
   if (!sessions.length) {
-    return setupUI + '<div style="padding:1rem;background:var(--card);border:1px solid var(--border);border-radius:6px;font-size:0.83rem;color:var(--muted);text-align:center;">' + (lastSync ? 'No sessions in the next two weeks.' : 'Tap ⟳ Sync to load the 2x Lifting program.') + '</div>';
+    return setupUI + '<div style="padding:1rem;background:var(--card);border:1px solid var(--border);border-radius:6px;font-size:0.83rem;color:var(--muted);text-align:center;">' + (lastSync ? 'No sessions found.' : 'Tap ⟳ Sync to load the 2x Lifting program.') + '</div>';
   }
 
   const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const tdwlStart = new Date(startDate + 'T00:00:00');
-  // Group sessions by week
+  const todayDate2 = new Date(today + 'T00:00:00');
+  const daysSinceStart2x = Math.floor((todayDate2 - tdwlStart) / 86400000);
+  const currentWeekNum2 = Math.max(1, Math.floor(daysSinceStart2x / 7) + 1);
+
   const weekGroups2 = {};
   sessions.forEach(s => {
     const d = new Date(s.date + 'T00:00:00');
@@ -5399,8 +5431,11 @@ function render2DWLSection() {
   const html2 = Object.keys(weekGroups2).sort((a,b) => a-b).map(weekNum => {
     const wSessions = weekGroups2[weekNum];
     const allPast = wSessions.every(ss => ss.date < today);
+    const isCurrentWeek2 = parseInt(weekNum) === currentWeekNum2;
+    const collapsed2 = !isCurrentWeek2;
     const collapseId = 'lbwl2x-week-' + weekNum;
-    const weekHeader = `<div onclick="toggleWLWeek('${collapseId}',this)" style="font-family:'Bebas Neue';font-size:0.95rem;letter-spacing:0.1em;color:var(--red);margin:${weekNum === 1 ? '0' : '1rem'} 0 0.5rem;padding-bottom:0.35rem;border-bottom:1px solid var(--border);opacity:${allPast ? '0.5' : '1'};cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;">Week ${weekNum}<span class="wl-week-chevron" style="font-size:0.75rem;transition:transform 0.2s;">▼</span></div>`;
+    const chevron2 = collapsed2 ? 'transform:rotate(-90deg);' : '';
+    const weekHeader = `<div onclick="toggleWLWeek('${collapseId}',this)" style="font-family:'Bebas Neue';font-size:0.95rem;letter-spacing:0.1em;color:var(--red);margin:${weekNum === 1 ? '0' : '1rem'} 0 0.5rem;padding-bottom:0.35rem;border-bottom:1px solid var(--border);opacity:${allPast ? '0.5' : '1'};cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;">Week ${weekNum}<span class="wl-week-chevron" style="font-size:0.75rem;transition:transform 0.2s;${chevron2}">▼</span></div>`;
     const cards = wSessions.map(s => {
       const d = new Date(s.date + 'T00:00:00');
       const isToday = s.date === today;
@@ -5408,7 +5443,7 @@ function render2DWLSection() {
       const dayLabel = dayNames[d.getDay()] + ' ' + d.getDate() + '/' + (d.getMonth()+1);
       return renderLBWLSessionCard(s, '2x', parseInt(weekNum), isToday, isPast, dayLabel);
     }).join('');
-    return weekHeader + `<div id="${collapseId}">${cards}</div>`;
+    return weekHeader + `<div id="${collapseId}" style="${collapsed2 ? 'display:none;' : ''}">${cards}</div>`;
   }).join('');
   return setupUI + html2;
 }
