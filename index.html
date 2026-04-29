@@ -2005,7 +2005,7 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v128';
+const APP_VERSION = 'v129';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 
 // Returns YYYY-MM-DD in LOCAL time — avoids UTC shift bug from toISOString()
@@ -6070,6 +6070,15 @@ function mlSwitchTab(tab) {
   if (modal?._mlData) { tab==='logs' ? mlRenderLogs(modal._mlData) : mlRenderPRs(modal._mlData); }
 }
 
+function mlToggleEntry(uid) {
+  const b = document.getElementById(uid);
+  const c = document.getElementById(uid + '_chev');
+  if (!b) return;
+  const open = b.style.display !== 'none';
+  b.style.display = open ? 'none' : 'block';
+  if (c) c.textContent = open ? '▼' : '▲';
+}
+
 function mlRenderLogs(data) {
   const body = document.getElementById('memberLogsBody');
   const allEntries = [
@@ -6079,35 +6088,37 @@ function mlRenderLogs(data) {
   if (!allEntries.length) { body.innerHTML='<div style="text-align:center;padding:2rem;color:var(--muted);font-size:0.85rem;">No logs found.</div>'; return; }
   const byDate = {};
   allEntries.forEach(e=>{const d=e.date||'Unknown';if(!byDate[d])byDate[d]=[];byDate[d].push(e);});
-  body.innerHTML = Object.keys(byDate).sort().reverse().map(date=>`
-    <div style="margin-bottom:1rem;">
+  body.innerHTML = Object.keys(byDate).sort().reverse().map(date=>{
+    const entries = byDate[date].map((e,idx)=>{
+      const uid = 'mle_' + date.replace(/-/g,'') + '_' + idx;
+      const isWod = e._type === 'wod';
+      const title = isWod ? (e.name||'Workout') : (e.movement||e.name||'Strength');
+      const score = isWod ? (e.score||'') : (e.weight ? e.weight+(e.unit||'kg')+(e.sets ? ' · '+e.sets+'×'+(e.reps||'') : '') : '');
+      const accent = isWod ? 'var(--red)' : '#4ade80';
+      const badge = isWod ? ((e.type||'WOD').toUpperCase()) : 'STRENGTH';
+      const detailRows = isWod
+        ? `${e.type ? `<div style="margin-top:0.4rem;"><span style="color:var(--muted);">Type:</span> ${e.type.toUpperCase()}${e.rx ? ' · '+e.rx : ''}</div>` : ''}
+           ${e.description ? `<div style="margin-top:0.4rem;white-space:pre-wrap;color:var(--text);">${e.description}</div>` : ''}
+           ${e.score ? `<div style="margin-top:0.4rem;color:#4ade80;font-family:'Bebas Neue';font-size:1rem;">Score: ${e.score}</div>` : ''}
+           ${e.notes ? `<div style="margin-top:0.4rem;font-style:italic;">${e.notes}</div>` : ''}`
+        : `${e.sets ? `<div style="margin-top:0.4rem;"><span style="color:var(--muted);">Sets × Reps:</span> ${e.sets} × ${e.reps||'—'}</div>` : ''}
+           ${e.weight ? `<div style="margin-top:0.2rem;"><span style="color:var(--muted);">Weight:</span> ${e.weight}${e.unit||'kg'}</div>` : ''}
+           ${e.notes ? `<div style="margin-top:0.4rem;font-style:italic;">${e.notes}</div>` : ''}`;
+      return `<div style="background:var(--card);border:1px solid var(--border);border-radius:4px;margin-bottom:0.35rem;overflow:hidden;">
+        <div onclick="mlToggleEntry('${uid}')" style="display:flex;align-items:center;gap:0.5rem;padding:0.55rem 0.75rem;cursor:pointer;user-select:none;">
+          <span style="font-size:0.62rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${accent};background:rgba(0,0,0,0.3);border:1px solid ${accent};border-radius:3px;padding:0.1rem 0.3rem;flex-shrink:0;">${badge}</span>
+          <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.85rem;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${title}</span>
+          ${score ? `<span style="font-family:'Bebas Neue';font-size:0.95rem;color:${accent};flex-shrink:0;">${score}</span>` : ''}
+          <span id="${uid}_chev" style="color:var(--muted);font-size:0.65rem;flex-shrink:0;">▼</span>
+        </div>
+        <div id="${uid}" style="display:none;padding:0 0.75rem 0.6rem;border-top:1px solid var(--border);font-size:0.78rem;color:var(--muted);">${detailRows}</div>
+      </div>`;
+    }).join('');
+    return `<div style="margin-bottom:1rem;">
       <div style="font-family:'Bebas Neue';font-size:0.82rem;letter-spacing:0.1em;color:var(--muted);margin-bottom:0.4rem;padding-bottom:0.2rem;border-bottom:1px solid var(--border);">${formatDate(date)}</div>
-      ${byDate[date].map((e,idx)=>{
-        const uid='mle_'+date.replace(/-/g,'')+'_'+idx;
-        const isWod=e._type==='wod';
-        const title=isWod?(e.name||'Workout'):(e.movement||e.name||'Strength');
-        const score=isWod?(e.score||''):(e.weight?e.weight+(e.unit||'kg')+(e.sets?' · '+e.sets+'×'+(e.reps||''):''):'');
-        const accent=isWod?'var(--red)':'#4ade80';
-        const badge=isWod?((e.type||'WOD').toUpperCase()):'STRENGTH';
-        return '<div style="background:var(--card);border:1px solid var(--border);border-radius:4px;margin-bottom:0.35rem;overflow:hidden;">'
-          +'<div onclick="var b=document.getElementById(''+uid+'');var c=document.getElementById(''+uid+'_chev');var open=b.style.display!=='none';b.style.display=open?'none':'block';if(c)c.textContent=open?'\u25bc':'\u25b2';" style="display:flex;align-items:center;gap:0.5rem;padding:0.55rem 0.75rem;cursor:pointer;user-select:none;">'
-          +'<span style="font-size:0.62rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:'+accent+';background:rgba(0,0,0,0.3);border:1px solid '+accent+';border-radius:3px;padding:0.1rem 0.3rem;flex-shrink:0;">'+badge+'</span>'
-          +'<span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.85rem;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+title+'</span>'
-          +(score?'<span style="font-family:'Bebas Neue';font-size:0.95rem;color:'+accent+';flex-shrink:0;">'+score+'</span>':'')
-          +'<span id="'+uid+'_chev" style="color:var(--muted);font-size:0.65rem;flex-shrink:0;">▼</span>'
-          +'</div>'
-          +'<div id="'+uid+'" style="display:none;padding:0 0.75rem 0.6rem;border-top:1px solid var(--border);font-size:0.78rem;color:var(--muted);">'
-          +(isWod
-            ?(e.type?'<div style="margin-top:0.4rem;"><span style="color:var(--muted);">Type:</span> '+e.type.toUpperCase()+(e.rx?' · '+e.rx:'')+'</div>':'')
-             +(e.description?'<div style="margin-top:0.4rem;white-space:pre-wrap;color:var(--text);">'+e.description+'</div>':'')
-             +(e.score?'<div style="margin-top:0.4rem;color:#4ade80;font-family:'Bebas Neue';font-size:1rem;">Score: '+e.score+'</div>':'')
-             +(e.notes?'<div style="margin-top:0.4rem;font-style:italic;">'+e.notes+'</div>':'')
-            :(e.sets?'<div style="margin-top:0.4rem;"><span style="color:var(--muted);">Sets × Reps:</span> '+e.sets+' × '+(e.reps||'—')+'</div>':'')
-             +(e.weight?'<div style="margin-top:0.2rem;"><span style="color:var(--muted);">Weight:</span> '+e.weight+(e.unit||'kg')+'</div>':'')
-             +(e.notes?'<div style="margin-top:0.4rem;font-style:italic;">'+e.notes+'</div>':''))
-          +'</div></div>';
-      }).join('')}
-    </div>`).join('');
+      ${entries}
+    </div>`;
+  }).join('');
 }
 
 function mlRenderPRs(data) {
@@ -6115,13 +6126,16 @@ function mlRenderPRs(data) {
   const prs = (data.prs||[]).sort((a,b)=>(a.movement||'').localeCompare(b.movement||''));
   if (!prs.length) { body.innerHTML='<div style="text-align:center;padding:2rem;color:var(--muted);font-size:0.85rem;">No PRs found.</div>'; return; }
   const byMv = {};
-  prs.forEach(p=>{const m=p.movement||'Other';if(!byMv[m])byMv[m]=[];byMv[m].push(p);});
+  prs.forEach(p=>{const mv=p.movement||'Other';if(!byMv[mv])byMv[mv]=[];byMv[mv].push(p);});
   body.innerHTML = Object.keys(byMv).sort().map(mv=>{
-    const best=byMv[mv].sort((a,b)=>b.value-a.value)[0];
-    const dv=best.unit==='s'?Math.floor(best.value/60)+':'+String(Math.round(best.value%60)).padStart(2,'0'):best.value+(best.unit||'kg');
-    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.45rem 0.75rem;background:var(--card);border:1px solid rgba(34,197,94,0.2);border-radius:4px;margin-bottom:0.35rem;gap:0.5rem;">'
-      +'<span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.85rem;flex:1;min-width:0;">'+mv+'</span>'
-      +'<span style="font-family:'Bebas Neue';font-size:1rem;color:#4ade80;flex-shrink:0;">'+dv+'</span></div>';
+    const best = byMv[mv].sort((a,b)=>b.value-a.value)[0];
+    const dv = best.unit==='s'
+      ? Math.floor(best.value/60)+':'+String(Math.round(best.value%60)).padStart(2,'0')
+      : best.value+(best.unit||'kg');
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.45rem 0.75rem;background:var(--card);border:1px solid rgba(34,197,94,0.2);border-radius:4px;margin-bottom:0.35rem;gap:0.5rem;">
+      <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.85rem;flex:1;min-width:0;">${mv}</span>
+      <span style="font-family:'Bebas Neue';font-size:1rem;color:#4ade80;flex-shrink:0;">${dv}</span>
+    </div>`;
   }).join('');
 }
 
