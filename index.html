@@ -65,7 +65,7 @@
     box-shadow: 0 4px 40px rgba(232,0,29,0.15);
     width: 100%;
     max-width: 100vw;
-    overflow: hidden;
+    overflow: visible;
   }
   #headerBack {
     display: none;
@@ -715,6 +715,8 @@
     transition: all 0.35s ease;
     box-sizing: border-box;
   }
+  /* Hide grid entirely when a section is open — header nav takes over */
+  .home-grid.section-open { display: none; }
   @media (min-width: 400px) {
     .home-grid:not(.expanded) { gap: 0.75rem; padding: 1.25rem 1.25rem 1rem; }
   }
@@ -2000,7 +2002,7 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v124';
+const APP_VERSION = 'v125';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 
 // Returns YYYY-MM-DD in LOCAL time — avoids UTC shift bug from toISOString()
@@ -2153,6 +2155,8 @@ function showPage(id, goingBack) {
     document.querySelectorAll('.hnav-btn').forEach(b => b.classList.remove('active'));
     const navRow = document.getElementById('headerNavRow');
     if (navRow) navRow.classList.remove('visible');
+    const grid2 = document.getElementById('homeGrid');
+    if (grid2) grid2.classList.remove('section-open');
     const dc = document.getElementById('dash-content');
     if (dc) { dc.classList.add('hidden'); dc.innerHTML = ''; }
     currentDashSection = null;
@@ -2375,6 +2379,7 @@ function selectDashSection(section) {
   const dc = document.getElementById('dash-content');
   const navRow = document.getElementById('headerNavRow');
   grid.classList.remove('expanded');
+  grid.classList.add('section-open');
   document.querySelectorAll('.home-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.hnav-btn').forEach(b => b.classList.remove('active'));
   const activeBtn = document.getElementById('hbtn-' + section);
@@ -3317,6 +3322,15 @@ let timerInterval = null;
 let timerRunning = false;
 let timerSeconds = 0;
 let timerMode = 'stopwatch';
+let amrapRounds = 0;
+
+function amrapRoundInc() {
+  amrapRounds++;
+  document.getElementById('amrapRoundCount').textContent = amrapRounds;
+}
+function amrapRoundDec() {
+  if (amrapRounds > 0) { amrapRounds--; document.getElementById('amrapRoundCount').textContent = amrapRounds; }
+}
 let timerRound = 1;
 let timerPhase = 'work'; // work / rest
 let timerTotalRounds = 8;
@@ -3372,6 +3386,8 @@ function setTimerMode(mode) {
   document.getElementById('configEMOM').style.display    = mode==='emom'   ? 'block' : 'none';
   document.getElementById('configTabata').style.display  = mode==='tabata' ? 'block' : 'none';
   document.getElementById('roundIndicator').style.display = (mode==='emom'||mode==='tabata') ? 'flex' : 'none';
+  document.getElementById('amrapCounter').style.display = mode==='amrap' ? 'block' : 'none';
+  if (mode === 'amrap') { amrapRounds = 0; document.getElementById('amrapRoundCount').textContent = '0'; }
 
   // Set label: "Set" for EMOM, "Round" for Tabata
   const rl = document.getElementById('roundLabel');
@@ -3520,6 +3536,7 @@ function timerReset() {
   document.getElementById('timerStartBtn').textContent = 'START';
   document.getElementById('timerDisplay').textContent = '00:00';
   document.getElementById('timerDisplay').classList.remove('warning','done-pulse');
+  if (timerMode === 'amrap') { amrapRounds = 0; document.getElementById('amrapRoundCount').textContent = '0'; }
   const labels = { stopwatch:'STOPWATCH', countdown:'COUNTDOWN', emom:'EMOM', amrap:'AMRAP', tabata:'TABATA' };
   document.getElementById('timerLabel').textContent = labels[timerMode] || timerMode.toUpperCase();
 }
@@ -7026,6 +7043,16 @@ window.addEventListener('orientationchange', () => {
       <div class="round-indicator" id="roundIndicator" style="display:none;">
         <span id="roundLabel">Set</span> <strong id="roundNum">1</strong> / <span id="roundTotal">9</span>
         &nbsp;·&nbsp; <span id="phaseLabel" style="color:var(--red)">WORK</span>
+      </div>
+      <!-- AMRAP round counter: tap anywhere on display to add a round -->
+      <div id="amrapCounter" style="display:none;text-align:center;margin-top:0.75rem;">
+        <div style="font-family:'Bebas Neue';font-size:0.8rem;letter-spacing:0.12em;color:var(--muted);margin-bottom:0.25rem;">ROUNDS COMPLETED</div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:1rem;">
+          <button onclick="amrapRoundDec()" style="width:2.2rem;height:2.2rem;border-radius:50%;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">−</button>
+          <span id="amrapRoundCount" style="font-family:'Bebas Neue';font-size:3rem;color:var(--red);line-height:1;min-width:2.5rem;text-align:center;">0</span>
+          <button onclick="amrapRoundInc()" style="width:2.2rem;height:2.2rem;border-radius:50%;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">+</button>
+        </div>
+        <div style="font-size:0.7rem;color:var(--muted);margin-top:0.3rem;">Tap + for each completed round</div>
       </div>
       <div id="timerConfig" style="margin-top:1.5rem;">
         <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;padding:0.6rem 0.8rem;background:var(--black);border:1px solid var(--border);border-radius:3px;">
