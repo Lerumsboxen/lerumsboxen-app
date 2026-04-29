@@ -2005,7 +2005,7 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v131';
+const APP_VERSION = 'v132';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 
 // Returns YYYY-MM-DD in LOCAL time — avoids UTC shift bug from toISOString()
@@ -5967,23 +5967,25 @@ function renderMembersList() {
     const previewList = JSON.parse(localStorage.getItem('lerums_program_preview') || '[]');
     const adminView = isAdmin();
     return all.map(m => {
+      const hasPreview = previewList.includes(m.name);
       const mbs = "padding:0.28rem 0.4rem;cursor:pointer;font-size:0.62rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.06em;text-transform:uppercase;border-radius:4px;border:1px solid;white-space:nowrap;width:100%;text-align:center;display:block;";
+      const sn = m.name.replace(/'/g,"\\'");
       const previewBtn = adminView && m.name !== profile.name
-        ? `<button onclick="event.stopPropagation();toggleProgramPreview('${m.name.replace(/'/g,"\'")}');return false;"
+        ? `<button onclick="event.stopPropagation();toggleProgramPreview('${sn}');return false;"
             style="${mbs}background:${hasPreview ? 'rgba(167,139,250,0.15)' : 'var(--card2)'};border-color:${hasPreview ? '#a78bfa' : 'var(--border)'};color:${hasPreview ? '#a78bfa' : 'var(--muted)'};">
             📅 ${hasPreview ? 'Preview ✓' : 'Preview'}</button>` : '';
       const hasLBWL = previewList.includes(m.name + '_lbwl') || (membersCache && membersCache.find(x => x.name === m.name)?.lbwl);
       const lbwlBtn = adminView && m.name !== profile.name
-        ? `<button onclick="event.stopPropagation();toggleLBWLAccess('${m.name.replace(/'/g,"\'")}');return false;"
+        ? `<button onclick="event.stopPropagation();toggleLBWLAccess('${sn}');return false;"
             style="${mbs}background:${hasLBWL ? 'rgba(251,191,36,0.15)' : 'var(--card2)'};border-color:${hasLBWL ? '#fbbf24' : 'var(--border)'};color:${hasLBWL ? '#fbbf24' : 'var(--muted)'};">
             🏋️ ${hasLBWL ? '3x ✓' : '3x Lift'}</button>` : '';
       const has2DWL = (membersCache && membersCache.find(x => x.name === m.name)?.tdwl) || false;
       const tdwlBtn = adminView && m.name !== profile.name
-        ? `<button onclick="event.stopPropagation();toggle2DWLAccess('${m.name.replace(/'/g,"\'")}');return false;"
+        ? `<button onclick="event.stopPropagation();toggle2DWLAccess('${sn}');return false;"
             style="${mbs}background:${has2DWL ? 'rgba(251,191,36,0.15)' : 'var(--card2)'};border-color:${has2DWL ? '#fbbf24' : 'var(--border)'};color:${has2DWL ? '#fbbf24' : 'var(--muted)'};">
             🏋️ ${has2DWL ? '2x ✓' : '2x Lift'}</button>` : '';
       const logsBtn = adminView && m.name !== profile.name
-        ? `<button onclick="event.stopPropagation();viewMemberLogs('${m.name.replace(/'/g,"\'")}');return false;"
+        ? `<button onclick="event.stopPropagation();viewMemberLogs('${sn}');return false;"
             style="${mbs}background:var(--card2);border-color:var(--border);color:var(--muted);">
             📋 Log & PRs</button>` : '';
       return `<div onclick="openMemberProfile('${m.name.replace(/'/g,"\\'")}','${(m.avatar||'💪').replace(/'/g,"\\'")}' )"
@@ -6193,46 +6195,23 @@ async function registerMember() {
 }
 
 async function fetchMembers() {
-  showToast('🔄 Fetching members…');
   try {
     const data = await xhrPost(APPS_SCRIPT_URL, { action: 'getMembers' });
-    showToast('📋 Got ' + (data.members ? data.members.length : 0) + ' members from sheet');
     if (data.members) {
       membersCache = data.members;
-      // Cache admin names for isAdmin() lookup
       const adminNames = data.members.filter(m => m.admin).map(m => m.name);
       localStorage.setItem('lerums_admin_members', JSON.stringify(adminNames));
-      // Cache preview names as fallback
       const previewNames = data.members.filter(m => m.preview).map(m => m.name);
       localStorage.setItem('lerums_program_preview', JSON.stringify(previewNames));
-      // Cache LBWL access names as fallback
       const lbwlNames = data.members.filter(m => m.lbwl).map(m => m.name);
       localStorage.setItem('lerums_lbwl_access', JSON.stringify(lbwlNames));
-      // Cache 2DWL access names as fallback
       const tdwlNames = data.members.filter(m => m.tdwl).map(m => m.name);
       localStorage.setItem('lerums_2dwl_access', JSON.stringify(tdwlNames));
-
-      // DEBUG: show what came back for this user
-      const myEntry = data.members.find(m => m.name === profile.name);
-      if (myEntry) {
-        showToast(`👤 ${myEntry.name} | admin:${myEntry.admin} | preview:${myEntry.preview}`);
-      } else {
-        showToast(`⚠ Your name "${profile.name}" not found in Members sheet`);
-      }
-
-      // Re-apply visibility now that admin list is known
       applyAdminVisibility();
-      // Rebuild the log section HTML so › nav button reflects new preview status
-      if (currentDashSection === 'log') {
-        selectDashSection('log');
-      }
-      if (currentDashSection === 'members') {
-        renderMembersList();
-      }
+      if (currentDashSection === 'log') selectDashSection('log');
+      if (currentDashSection === 'members') renderMembersList();
     }
-  } catch(e) {
-    showToast('⚠ fetchMembers error: ' + e.message);
-  }
+  } catch(e) { /* silent */ }
 }
 
 function getKnownMembers() {
