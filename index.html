@@ -30,7 +30,7 @@
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html {
-    overflow-x: hidden;
+    overflow-x: clip; /* clip doesn't create a scroll container — preserves sticky */
     width: 100%;
   }
   body {
@@ -2002,7 +2002,7 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v125';
+const APP_VERSION = 'v127';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 
 // Returns YYYY-MM-DD in LOCAL time — avoids UTC shift bug from toISOString()
@@ -2558,9 +2558,28 @@ function renderDashPRs() {
   }).join('');
 }
 
+function getMovementVideos() {
+  try { return JSON.parse(localStorage.getItem('lerums_movement_videos') || '{}'); } catch(e) { return {}; }
+}
+function saveMovementVideo(movement, url) {
+  const videos = getMovementVideos();
+  if (url) videos[movement] = url; else delete videos[movement];
+  localStorage.setItem('lerums_movement_videos', JSON.stringify(videos));
+  renderDashMovements();
+}
+function openVideoEdit(movement) {
+  const videos = getMovementVideos();
+  const current = videos[movement] || '';
+  const url = prompt(`Video URL for "${movement}" (YouTube or any link):\nLeave blank to remove.`, current);
+  if (url === null) return; // cancelled
+  saveMovementVideo(movement, url.trim());
+}
+
 function renderDashMovements() {
   const el = document.getElementById('dash-movement-grid');
   if (!el) return;
+  const videos = getMovementVideos();
+  const admin = isAdmin();
   el.innerHTML = MOVEMENT_CATEGORIES.map(cat => `
     <div style="margin-bottom:1.75rem;">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:0.08em;color:var(--red);margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem;">
@@ -2570,11 +2589,14 @@ function renderDashMovements() {
         ${cat.moves.map(m => {
           const pr = [...state.prs].filter(p => p.movement === m).sort((a,b) => b.value - a.value)[0];
           const hasPr = !!pr;
-          return `<div onclick="openRmModal('${m.replace(/'/g,"\\'")}',${hasPr ? pr.value : 0},'${hasPr ? pr.unit : 'kg'}')" style="display:flex;justify-content:space-between;align-items:center;padding:0.45rem 0.75rem;background:var(--card);border:1px solid ${hasPr ? 'rgba(34,197,94,0.3)' : 'var(--border)'};border-radius:4px;gap:0.5rem;cursor:pointer;">
-            <span style="font-family:'Barlow Condensed';font-weight:700;font-size:clamp(0.7rem,2.5vw,0.88rem);letter-spacing:0.03em;line-height:1.2;flex:1;min-width:0;color:${hasPr ? '#4ade80' : 'var(--text)'};">${m}</span>
-            ${pr
-              ? `<span style="font-family:'Bebas Neue';font-size:0.95rem;color:#4ade80;flex-shrink:0;white-space:nowrap;">${pr.value}${pr.unit}</span>`
-              : `<span style="color:var(--border);font-size:0.75rem;flex-shrink:0;">—</span>`}
+          const videoUrl = videos[m];
+          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.45rem 0.75rem;background:var(--card);border:1px solid ${hasPr ? 'rgba(34,197,94,0.3)' : 'var(--border)'};border-radius:4px;gap:0.5rem;">
+            <div onclick="openRmModal('${m.replace(/'/g,"\\'")}',${hasPr ? pr.value : 0},'${hasPr ? pr.unit : 'kg'}')" style="display:flex;align-items:center;gap:0.5rem;flex:1;min-width:0;cursor:pointer;">
+              <span style="font-family:'Barlow Condensed';font-weight:700;font-size:clamp(0.7rem,2.5vw,0.88rem);letter-spacing:0.03em;line-height:1.2;flex:1;min-width:0;color:${hasPr ? '#4ade80' : 'var(--text)'};">${m}</span>
+              ${hasPr ? `<span style="font-family:'Bebas Neue';font-size:0.95rem;color:#4ade80;flex-shrink:0;white-space:nowrap;">${pr.value}${pr.unit}</span>` : `<span style="color:var(--border);font-size:0.75rem;flex-shrink:0;">—</span>`}
+            </div>
+            ${videoUrl ? `<a href="${videoUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Watch video" style="flex-shrink:0;margin-left:0.25rem;font-size:0.8rem;padding:0.2rem 0.45rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.08em;text-transform:uppercase;background:rgba(251,191,36,0.12);color:#fbbf24;border:1px solid rgba(251,191,36,0.4);border-radius:3px;text-decoration:none;">▶</a>` : ''}
+            ${admin ? `<button onclick="openVideoEdit('${m.replace(/'/g,"\\'")}');event.stopPropagation();" title="${videoUrl ? 'Edit video' : 'Add video'}" style="flex-shrink:0;margin-left:0.1rem;font-size:0.65rem;padding:0.2rem 0.4rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.06em;text-transform:uppercase;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:3px;cursor:pointer;">${videoUrl ? '✎' : '+ vid'}</button>` : ''}
           </div>`;
         }).join('')}
       </div>
@@ -3405,8 +3427,8 @@ function timerStartStop() {
     const isResume = timerSeconds > 0 || timerRound > 1;
     if (!isResume) {
       initTimer();
-      // 10s countdown before starting (not for stopwatch)
-      if (startCountdownEnabled && timerMode !== 'stopwatch') {
+      // 10s countdown before starting
+      if (startCountdownEnabled) {
         timerCountingDown = true;
         let countdown = 10;
         document.getElementById('timerDisplay').textContent = '00:' + String(countdown).padStart(2,'0');
@@ -5966,6 +5988,13 @@ function renderMembersList() {
             🏋️ ${has2DWL ? '2x ON' : '2x Lift'}
           </button>`
         : '';
+      const logsBtn = adminView && m.name !== profile.name
+        ? `<button onclick="event.stopPropagation();viewMemberLogs('${m.name.replace(/'/g,"\\'")}');return false;"
+            title="View member logs"
+            style="flex-shrink:0;background:var(--card2);border:1px solid var(--border);border-radius:4px;padding:0.3rem 0.55rem;cursor:pointer;font-size:0.7rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);white-space:nowrap;">
+            📋 Logs
+          </button>`
+        : '';
       return `<div onclick="openMemberProfile('${m.name.replace(/'/g,"\\'")}','${(m.avatar||'💪').replace(/'/g,"\\'")}' )"
         style="display:flex;align-items:center;gap:0.75rem;padding:0.85rem 1rem;background:var(--card);border:1px solid var(--border);border-radius:6px;margin-bottom:0.5rem;cursor:pointer;transition:border-color 0.15s;"
         onmouseover="this.style.borderColor='var(--red)'" onmouseout="this.style.borderColor='var(--border)'">
@@ -5977,6 +6006,7 @@ function renderMembersList() {
         ${previewBtn}
         ${lbwlBtn}
         ${tdwlBtn}
+        ${logsBtn}
         <div style="color:var(--muted);font-size:1rem;flex-shrink:0;">›</div>
       </div>`;
     }).join('');
@@ -5987,6 +6017,78 @@ function openChallengeForMember() {
   const name = document.getElementById('memberProfileName').textContent;
   document.getElementById('memberProfileModal').style.display = 'none';
   openChallengeModal({ to: name });
+}
+
+async function viewMemberLogs(memberName) {
+  // Show modal
+  let modal = document.getElementById('memberLogsModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'memberLogsModal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.85);display:flex;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto;';
+    modal.innerHTML = `<div style="background:var(--dark);border:1px solid var(--border);border-radius:8px;width:100%;max-width:480px;margin:auto;overflow:hidden;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem;border-bottom:1px solid var(--border);">
+        <div style="font-family:'Bebas Neue';font-size:1.2rem;letter-spacing:0.08em;" id="memberLogsTitle">Logs</div>
+        <button onclick="document.getElementById('memberLogsModal').style.display='none'" style="background:none;border:none;color:var(--text);font-size:1.2rem;cursor:pointer;padding:0.25rem;">✕</button>
+      </div>
+      <div id="memberLogsBody" style="padding:1rem;max-height:70vh;overflow-y:auto;"></div>
+    </div>`;
+    document.body.appendChild(modal);
+  }
+  modal.style.display = 'flex';
+  document.getElementById('memberLogsTitle').textContent = memberName + ' — Logs';
+  const body = document.getElementById('memberLogsBody');
+  body.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);">Loading…</div>';
+
+  try {
+    const data = await xhrPost(APPS_SCRIPT_URL, { action: 'cloudPull', memberName });
+    if (data.error) throw new Error(data.error);
+    const allEntries = [
+      ...(data.wods || []).map(w => ({ ...w, _type: 'wod' })),
+      ...(data.strength || []).map(s => ({ ...s, _type: 'strength' })),
+    ].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    if (!allEntries.length) {
+      body.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);font-size:0.85rem;">No logs found for this member.</div>';
+      return;
+    }
+
+    // Group by date
+    const byDate = {};
+    allEntries.forEach(e => {
+      const d = e.date || 'Unknown';
+      if (!byDate[d]) byDate[d] = [];
+      byDate[d].push(e);
+    });
+
+    body.innerHTML = Object.keys(byDate).sort().reverse().map(date => `
+      <div style="margin-bottom:1.25rem;">
+        <div style="font-family:'Bebas Neue';font-size:0.85rem;letter-spacing:0.1em;color:var(--muted);margin-bottom:0.5rem;padding-bottom:0.25rem;border-bottom:1px solid var(--border);">${formatDate(date)}</div>
+        ${byDate[date].map(e => {
+          if (e._type === 'wod') return `
+            <div style="padding:0.6rem 0.75rem;background:var(--card);border:1px solid var(--border);border-radius:4px;margin-bottom:0.4rem;">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;margin-bottom:0.2rem;">
+                <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.85rem;">${e.name || 'Workout'}</span>
+                <span style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;font-family:'Barlow Condensed';">${e.type || ''} ${e.rx || ''}</span>
+              </div>
+              ${e.description ? `<div style="font-size:0.75rem;color:var(--muted);margin-bottom:0.2rem;white-space:pre-wrap;">${e.description}</div>` : ''}
+              ${e.score ? `<div style="font-family:'Bebas Neue';font-size:1rem;color:#4ade80;">Score: ${e.score}</div>` : ''}
+              ${e.notes ? `<div style="font-size:0.72rem;color:var(--muted);font-style:italic;">${e.notes}</div>` : ''}
+            </div>`;
+          if (e._type === 'strength') return `
+            <div style="padding:0.6rem 0.75rem;background:var(--card);border:1px solid rgba(34,197,94,0.2);border-radius:4px;margin-bottom:0.4rem;">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;">
+                <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.85rem;">${e.movement || e.name || 'Strength'}</span>
+                <span style="font-family:'Bebas Neue';font-size:1rem;color:#4ade80;">${e.weight ? e.weight + (e.unit || 'kg') : ''} ${e.sets ? e.sets + '×' + (e.reps || '') : ''}</span>
+              </div>
+              ${e.notes ? `<div style="font-size:0.72rem;color:var(--muted);font-style:italic;">${e.notes}</div>` : ''}
+            </div>`;
+          return '';
+        }).join('')}
+      </div>`).join('');
+  } catch(err) {
+    body.innerHTML = `<div style="text-align:center;padding:2rem;color:#f87171;font-size:0.85rem;">Failed to load logs: ${err.message}</div>`;
+  }
 }
 
 async function openMemberProfile(name, avatar) {
@@ -7044,15 +7146,27 @@ window.addEventListener('orientationchange', () => {
         <span id="roundLabel">Set</span> <strong id="roundNum">1</strong> / <span id="roundTotal">9</span>
         &nbsp;·&nbsp; <span id="phaseLabel" style="color:var(--red)">WORK</span>
       </div>
-      <!-- AMRAP round counter: tap anywhere on display to add a round -->
-      <div id="amrapCounter" style="display:none;text-align:center;margin-top:0.75rem;">
-        <div style="font-family:'Bebas Neue';font-size:0.8rem;letter-spacing:0.12em;color:var(--muted);margin-bottom:0.25rem;">ROUNDS COMPLETED</div>
-        <div style="display:flex;align-items:center;justify-content:center;gap:1rem;">
-          <button onclick="amrapRoundDec()" style="width:2.2rem;height:2.2rem;border-radius:50%;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">−</button>
-          <span id="amrapRoundCount" style="font-family:'Bebas Neue';font-size:3rem;color:var(--red);line-height:1;min-width:2.5rem;text-align:center;">0</span>
-          <button onclick="amrapRoundInc()" style="width:2.2rem;height:2.2rem;border-radius:50%;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">+</button>
+      <!-- AMRAP round counter: left half = remove round, right half = add round -->
+      <div id="amrapCounter" style="display:none;margin-top:0.75rem;">
+        <div style="font-family:'Bebas Neue';font-size:0.8rem;letter-spacing:0.12em;color:var(--muted);text-align:center;margin-bottom:0.4rem;">ROUNDS COMPLETED</div>
+        <div style="position:relative;display:flex;align-items:center;border-radius:10px;overflow:hidden;border:1.5px solid var(--border);background:var(--card);user-select:none;-webkit-user-select:none;">
+          <!-- Left tap zone: remove round -->
+          <div onclick="amrapRoundDec()" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1rem 0.5rem;cursor:pointer;border-right:1px solid var(--border);gap:0.2rem;-webkit-tap-highlight-color:rgba(0,0,0,0);" ontouchstart="this.style.background='rgba(255,255,255,0.06)'" ontouchend="this.style.background=''">
+            <span style="font-size:2rem;color:var(--muted);line-height:1;font-family:'Bebas Neue';">−</span>
+            <span style="font-size:0.6rem;color:var(--muted);letter-spacing:0.1em;font-family:'Barlow Condensed';font-weight:700;text-transform:uppercase;">Remove</span>
+          </div>
+          <!-- Centre: round count display -->
+          <div style="flex:1.2;text-align:center;padding:1rem 0.5rem;">
+            <span id="amrapRoundCount" style="font-family:'Bebas Neue';font-size:3.5rem;color:var(--red);line-height:1;display:block;">0</span>
+            <span style="font-size:0.6rem;color:var(--muted);letter-spacing:0.1em;font-family:'Barlow Condensed';font-weight:700;text-transform:uppercase;">Rounds</span>
+          </div>
+          <!-- Right tap zone: add round -->
+          <div onclick="amrapRoundInc()" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1rem 0.5rem;cursor:pointer;border-left:1px solid var(--border);gap:0.2rem;-webkit-tap-highlight-color:rgba(0,0,0,0);" ontouchstart="this.style.background='rgba(232,0,29,0.12)'" ontouchend="this.style.background=''">
+            <span style="font-size:2rem;color:var(--red);line-height:1;font-family:'Bebas Neue';">+</span>
+            <span style="font-size:0.6rem;color:var(--red);letter-spacing:0.1em;font-family:'Barlow Condensed';font-weight:700;text-transform:uppercase;">Add Round</span>
+          </div>
         </div>
-        <div style="font-size:0.7rem;color:var(--muted);margin-top:0.3rem;">Tap + for each completed round</div>
+        <div style="font-size:0.65rem;color:var(--muted);text-align:center;margin-top:0.4rem;font-family:'Barlow Condensed';">← remove &nbsp;·&nbsp; add round →</div>
       </div>
       <div id="timerConfig" style="margin-top:1.5rem;">
         <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;padding:0.6rem 0.8rem;background:var(--black);border:1px solid var(--border);border-radius:3px;">
