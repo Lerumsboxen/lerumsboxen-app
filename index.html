@@ -2005,7 +2005,7 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v129';
+const APP_VERSION = 'v130';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 
 // Returns YYYY-MM-DD in LOCAL time — avoids UTC shift bug from toISOString()
@@ -5967,49 +5967,37 @@ function renderMembersList() {
     const previewList = JSON.parse(localStorage.getItem('lerums_program_preview') || '[]');
     const adminView = isAdmin();
     return all.map(m => {
-      const hasPreview = previewList.includes(m.name);
+      const mbs = "padding:0.28rem 0.4rem;cursor:pointer;font-size:0.62rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.06em;text-transform:uppercase;border-radius:4px;border:1px solid;white-space:nowrap;width:100%;text-align:center;display:block;";
       const previewBtn = adminView && m.name !== profile.name
-        ? `<button onclick="event.stopPropagation();toggleProgramPreview('${m.name.replace(/'/g,"\\'")}');return false;"
-            title="${hasPreview ? 'Remove program preview' : 'Give program preview'}"
-            style="flex-shrink:0;background:${hasPreview ? 'rgba(167,139,250,0.15)' : 'var(--card2)'};border:1px solid ${hasPreview ? '#a78bfa' : 'var(--border)'};border-radius:4px;padding:0.3rem 0.55rem;cursor:pointer;font-size:0.7rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${hasPreview ? '#a78bfa' : 'var(--muted)'};white-space:nowrap;">
-            📅 ${hasPreview ? 'Preview ON' : 'Preview'}
-          </button>`
-        : '';
+        ? `<button onclick="event.stopPropagation();toggleProgramPreview('${m.name.replace(/'/g,"\'")}');return false;"
+            style="${mbs}background:${hasPreview ? 'rgba(167,139,250,0.15)' : 'var(--card2)'};border-color:${hasPreview ? '#a78bfa' : 'var(--border)'};color:${hasPreview ? '#a78bfa' : 'var(--muted)'};">
+            📅 ${hasPreview ? 'Preview ✓' : 'Preview'}</button>` : '';
       const hasLBWL = previewList.includes(m.name + '_lbwl') || (membersCache && membersCache.find(x => x.name === m.name)?.lbwl);
       const lbwlBtn = adminView && m.name !== profile.name
-        ? `<button onclick="event.stopPropagation();toggleLBWLAccess('${m.name.replace(/'/g,"\\'")}');return false;"
-            title="${hasLBWL ? 'Remove 3x Lifting access' : 'Give 3x Lifting access'}"
-            style="flex-shrink:0;background:${hasLBWL ? 'rgba(251,191,36,0.15)' : 'var(--card2)'};border:1px solid ${hasLBWL ? '#fbbf24' : 'var(--border)'};border-radius:4px;padding:0.3rem 0.55rem;cursor:pointer;font-size:0.7rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${hasLBWL ? '#fbbf24' : 'var(--muted)'};white-space:nowrap;">
-            🏋️ ${hasLBWL ? '3x ON' : '3x Lift'}
-          </button>`
-        : '';
+        ? `<button onclick="event.stopPropagation();toggleLBWLAccess('${m.name.replace(/'/g,"\'")}');return false;"
+            style="${mbs}background:${hasLBWL ? 'rgba(251,191,36,0.15)' : 'var(--card2)'};border-color:${hasLBWL ? '#fbbf24' : 'var(--border)'};color:${hasLBWL ? '#fbbf24' : 'var(--muted)'};">
+            🏋️ ${hasLBWL ? '3x ✓' : '3x Lift'}</button>` : '';
       const has2DWL = (membersCache && membersCache.find(x => x.name === m.name)?.tdwl) || false;
       const tdwlBtn = adminView && m.name !== profile.name
-        ? `<button onclick="event.stopPropagation();toggle2DWLAccess('${m.name.replace(/'/g,"\\'")}');return false;"
-            title="${has2DWL ? 'Remove 2x Lifting access' : 'Give 2x Lifting access'}"
-            style="flex-shrink:0;background:${has2DWL ? 'rgba(251,191,36,0.15)' : 'var(--card2)'};border:1px solid ${has2DWL ? '#fbbf24' : 'var(--border)'};border-radius:4px;padding:0.3rem 0.55rem;cursor:pointer;font-size:0.7rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${has2DWL ? '#fbbf24' : 'var(--muted)'};white-space:nowrap;">
-            🏋️ ${has2DWL ? '2x ON' : '2x Lift'}
-          </button>`
-        : '';
+        ? `<button onclick="event.stopPropagation();toggle2DWLAccess('${m.name.replace(/'/g,"\'")}');return false;"
+            style="${mbs}background:${has2DWL ? 'rgba(251,191,36,0.15)' : 'var(--card2)'};border-color:${has2DWL ? '#fbbf24' : 'var(--border)'};color:${has2DWL ? '#fbbf24' : 'var(--muted)'};">
+            🏋️ ${has2DWL ? '2x ✓' : '2x Lift'}</button>` : '';
       const logsBtn = adminView && m.name !== profile.name
-        ? `<button onclick="event.stopPropagation();viewMemberLogs('${m.name.replace(/'/g,"\\'")}');return false;"
-            title="View member logs"
-            style="flex-shrink:0;background:var(--card2);border:1px solid var(--border);border-radius:4px;padding:0.3rem 0.55rem;cursor:pointer;font-size:0.7rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);white-space:nowrap;">
-            📋 Log & PRs
-          </button>`
-        : '';
+        ? `<button onclick="event.stopPropagation();viewMemberLogs('${m.name.replace(/'/g,"\'")}');return false;"
+            style="${mbs}background:var(--card2);border-color:var(--border);color:var(--muted);">
+            📋 Log & PRs</button>` : '';
       return `<div onclick="openMemberProfile('${m.name.replace(/'/g,"\\'")}','${(m.avatar||'💪').replace(/'/g,"\\'")}' )"
-        style="display:flex;align-items:center;gap:0.75rem;padding:0.85rem 1rem;background:var(--card);border:1px solid var(--border);border-radius:6px;margin-bottom:0.5rem;cursor:pointer;transition:border-color 0.15s;"
+        style="display:flex;align-items:center;gap:0.65rem;padding:0.7rem 0.85rem;background:var(--card);border:1px solid var(--border);border-radius:6px;margin-bottom:0.5rem;cursor:pointer;transition:border-color 0.15s;"
         onmouseover="this.style.borderColor='var(--red)'" onmouseout="this.style.borderColor='var(--border)'">
-        <div style="width:2.75rem;height:2.75rem;border-radius:50%;background:rgba(232,0,29,0.15);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;">${m.avatar || '💪'}</div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-family:'Bebas Neue';font-size:1.1rem;letter-spacing:0.04em;">${m.name}</div>
-          ${m.lastSeen ? `<div style="font-size:0.72rem;color:var(--muted);">Last seen ${formatDate(m.lastSeen?.toString().split('T')[0])}</div>` : ''}
+        <div style="width:2.4rem;height:2.4rem;border-radius:50%;background:rgba(232,0,29,0.15);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">${m.avatar || '💪'}</div>
+        <div style="flex:1;min-width:0;overflow:hidden;">
+          <div style="font-family:'Bebas Neue';font-size:1.05rem;letter-spacing:0.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${m.name}</div>
+          ${m.lastSeen ? `<div style="font-size:0.68rem;color:var(--muted);white-space:nowrap;">Last seen ${formatDate(m.lastSeen?.toString().split('T')[0])}</div>` : ''}
         </div>
-        ${previewBtn}
-        ${lbwlBtn}
-        ${tdwlBtn}
-        ${logsBtn}
+        ${adminView && m.name !== profile.name ? `
+        <div onclick="event.stopPropagation()" style="display:grid;grid-template-columns:1fr 1fr;gap:0.3rem;flex-shrink:0;">
+          ${previewBtn}${lbwlBtn}${tdwlBtn}${logsBtn}
+        </div>` : ''}
         <div style="color:var(--muted);font-size:1rem;flex-shrink:0;">›</div>
       </div>`;
     }).join('');
