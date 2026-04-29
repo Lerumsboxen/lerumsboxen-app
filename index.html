@@ -2005,7 +2005,7 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v133';
+const APP_VERSION = 'v134';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 
 // Returns YYYY-MM-DD in LOCAL time — avoids UTC shift bug from toISOString()
@@ -2578,6 +2578,17 @@ async function checkLocalVideos() {
   }
 }
 
+function veCloseVideoOverlay() {
+  const ov = document.getElementById('videoPlayOverlay');
+  if (!ov || ov.style.display === 'none') return;
+  const vid = ov.querySelector('video');
+  if (vid) { vid.pause(); vid.src = ''; }
+  if (ov._objectUrl) { URL.revokeObjectURL(ov._objectUrl); ov._objectUrl = null; }
+  ov.style.display = 'none';
+  // Pop the history state we pushed so the back button doesn't navigate away
+  if (history.state?.videoOverlay) history.back();
+}
+
 function veCheckAndPlayLocal(movement) {
   getVideoBlob(movement).then(blob => {
     if (!blob) { showToast('No local video — use URL or upload one'); return; }
@@ -2586,17 +2597,30 @@ function veCheckAndPlayLocal(movement) {
     if (!ov) {
       ov = document.createElement('div');
       ov.id = 'videoPlayOverlay';
-      ov.style.cssText = 'position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.96);display:flex;flex-direction:column;align-items:center;justify-content:center;';
       document.body.appendChild(ov);
     }
-    ov.style.display = 'flex';
-    ov._currentUrl = url;
-    ov.onclick = e => { if(e.target===ov){ URL.revokeObjectURL(url); ov.style.display='none'; } };
+    ov.style.cssText = 'position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.82);display:flex;align-items:center;justify-content:center;padding:1rem;';
+    ov._objectUrl = url;
+    // Close on backdrop click
+    ov.onclick = e => { if (e.target === ov) veCloseVideoOverlay(); };
     ov.innerHTML = `
-      <button onclick="URL.revokeObjectURL('${url}');this.closest('#videoPlayOverlay').style.display='none';"
-        style="position:absolute;top:1rem;right:1rem;background:rgba(0,0,0,0.5);border:none;color:#fff;font-size:1.5rem;cursor:pointer;padding:0.5rem;border-radius:50%;">✕</button>
-      <video src="${url}" controls autoplay playsinline
-        style="max-width:100%;max-height:85vh;border-radius:6px;"></video>`;
+      <div style="background:#111;border-radius:10px;overflow:hidden;width:100%;max-width:480px;box-shadow:0 8px 40px rgba(0,0,0,0.8);position:relative;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:0.6rem 0.75rem;background:#1a1a1a;border-bottom:1px solid #2a2a2a;">
+          <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.8rem;letter-spacing:0.1em;text-transform:uppercase;color:#aaa;">Video</span>
+          <button onclick="veCloseVideoOverlay()"
+            style="background:none;border:none;color:#fff;font-size:1.2rem;cursor:pointer;padding:0.15rem 0.4rem;border-radius:4px;line-height:1;">✕</button>
+        </div>
+        <video src="${url}" controls autoplay playsinline
+          style="width:100%;display:block;max-height:60vh;background:#000;"></video>
+      </div>`;
+    // Push a history entry so Android back button triggers popstate
+    history.pushState({ videoOverlay: true }, '');
+    // Listen for back button
+    window._videoPopHandler = () => {
+      veCloseVideoOverlay();
+      window.removeEventListener('popstate', window._videoPopHandler);
+    };
+    window.addEventListener('popstate', window._videoPopHandler, { once: true });
   });
 }
 function saveMovementVideo(movement, url) {
