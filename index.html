@@ -2011,7 +2011,7 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v134';
+const APP_VERSION = 'v135';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 
 // Returns YYYY-MM-DD in LOCAL time — avoids UTC shift bug from toISOString()
@@ -2304,8 +2304,17 @@ const DASH_SECTIONS = {
   movements: {
     render: () => { renderDashMovements(); },
     build: () => {
+      const adminBtns = isAdmin()
+        ? `<div style="display:flex;gap:0.5rem;">
+            <button onclick="openMovementAdminModal('add')" style="font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.8rem;padding:0.5rem 1rem;background:rgba(232,0,29,0.12);border:1.5px solid var(--red);color:var(--red);border-radius:3px;cursor:pointer;">+ ADD MOVEMENT</button>
+            <button onclick="openMovementAdminModal('edit')" style="font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.8rem;padding:0.5rem 1rem;background:var(--card);border:1.5px solid var(--border);color:var(--muted);border-radius:3px;cursor:pointer;">✎ EDIT / REMOVE</button>
+          </div>`
+        : '';
       return `
-      <div class="section-title">Movement Library</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.75rem;">
+        <div class="section-title" style="margin:0;">Movement Library</div>
+        ${adminBtns}
+      </div>
       <div id="dash-movement-grid"></div>`;
     }
   },
@@ -2639,7 +2648,7 @@ function veCheckAndPlayLocal(movement) {
           <button onclick="veCloseVideoOverlay()"
             style="background:none;border:none;color:#fff;font-size:1.2rem;cursor:pointer;padding:0.15rem 0.4rem;border-radius:4px;line-height:1;">✕</button>
         </div>
-        <video src="${url}" controls autoplay playsinline
+        <video src="${url}" controls autoplay playsinline muted
           style="width:100%;display:block;max-height:60vh;background:#000;"></video>
       </div>`;
     // Push a history entry so Android back button triggers popstate
@@ -2694,6 +2703,7 @@ async function deleteVideoBlob(movement) {
 }
 
 function openVideoEdit(movement) {
+  if (!isAdmin()) { showToast("Only admins can manage videos"); return; }
   const videos = getMovementVideos();
   const currentUrl = videos[movement] || '';
 
@@ -2733,7 +2743,8 @@ function openVideoEdit(movement) {
 
         <!-- Option 2: Gallery upload -->
         <div>
-          <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:0.4rem;">Upload from gallery</div>
+          <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:0.2rem;">Upload from gallery</div>
+          <div style="font-size:0.7rem;color:#f59e0b;margin-bottom:0.4rem;">⚠ Stored on this device only. Use a URL (e.g. YouTube) for all users to see.</div>
           <label style="display:flex;align-items:center;justify-content:center;gap:0.5rem;padding:0.75rem;background:var(--card);border:1.5px dashed var(--border);border-radius:6px;cursor:pointer;font-family:'Barlow Condensed';font-weight:700;font-size:0.8rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);">
             🎬 Choose Video
             <input type="file" accept="video/*" style="display:none;" onchange="veUploadFile(this,'${movement.replace(/'/g,"\\'")}')">
@@ -2779,6 +2790,7 @@ function veUpdateCurrentLabel(text) {
 }
 
 function veUploadFile(input, movement) {
+  if (!isAdmin()) { showToast("Only admins can upload videos"); return; }
   const file = input.files[0];
   if (!file) return;
   input.value = '';
@@ -2894,32 +2906,70 @@ function renderDashMovements() {
   const el = document.getElementById('dash-movement-grid');
   if (!el) return;
   const videos = getMovementVideos();
-  const admin = isAdmin();
-  el.innerHTML = MOVEMENT_CATEGORIES.map(cat => `
-    <div style="margin-bottom:1.75rem;">
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:0.08em;color:var(--red);margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem;">
-        ${cat.icon} ${cat.cat}
-      </div>
-      <div style="display:flex;flex-direction:column;gap:0.35rem;">
-        ${cat.moves.map(m => {
-          const pr = [...state.prs].filter(p => p.movement === m).sort((a,b) => b.value - a.value)[0];
-          const hasPr = !!pr;
-          const videoUrl = videos[m];
-          // Check for local video is async — we'll use a data attribute to trigger it
-          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.45rem 0.75rem;background:var(--card);border:1px solid ${hasPr ? 'rgba(34,197,94,0.3)' : 'var(--border)'};border-radius:4px;gap:0.5rem;">
-            <div onclick="openRmModal('${m.replace(/'/g,"\\'")}',${hasPr ? pr.value : 0},'${hasPr ? pr.unit : 'kg'}')" style="display:flex;align-items:center;gap:0.5rem;flex:1;min-width:0;cursor:pointer;">
-              <span style="font-family:'Barlow Condensed';font-weight:700;font-size:clamp(0.7rem,2.5vw,0.88rem);letter-spacing:0.03em;line-height:1.2;flex:1;min-width:0;color:${hasPr ? '#4ade80' : 'var(--text)'};">${m}</span>
-              ${hasPr ? `<span style="font-family:'Bebas Neue';font-size:0.95rem;color:#4ade80;flex-shrink:0;white-space:nowrap;">${pr.value}${pr.unit}</span>` : `<span style="color:var(--border);font-size:0.75rem;flex-shrink:0;">—</span>`}
-            </div>
-            ${videoUrl ? `<a href="${videoUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Watch video" style="flex-shrink:0;margin-left:0.25rem;font-size:0.8rem;padding:0.2rem 0.45rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.08em;text-transform:uppercase;background:rgba(251,191,36,0.12);color:#fbbf24;border:1px solid rgba(251,191,36,0.4);border-radius:3px;text-decoration:none;">▶ URL</a>` : ''}
-            <button onclick="veCheckAndPlayLocal('${m.replace(/'/g,"\\'")}');event.stopPropagation();" data-mv="${m.replace(/"/g,'&quot;')}" class="ve-local-btn" style="display:none;flex-shrink:0;font-size:0.8rem;padding:0.2rem 0.45rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.08em;text-transform:uppercase;background:rgba(34,197,94,0.12);color:#4ade80;border:1px solid rgba(34,197,94,0.4);border-radius:3px;cursor:pointer;">▶ Video</button>
-            ${admin ? `<button onclick="openVideoEdit('${m.replace(/'/g,"\\'")}');event.stopPropagation();" title="${videoUrl ? 'Edit video' : 'Add video'}" style="flex-shrink:0;margin-left:0.1rem;font-size:0.65rem;padding:0.2rem 0.4rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.06em;text-transform:uppercase;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:3px;cursor:pointer;">${videoUrl ? '✎' : '+ vid'}</button>` : ''}
-          </div>`;
-        }).join('')}
-      </div>
-    </div>
-  `).join('');
-  // Async check for locally stored videos (IndexedDB)
+  const admin  = isAdmin();
+
+  el.innerHTML = MOVEMENT_CATEGORIES.map(cat => {
+    const items = cat.moves.map(m => {
+      const pr      = state.prs.filter(p => p.movement === m).sort((a,b) => b.value - a.value)[0];
+      const hasPr   = !!pr;
+      const videoUrl = videos[m];
+      const mEnc    = encodeURIComponent(m);
+      const mDisp   = m.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const prBadge = hasPr
+        ? `<span style="font-family:'Bebas Neue';font-size:0.95rem;color:#4ade80;flex-shrink:0;white-space:nowrap;">${pr.value}${pr.unit}</span>`
+        : `<span style="color:var(--border);font-size:0.75rem;flex-shrink:0;">—</span>`;
+      // Video button — visible to all if there's a URL; local-blob button shown async
+      const urlBtn = videoUrl
+        ? `<a href="${videoUrl}" target="_blank" rel="noopener"
+              data-video-link="${mEnc}"
+              onclick="event.stopPropagation()"
+              style="flex-shrink:0;font-size:0.8rem;padding:0.2rem 0.45rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.08em;text-transform:uppercase;background:rgba(251,191,36,0.12);color:#fbbf24;border:1px solid rgba(251,191,36,0.4);border-radius:3px;text-decoration:none;">▶ Video</a>`
+        : '';
+      const localBtn = `<button data-mv="${mEnc}" class="ve-local-btn"
+              style="display:none;flex-shrink:0;font-size:0.8rem;padding:0.2rem 0.45rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.08em;text-transform:uppercase;background:rgba(34,197,94,0.12);color:#4ade80;border:1px solid rgba(34,197,94,0.4);border-radius:3px;cursor:pointer;">▶ Video</button>`;
+      // Admin-only: edit/upload video button
+      const editBtn = admin
+        ? `<button data-mv-vid="${mEnc}" class="mv-vid-edit-btn"
+              title="${videoUrl ? 'Edit video' : 'Add video'}"
+              style="flex-shrink:0;font-size:0.65rem;padding:0.2rem 0.4rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.06em;text-transform:uppercase;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:3px;cursor:pointer;">${videoUrl ? '✎ vid' : '+ vid'}</button>`
+        : '';
+      // Admin-only: edit movement button
+      const mvEditBtn = admin
+        ? `<button data-mv="${mEnc}" class="mv-inline-edit-btn"
+              title="Edit movement"
+              style="flex-shrink:0;font-size:0.65rem;padding:0.2rem 0.4rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.06em;text-transform:uppercase;background:var(--card2);color:#888;border:1px solid var(--border);border-radius:3px;cursor:pointer;">✎</button>`
+        : '';
+      return `<div style="display:flex;align-items:center;padding:0.45rem 0.75rem;background:var(--card);border:1px solid ${hasPr ? 'rgba(34,197,94,0.3)' : 'var(--border)'};border-radius:4px;gap:0.4rem;">
+        <div data-rm="${mEnc}" data-rmval="${hasPr ? pr.value : 0}" data-rmunit="${hasPr ? (pr.unit||'kg') : 'kg'}" class="mv-rm-link"
+             style="display:flex;align-items:center;gap:0.5rem;flex:1;min-width:0;cursor:pointer;">
+          <span style="font-family:'Barlow Condensed';font-weight:700;font-size:clamp(0.7rem,2.5vw,0.88rem);letter-spacing:0.03em;line-height:1.2;flex:1;min-width:0;color:${hasPr ? '#4ade80' : 'var(--text)'};">${mDisp}</span>
+          ${prBadge}
+        </div>
+        ${urlBtn}${localBtn}${editBtn}${mvEditBtn}
+      </div>`;
+    }).join('');
+
+    return `<div style="margin-bottom:1.75rem;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:0.08em;color:var(--red);margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem;">${cat.icon} ${cat.cat}</div>
+      <div style="display:flex;flex-direction:column;gap:0.35rem;">${items}</div>
+    </div>`;
+  }).join('');
+
+  // Attach events via JS — no inline onclick quoting issues
+  el.querySelectorAll('.mv-rm-link').forEach(div => {
+    div.addEventListener('click', () => openRmModal(decodeURIComponent(div.dataset.rm), parseFloat(div.dataset.rmval), div.dataset.rmunit));
+  });
+  el.querySelectorAll('.ve-local-btn').forEach(btn => {
+    btn.addEventListener('click', e => { e.stopPropagation(); veCheckAndPlayLocal(decodeURIComponent(btn.dataset.mv)); });
+  });
+  el.querySelectorAll('.mv-vid-edit-btn').forEach(btn => {
+    btn.addEventListener('click', e => { e.stopPropagation(); openVideoEdit(decodeURIComponent(btn.dataset.mvVid)); });
+  });
+  el.querySelectorAll('.mv-inline-edit-btn').forEach(btn => {
+    btn.addEventListener('click', e => { e.stopPropagation(); openMovementEditModal(decodeURIComponent(btn.dataset.mv)); });
+  });
+
+  // Async: show local-video play buttons for movements that have blobs in IndexedDB
   checkLocalVideos();
 }
 
