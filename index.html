@@ -1814,6 +1814,23 @@ function json(obj) {
         </div>
         <div id="syncStatus-prs" style="margin-top:0.6rem;font-size:0.8rem;color:var(--muted);font-family:'Barlow Condensed';letter-spacing:0.05em;min-height:1.2em;"></div>
       </div>
+
+      <!-- Movements -->
+      <div style="border:1px solid rgba(251,191,36,0.25);border-radius:3px;padding:1rem;margin-top:0.75rem;">
+        <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.8rem;letter-spacing:0.15em;text-transform:uppercase;color:#fbbf24;margin-bottom:0.75rem;">💪 Movement Library</div>
+        <div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.75rem;line-height:1.5;">
+          Syncs the full movement library (categories + moves). Push from any admin device — all users auto-pull on load.
+        </div>
+        <div class="form-group" style="margin-bottom:0.75rem;">
+          <label>Sheet Tab Name</label>
+          <input type="text" id="sheetMovements" value="Movements" placeholder="e.g. Movements">
+        </div>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+          <button class="btn btn-sm" style="background:#fbbf24;color:#000;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:2px;cursor:pointer;" onclick="pushMovements()">⬆ PUSH</button>
+          <button class="btn btn-ghost btn-sm" onclick="pullMovements(false)">⬇ PULL</button>
+        </div>
+        <div id="syncStatus-movements" style="margin-top:0.6rem;font-size:0.8rem;color:var(--muted);font-family:'Barlow Condensed';letter-spacing:0.05em;min-height:1.2em;"></div>
+      </div>
     </div>
 
     <!-- Daily Program Sync -->
@@ -2011,7 +2028,7 @@ function json(obj) {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ===== STATE =====
-const APP_VERSION = 'v135';
+const APP_VERSION = 'v137';
 const LBWL_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 
 // Returns YYYY-MM-DD in LOCAL time — avoids UTC shift bug from toISOString()
@@ -2091,6 +2108,10 @@ const MOVEMENT_CATEGORIES = [
 
 function saveCustomMovements() {
   try { localStorage.setItem('lerums_custom_movements', JSON.stringify(MOVEMENT_CATEGORIES)); } catch(e) {}
+  // Auto-push to Sheets so all users get the update
+  if (isAdmin() && getSheetsUrl()) {
+    pushMovements().catch(() => {});
+  }
 }
 
 function getAllMovements() { return MOVEMENT_CATEGORIES.flatMap(c => c.moves); }
@@ -2908,7 +2929,7 @@ function renderDashMovements() {
   const videos = getMovementVideos();
   const admin  = isAdmin();
 
-  el.innerHTML = MOVEMENT_CATEGORIES.map(cat => {
+  el.innerHTML = MOVEMENT_CATEGORIES.filter(cat => cat.moves.length > 0).map(cat => {
     const items = cat.moves.map(m => {
       const pr      = state.prs.filter(p => p.movement === m).sort((a,b) => b.value - a.value)[0];
       const hasPr   = !!pr;
@@ -3682,7 +3703,7 @@ function renderMovements() {
   const bar = document.getElementById('movementAdminBar');
   if (bar) bar.style.display = admin ? 'flex' : 'none';
 
-  el.innerHTML = MOVEMENT_CATEGORIES.map(cat => {
+  el.innerHTML = MOVEMENT_CATEGORIES.filter(cat => cat.moves.length > 0).map(cat => {
     const rows = cat.moves.map(m => {
       const allPrs = state.prs.filter(p => p.movement === m).sort((a,b) => b.value - a.value);
       const rm1    = allPrs.find(p => !p.reps || p.reps === 1) || allPrs[0];
@@ -4250,6 +4271,31 @@ const SYNC_SCHEMAS = {
     sheetEl: 'sheetPrs',
     label: 'PRs',
   },
+  movements: {
+    // Each row = one category with all its moves serialised as JSON
+    headers: ['cat','icon','moves_json'],
+    toRow: (c) => ({ cat: c.cat, icon: c.icon, moves_json: JSON.stringify(c.moves) }),
+    fromRow: (r) => ({ cat: r.cat, icon: r.icon || '💪', moves: (() => { try { return JSON.parse(r.moves_json); } catch(e) { return []; } })() }),
+    getLocal: () => MOVEMENT_CATEGORIES,
+    setLocal: (cats) => {
+      // Merge remote categories into MOVEMENT_CATEGORIES in-place
+      cats.forEach(remoteCat => {
+        const existing = MOVEMENT_CATEGORIES.find(c => c.cat === remoteCat.cat);
+        if (existing) {
+          // Merge moves: add any remote moves not already present
+          remoteCat.moves.forEach(m => { if (!existing.moves.includes(m)) existing.moves.push(m); });
+          existing.icon = remoteCat.icon;
+        } else {
+          MOVEMENT_CATEGORIES.push(remoteCat);
+        }
+      });
+      saveCustomMovements();
+    },
+    getId: (r) => r.cat,   // category name is the unique key
+    statusEl: 'syncStatus-movements',
+    sheetEl: 'sheetMovements',
+    label: 'movement categories',
+  },
 };
 
 function getSheetsUrl() {
@@ -4355,6 +4401,60 @@ async function pullSheet(type) {
     setSyncStatus(type, '✗ ' + e.message, 'var(--red)');
   }
 }
+// ===== MOVEMENT SYNC =====
+async function pushMovements() {
+  if (!isAdmin()) { showToast('Only admins can push movements'); return; }
+  const url = getSheetsUrl();
+  if (!url) { showToast('Set up Google Sheets URL first'); return; }
+  const schema = SYNC_SCHEMAS.movements;
+  const sheetName = document.getElementById('sheetMovements')?.value.trim() || 'Movements';
+  const rows = MOVEMENT_CATEGORIES.map(schema.toRow);
+  setSyncStatus('movements', 'Pushing…', 'var(--muted)');
+  try {
+    const json = await xhrPost(url, { action: 'push', sheet: sheetName, headers: schema.headers, rows });
+    if (json.status === 'ok') {
+      setSyncStatus('movements', '✓ Pushed ' + rows.length + ' categories to "' + sheetName + '"', 'var(--success)');
+      showToast('Movement library synced ☁');
+    } else {
+      setSyncStatus('movements', '✗ ' + (json.error || 'unknown error'), 'var(--red)');
+    }
+  } catch(e) {
+    setSyncStatus('movements', '✗ ' + e.message, 'var(--red)');
+  }
+}
+
+async function pullMovements(silent) {
+  const url = getSheetsUrl();
+  if (!url) return;
+  const schema = SYNC_SCHEMAS.movements;
+  const sheetName = document.getElementById('sheetMovements')?.value.trim() || 'Movements';
+  if (!silent) setSyncStatus('movements', 'Pulling…', 'var(--muted)');
+  try {
+    const json = await xhrPost(url, { action: 'pull', sheet: sheetName });
+    if (!json.rows || json.rows.length === 0) {
+      if (!silent) setSyncStatus('movements', '⚠ No movements in sheet yet — push first', '#fbbf24');
+      return;
+    }
+    const remote = json.rows.map(schema.fromRow).filter(r => r.cat);
+    schema.setLocal(remote);  // merges into MOVEMENT_CATEGORIES
+    if (!silent) {
+      setSyncStatus('movements', '✓ Pulled ' + remote.length + ' categories from "' + sheetName + '"', 'var(--success)');
+      showToast('Movement library updated ☁');
+    }
+    renderMovements();
+    renderDashMovements();
+  } catch(e) {
+    if (!silent) setSyncStatus('movements', '✗ ' + e.message, 'var(--red)');
+  }
+}
+
+// Called silently on app start — pulls latest movement list for all users
+async function autoSyncMovements() {
+  const url = getSheetsUrl();
+  if (!url) return;  // not set up yet
+  try { await pullMovements(true); } catch(e) {}
+}
+
 
 function setConnectionStatus(msg, color) {
   const el = document.getElementById('connectionStatus');
@@ -4394,12 +4494,14 @@ window.addEventListener('DOMContentLoaded', () => {
   const saved = localStorage.getItem('lerums_sheets_url');
   const el = document.getElementById('sheetsUrl');
   if (saved && el) el.value = saved;
-  ['sheetStrength','sheetWods','sheetPrs'].forEach(id => {
+  ['sheetStrength','sheetWods','sheetPrs','sheetMovements'].forEach(id => {
     const saved = localStorage.getItem('lerums_' + id);
     const el = document.getElementById(id);
     if (saved && el) el.value = saved;
     if (el) el.addEventListener('change', () => localStorage.setItem('lerums_' + id, el.value));
   });
+  // Auto-pull movement library for all users on load (silent, best-effort)
+  setTimeout(() => autoSyncMovements(), 2000);
 });
 
 
