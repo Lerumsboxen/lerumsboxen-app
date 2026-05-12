@@ -1312,7 +1312,13 @@
 
   <!-- MOVEMENTS -->
   <div class="page" id="page-movements">
-    <div class="section-title">Movement Library</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.75rem;">
+      <div class="section-title" style="margin-bottom:0;">Movement Library</div>
+      <div id="movementAdminBar" style="display:none;gap:0.5rem;display:none;">
+        <button onclick="openMovementAdminModal('add')" style="font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.8rem;padding:0.5rem 1rem;background:rgba(232,0,29,0.12);border:1.5px solid var(--red);color:var(--red);border-radius:3px;cursor:pointer;">+ ADD MOVEMENT</button>
+        <button onclick="openMovementAdminModal('edit')" style="font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.8rem;padding:0.5rem 1rem;background:var(--card);border:1.5px solid var(--border);color:var(--muted);border-radius:3px;cursor:pointer;">✎ EDIT / REMOVE</button>
+      </div>
+    </div>
     <div id="movementGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0.75rem;"></div>
   </div>
 
@@ -3622,36 +3628,42 @@ function renderMovements() {
   const el = document.getElementById('movementGrid');
   if (!el) return;
   const admin = isAdmin();
-  el.innerHTML = (admin ? `<div style="grid-column:1/-1;display:flex;justify-content:flex-end;margin-bottom:0.25rem;"><button onclick="openMovementAdminModal()" style="font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.78rem;padding:0.45rem 0.85rem;background:transparent;border:1.5px solid var(--red);color:var(--red);border-radius:3px;cursor:pointer;">⚙ MANAGE MOVEMENTS</button></div>` : '') +
-  MOVEMENT_CATEGORIES.map(cat => `
-    <div class="card" style="padding:1rem;">
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:0.06em;margin-bottom:0.75rem;color:var(--red);">
-        ${cat.icon} ${cat.cat}
-      </div>
-      ${cat.moves.map(m => {
-        const allPrs = [...state.prs].filter(p => p.movement === m).sort((a,b) => b.value - a.value);
-        const rm1 = allPrs.find(p => !p.reps || p.reps === 1) || allPrs[0];
-        const hasPr = !!rm1;
-        const dispVal = hasPr ? (() => {
-        if (rm1.unit === 's') {
-          const s = Math.round(rm1.value); const mins = Math.floor(s/60); const secs = String(s%60).padStart(2,'0');
-          return mins + ':' + secs;
-        }
-        if (rm1.unit === 'reps') return rm1.value + ' reps';
-        if (rm1.unit === 'cal') return rm1.value + ' cal';
-        return profile.unit === 'lbs' ? Math.round(rm1.value * KG_TO_LBS * 2)/2 + ' lbs' : rm1.value + ' kg';
-      })() : null;
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:0.35rem 0;border-bottom:1px solid var(--border);gap:0.5rem;">
-          <div onclick="openRmModal('${m.replace(/'/g,"\\'")}',${hasPr ? rm1.value : 0},'${hasPr ? rm1.unit : 'kg'}')" style="display:flex;align-items:center;gap:0.5rem;flex:1;min-width:0;cursor:pointer;">
-            <span style="font-size:clamp(0.72rem,2.5vw,0.85rem);line-height:1.2;flex:1;min-width:0;color:${hasPr ? '#4ade80' : 'var(--text)'};">${m}</span>
-            ${hasPr ? `<span style="font-family:'Bebas Neue';font-size:1rem;color:#4ade80;flex-shrink:0;white-space:nowrap;" title="1RM">${dispVal}</span>` : '<span style="color:var(--border);font-size:0.75rem;flex-shrink:0;">—</span>'}
-          </div>
-          <button onclick="openPRModalFor('${m.replace(/'/g,"\\'")}');event.stopPropagation();" style="flex-shrink:0;margin-left:0.4rem;font-size:0.7rem;padding:0.2rem 0.45rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.08em;text-transform:uppercase;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:3px;cursor:pointer;" title="Log PR for ${m}">+ PR</button>
-          ${admin ? `<button onclick="openMovementEditModal('${m.replace(/'/g,"\\'")}');event.stopPropagation();" style="flex-shrink:0;margin-left:0.15rem;font-size:0.65rem;padding:0.2rem 0.4rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.06em;text-transform:uppercase;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:3px;cursor:pointer;">✎</button>` : ''}
-        </div>`;
-      }).join('')}
-    </div>
-  `).join('');
+
+  // Show/hide admin toolbar buttons
+  const bar = document.getElementById('movementAdminBar');
+  if (bar) bar.style.display = admin ? 'flex' : 'none';
+
+  el.innerHTML = MOVEMENT_CATEGORIES.map(function(cat) {
+    var rows = cat.moves.map(function(m) {
+      var allPrs = state.prs.filter(function(p) { return p.movement === m; }).sort(function(a,b) { return b.value - a.value; });
+      var rm1 = allPrs.find(function(p) { return !p.reps || p.reps === 1; }) || allPrs[0];
+      var hasPr = !!rm1;
+      var dispVal = '';
+      if (hasPr) {
+        if (rm1.unit === 's') { var sv = Math.round(rm1.value); dispVal = Math.floor(sv/60) + ':' + String(sv%60).padStart(2,'0'); }
+        else if (rm1.unit === 'reps') { dispVal = rm1.value + ' reps'; }
+        else if (rm1.unit === 'cal') { dispVal = rm1.value + ' cal'; }
+        else { dispVal = profile.unit === 'lbs' ? Math.round(rm1.value * KG_TO_LBS * 2)/2 + ' lbs' : rm1.value + ' kg'; }
+      }
+      var mSafe = m.replace(/'/g, "\\'");
+      var editBtn = admin
+        ? '<button onclick="openMovementEditModal('' + mSafe + '');event.stopPropagation();" title="Edit movement" style="flex-shrink:0;font-size:0.7rem;padding:0.25rem 0.5rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.06em;text-transform:uppercase;background:var(--card2);color:#888;border:1px solid var(--border);border-radius:3px;cursor:pointer;">✎</button>'
+        : '';
+      return '<div style="display:flex;align-items:center;padding:0.35rem 0;border-bottom:1px solid var(--border);gap:0.4rem;">'
+        + '<div onclick="openRmModal('' + mSafe + '',' + (hasPr ? rm1.value : 0) + ','' + (hasPr ? rm1.unit : 'kg') + '')" style="display:flex;align-items:center;gap:0.5rem;flex:1;min-width:0;cursor:pointer;">'
+        + '<span style="font-size:clamp(0.72rem,2.5vw,0.85rem);line-height:1.2;flex:1;min-width:0;color:' + (hasPr ? '#4ade80' : 'var(--text)') + ';">' + m + '</span>'
+        + (hasPr ? '<span style="font-family:'Bebas Neue';font-size:1rem;color:#4ade80;flex-shrink:0;white-space:nowrap;">' + dispVal + '</span>' : '<span style="color:var(--border);font-size:0.75rem;flex-shrink:0;">—</span>')
+        + '</div>'
+        + '<button onclick="openPRModalFor('' + mSafe + '');event.stopPropagation();" style="flex-shrink:0;font-size:0.7rem;padding:0.2rem 0.45rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.08em;text-transform:uppercase;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:3px;cursor:pointer;">+ PR</button>'
+        + editBtn
+        + '</div>';
+    }).join('');
+
+    return '<div class="card" style="padding:1rem;">'
+      + '<div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:0.06em;margin-bottom:0.75rem;color:var(--red);">' + cat.icon + ' ' + cat.cat + '</div>'
+      + rows
+      + '</div>';
+  }).join('');
 }
 
 // ===== ADMIN MOVEMENT MANAGEMENT =====
@@ -3664,16 +3676,19 @@ function adminAutoAddMovement(name) {
   if (!cat.moves.includes(name)) { cat.moves.push(name); saveCustomMovements(); }
 }
 
-function openMovementAdminModal() {
+function openMovementAdminModal(tab) {
   if (!isAdmin()) return;
-  // Populate category select
-  const sel = document.getElementById('mvCatSelect');
-  if (sel) sel.innerHTML = '<option value="">— choose existing —</option>' + MOVEMENT_CATEGORIES.map(c => `<option value="${c.cat}">${c.icon} ${c.cat}</option>`).join('');
+  tab = tab || 'add';
+  // Populate category selects
+  var catOpts = '<option value="">— choose existing —</option>' + MOVEMENT_CATEGORIES.map(function(c){ return '<option value="'+c.cat+'">'+c.icon+' '+c.cat+'</option>'; }).join('');
+  var sel = document.getElementById('mvCatSelect');
+  if (sel) sel.innerHTML = catOpts;
+  // Reset add fields
   document.getElementById('mvNewName').value = '';
   document.getElementById('mvNewCat').value = '';
   document.getElementById('mvCatIcon').value = '';
   document.getElementById('mvEditFilter').value = '';
-  switchMvTab('add');
+  switchMvTab(tab);
   renderMvEditList();
   document.getElementById('movementAdminModal').style.display = 'flex';
 }
@@ -3683,9 +3698,9 @@ function closeMovementAdminModal() {
 }
 
 function switchMvTab(tab) {
-  ['add','edit'].forEach(t => {
+  ['add','edit'].forEach(function(t) {
     document.getElementById('mvPanel-' + t).style.display = t === tab ? 'block' : 'none';
-    const btn = document.getElementById('mvTab-' + t);
+    var btn = document.getElementById('mvTab-' + t);
     if (btn) {
       btn.style.borderColor = t === tab ? 'var(--red)' : 'var(--border)';
       btn.style.background  = t === tab ? 'rgba(232,0,29,0.15)' : 'transparent';
@@ -3695,68 +3710,78 @@ function switchMvTab(tab) {
 }
 
 function onMvCatSelectChange() {
-  const val = document.getElementById('mvCatSelect').value;
-  if (val) { document.getElementById('mvNewCat').value = ''; document.getElementById('mvCatIcon').value = ''; }
+  var val = document.getElementById('mvCatSelect').value;
+  if (val) {
+    document.getElementById('mvNewCat').value = '';
+    document.getElementById('mvCatIcon').value = '';
+  }
 }
 
 function onMvNewCatInput() {
-  if (document.getElementById('mvNewCat').value) document.getElementById('mvCatSelect').value = '';
+  if (document.getElementById('mvNewCat').value) {
+    document.getElementById('mvCatSelect').value = '';
+  }
 }
 
 function adminAddMovement() {
-  const name = document.getElementById('mvNewName').value.trim();
+  var name = document.getElementById('mvNewName').value.trim();
   if (!name) { document.getElementById('mvNewName').focus(); showToast('Enter a movement name'); return; }
-  const existsCat = document.getElementById('mvCatSelect').value;
-  const newCatName = document.getElementById('mvNewCat').value.trim();
-  const catName = existsCat || newCatName;
+  var existsCat = document.getElementById('mvCatSelect').value;
+  var newCatName = document.getElementById('mvNewCat').value.trim();
+  var catName = existsCat || newCatName;
   if (!catName) { showToast('Choose or create a category'); return; }
-  // Check not duplicate
-  const already = getAllMovements().some(m => m.toLowerCase() === name.toLowerCase());
+  var already = getAllMovements().some(function(m){ return m.toLowerCase() === name.toLowerCase(); });
   if (already) { showToast('Movement already exists'); return; }
-  let cat = MOVEMENT_CATEGORIES.find(c => c.cat === catName);
+  var cat = MOVEMENT_CATEGORIES.find(function(c){ return c.cat === catName; });
   if (!cat) {
-    const icon = document.getElementById('mvCatIcon').value.trim() || '💪';
-    cat = { cat: catName, icon, moves: [] };
+    var icon = document.getElementById('mvCatIcon').value.trim() || '💪';
+    cat = { cat: catName, icon: icon, moves: [] };
     MOVEMENT_CATEGORIES.push(cat);
   }
   cat.moves.push(name);
   saveCustomMovements();
-  showToast(`✅ "${name}" added to ${catName}`);
+  showToast('✅ "' + name + '" added to ' + catName);
+  document.getElementById('mvNewName').value = '';
   renderMovements();
   renderDashMovements();
   closeMovementAdminModal();
 }
 
 function renderMvEditList() {
-  const q = (document.getElementById('mvEditFilter')?.value || '').toLowerCase();
-  const el = document.getElementById('mvEditList');
+  var q = (document.getElementById('mvEditFilter') ? document.getElementById('mvEditFilter').value : '').toLowerCase();
+  var el = document.getElementById('mvEditList');
   if (!el) return;
-  const rows = [];
-  MOVEMENT_CATEGORIES.forEach((cat, ci) => {
-    cat.moves.forEach((mv, mi) => {
+  var rows = [];
+  MOVEMENT_CATEGORIES.forEach(function(cat, ci) {
+    cat.moves.forEach(function(mv, mi) {
       if (!q || mv.toLowerCase().includes(q) || cat.cat.toLowerCase().includes(q)) {
-        rows.push({ mv, ci, mi, cat: cat.cat, icon: cat.icon });
+        rows.push({ mv: mv, ci: ci, mi: mi, cat: cat.cat, icon: cat.icon });
       }
     });
   });
-  el.innerHTML = rows.map(r => `
-    <div style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.6rem;background:var(--card2);border:1px solid var(--border);border-radius:4px;">
-      <span style="font-size:0.75rem;color:var(--muted);font-family:'Barlow Condensed';letter-spacing:0.05em;flex-shrink:0;">${r.icon} ${r.cat}</span>
-      <span style="flex:1;font-size:0.85rem;min-width:0;">${r.mv}</span>
-      <button onclick="openMovementEditModal('${r.mv.replace(/'/g,"\\'")}');closeMovementAdminModal();" style="flex-shrink:0;font-size:0.65rem;padding:0.2rem 0.45rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.06em;text-transform:uppercase;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:3px;cursor:pointer;">✎ Edit</button>
-      <button onclick="adminRemoveMovement(${r.ci},${r.mi})" style="flex-shrink:0;font-size:0.65rem;padding:0.2rem 0.45rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.06em;text-transform:uppercase;background:rgba(232,0,29,0.1);color:var(--red);border:1px solid rgba(232,0,29,0.3);border-radius:3px;cursor:pointer;">✕ Remove</button>
-    </div>
-  `).join('') || '<div style="color:var(--muted);font-size:0.85rem;padding:0.5rem;">No movements found.</div>';
+  if (!rows.length) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;padding:0.5rem;">No movements found.</div>';
+    return;
+  }
+  el.innerHTML = rows.map(function(r) {
+    var mvSafe = r.mv.replace(/\x27/g, "\\'");
+    return '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem 0.6rem;background:var(--card2);border:1px solid var(--border);border-radius:4px;">'
+      + '<span style="font-size:0.72rem;color:var(--muted);font-family:'Barlow Condensed';letter-spacing:0.05em;flex-shrink:0;min-width:5rem;">' + r.icon + ' ' + r.cat + '</span>'
+      + '<span style="flex:1;font-size:0.85rem;min-width:0;">' + r.mv + '</span>'
+      + '<button onclick="openMovementEditModal('' + mvSafe + '');" style="flex-shrink:0;font-size:0.68rem;padding:0.25rem 0.5rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.06em;text-transform:uppercase;background:var(--card);color:var(--muted);border:1px solid var(--border);border-radius:3px;cursor:pointer;">✎</button>'
+      + '<button onclick="adminRemoveMovement(' + r.ci + ',' + r.mi + ')" style="flex-shrink:0;font-size:0.68rem;padding:0.25rem 0.5rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.06em;text-transform:uppercase;background:rgba(232,0,29,0.1);color:var(--red);border:1px solid rgba(232,0,29,0.3);border-radius:3px;cursor:pointer;">✕</button>'
+      + '</div>';
+  }).join('');
 }
 
 function adminRemoveMovement(ci, mi) {
-  const cat = MOVEMENT_CATEGORIES[ci];
+  var cat = MOVEMENT_CATEGORIES[ci];
   if (!cat) return;
-  const name = cat.moves[mi];
-  if (!confirm(`Remove "${name}" from ${cat.cat}?`)) return;
+  var name = cat.moves[mi];
+  if (!confirm('Remove "' + name + '" from ' + cat.cat + '?')) return;
   cat.moves.splice(mi, 1);
   saveCustomMovements();
-  showToast(`Removed "${name}"`);
+  showToast('Removed "' + name + '"');
   renderMovements();
   renderDashMovements();
   renderMvEditList();
@@ -3764,16 +3789,21 @@ function adminRemoveMovement(ci, mi) {
 
 function openMovementEditModal(name) {
   if (!isAdmin()) return;
-  // Find the movement
-  let found = null;
-  MOVEMENT_CATEGORIES.forEach((cat, ci) => {
-    cat.moves.forEach((mv, mi) => { if (mv === name) found = { ci, mi }; });
+  var found = null;
+  MOVEMENT_CATEGORIES.forEach(function(cat, ci) {
+    cat.moves.forEach(function(mv, mi) { if (mv === name) found = { ci: ci, mi: mi }; });
   });
-  if (!found) return;
-  _mvEditingMovement = { name, ...found };
+  if (!found) { showToast('Movement not found: ' + name); return; }
+  _mvEditingMovement = { name: name, ci: found.ci, mi: found.mi };
   document.getElementById('mvEditName').value = name;
-  const sel = document.getElementById('mvEditCat');
-  sel.innerHTML = MOVEMENT_CATEGORIES.map((c, i) => `<option value="${i}" ${i===found.ci?'selected':''}>${c.icon} ${c.cat}</option>`).join('');
+  // Populate existing-cat select
+  var catOpts = MOVEMENT_CATEGORIES.map(function(c, i) {
+    return '<option value="' + i + '"' + (i === found.ci ? ' selected' : '') + '>' + c.icon + ' ' + c.cat + '</option>';
+  }).join('');
+  document.getElementById('mvEditCatSelect').innerHTML = catOpts;
+  document.getElementById('mvEditNewCat').value = '';
+  document.getElementById('mvEditCatIcon').value = '';
+  closeMovementAdminModal();
   document.getElementById('movementEditModal').style.display = 'flex';
 }
 
@@ -3782,20 +3812,40 @@ function closeMovementEditModal() {
   _mvEditingMovement = null;
 }
 
+function onMvEditCatSelectChange() {
+  if (document.getElementById('mvEditCatSelect').value !== '__new__') {
+    document.getElementById('mvEditNewCat').value = '';
+    document.getElementById('mvEditCatIcon').value = '';
+    document.getElementById('mvEditNewCatRow').style.display = 'none';
+  } else {
+    document.getElementById('mvEditNewCatRow').style.display = 'flex';
+  }
+}
+
 function adminSaveMovementEdit() {
   if (!_mvEditingMovement) return;
-  const newName = document.getElementById('mvEditName').value.trim();
-  if (!newName) { document.getElementById('mvEditName').focus(); return; }
-  const newCatIdx = parseInt(document.getElementById('mvEditCat').value);
-  const { ci, mi } = _mvEditingMovement;
-  const oldCat = MOVEMENT_CATEGORIES[ci];
+  var newName = document.getElementById('mvEditName').value.trim();
+  if (!newName) { document.getElementById('mvEditName').focus(); showToast('Enter a name'); return; }
+  var selVal = document.getElementById('mvEditCatSelect').value;
+  var newCatName = document.getElementById('mvEditNewCat').value.trim();
+  var newCatIcon = document.getElementById('mvEditCatIcon').value.trim() || '💪';
+  var targetCat;
+  if (selVal === '__new__' || (!selVal && newCatName)) {
+    if (!newCatName) { showToast('Enter new category name'); return; }
+    targetCat = MOVEMENT_CATEGORIES.find(function(c){ return c.cat === newCatName; });
+    if (!targetCat) { targetCat = { cat: newCatName, icon: newCatIcon, moves: [] }; MOVEMENT_CATEGORIES.push(targetCat); }
+  } else {
+    var idx = parseInt(selVal);
+    targetCat = MOVEMENT_CATEGORIES[idx];
+  }
+  if (!targetCat) { showToast('Select a category'); return; }
   // Remove from old location
-  oldCat.moves.splice(mi, 1);
-  // Add to new category
-  const newCat = MOVEMENT_CATEGORIES[newCatIdx];
-  if (!newCat.moves.includes(newName)) newCat.moves.push(newName);
+  var oldCat = MOVEMENT_CATEGORIES[_mvEditingMovement.ci];
+  oldCat.moves.splice(_mvEditingMovement.mi, 1);
+  // Add to target
+  if (!targetCat.moves.includes(newName)) targetCat.moves.push(newName);
   saveCustomMovements();
-  showToast(`✅ "${newName}" updated`);
+  showToast('✅ "' + newName + '" saved');
   closeMovementEditModal();
   renderMovements();
   renderDashMovements();
@@ -7762,56 +7812,74 @@ window.addEventListener('orientationchange', () => {
       <button onclick="switchMvTab('edit')" id="mvTab-edit" style="font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.08em;text-transform:uppercase;font-size:0.8rem;padding:0.4rem 0.85rem;border-radius:3px;cursor:pointer;border:1.5px solid var(--border);background:transparent;color:var(--muted);">✎ EDIT / REMOVE</button>
     </div>
 
-    <!-- Add Movement tab -->
+    <!-- Add Movement panel -->
     <div id="mvPanel-add">
       <div class="form-group">
         <label>Movement Name</label>
-        <input type="text" id="mvNewName" placeholder="e.g. Romanian Deadlift">
+        <input type="text" id="mvNewName" placeholder="e.g. Romanian Deadlift" style="width:100%;">
       </div>
       <div class="form-group">
         <label>Category</label>
-        <div style="display:flex;gap:0.5rem;align-items:flex-start;">
-          <select id="mvCatSelect" onchange="onMvCatSelectChange()" style="flex:1;padding:0.45rem 0.7rem;font-size:0.82rem;">
-            <option value="">— choose existing —</option>
-          </select>
-          <span style="line-height:2.5;color:var(--muted);font-size:0.8rem;">or</span>
-          <input type="text" id="mvNewCat" placeholder="New category…" style="flex:1;padding:0.45rem 0.7rem;font-size:0.82rem;" oninput="onMvNewCatInput()">
+        <select id="mvCatSelect" onchange="onMvCatSelectChange()" style="width:100%;padding:0.45rem 0.7rem;font-size:0.82rem;margin-bottom:0.5rem;">
+          <option value="">— choose existing category —</option>
+        </select>
+        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem;">
+          <div style="flex:1;height:1px;background:var(--border);"></div>
+          <span style="font-size:0.72rem;color:var(--muted);font-family:'Barlow Condensed';letter-spacing:0.08em;text-transform:uppercase;">or create new</span>
+          <div style="flex:1;height:1px;background:var(--border);"></div>
         </div>
-        <div style="display:flex;gap:0.5rem;margin-top:0.5rem;align-items:center;">
-          <label style="font-size:0.78rem;color:var(--muted);margin:0;white-space:nowrap;">Icon</label>
-          <input type="text" id="mvCatIcon" placeholder="🏋️" style="width:4rem;text-align:center;padding:0.35rem;" maxlength="4">
+        <div style="display:flex;gap:0.5rem;align-items:center;">
+          <input type="text" id="mvNewCat" placeholder="New category name…" style="flex:1;padding:0.45rem 0.7rem;font-size:0.82rem;" oninput="onMvNewCatInput()">
+          <input type="text" id="mvCatIcon" placeholder="🏋️" title="Category icon (emoji)" style="width:3.5rem;text-align:center;padding:0.45rem 0.4rem;font-size:1rem;" maxlength="4">
         </div>
       </div>
-      <div style="display:flex;gap:0.75rem;justify-content:flex-end;margin-top:1rem;">
+      <div style="display:flex;gap:0.75rem;justify-content:flex-end;margin-top:1.25rem;">
         <button class="btn btn-ghost" onclick="closeMovementAdminModal()">Cancel</button>
         <button class="btn btn-red" onclick="adminAddMovement()">ADD MOVEMENT</button>
       </div>
     </div>
 
-    <!-- Edit/Remove tab -->
+    <!-- Edit/Remove panel -->
     <div id="mvPanel-edit" style="display:none;">
       <div class="form-group">
-        <label>Filter</label>
-        <input type="text" id="mvEditFilter" placeholder="Search movements…" oninput="renderMvEditList()">
+        <input type="text" id="mvEditFilter" placeholder="🔍  Search movements…" oninput="renderMvEditList()" style="width:100%;">
       </div>
-      <div id="mvEditList" style="max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:0.35rem;"></div>
+      <div id="mvEditList" style="max-height:360px;overflow-y:auto;display:flex;flex-direction:column;gap:0.35rem;"></div>
     </div>
   </div>
 </div>
 
 <!-- ADMIN: EDIT SINGLE MOVEMENT MODAL -->
 <div class="modal-overlay" id="movementEditModal" style="display:none;" onclick="if(event.target===this)closeMovementEditModal()">
-  <div class="modal" style="max-width:420px;">
-    <div class="modal-title">EDIT MOVEMENT<button class="close-btn" onclick="closeMovementEditModal()">✕</button></div>
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-title">EDIT MOVEMENT <button class="close-btn" onclick="closeMovementEditModal()">✕</button></div>
+
     <div class="form-group">
       <label>Movement Name</label>
-      <input type="text" id="mvEditName" placeholder="Movement name">
+      <input type="text" id="mvEditName" placeholder="Movement name" style="width:100%;">
     </div>
+
     <div class="form-group">
       <label>Category</label>
-      <select id="mvEditCat" style="padding:0.45rem 0.7rem;font-size:0.82rem;width:100%;"></select>
+      <select id="mvEditCatSelect" onchange="onMvEditCatSelectChange()" style="width:100%;padding:0.45rem 0.7rem;font-size:0.82rem;margin-bottom:0.5rem;">
+        <!-- populated by JS -->
+        <option value="__new__">+ Create new category…</option>
+      </select>
+      <!-- New category fields, shown only when "Create new" is selected -->
+      <div id="mvEditNewCatRow" style="display:none;flex-direction:column;gap:0.5rem;padding:0.6rem 0.75rem;background:var(--card2);border:1px solid var(--border);border-radius:4px;">
+        <div style="display:flex;align-items:center;gap:0.5rem;">
+          <div style="flex:1;height:1px;background:var(--border);"></div>
+          <span style="font-size:0.72rem;color:var(--muted);font-family:'Barlow Condensed';letter-spacing:0.08em;text-transform:uppercase;white-space:nowrap;">new category</span>
+          <div style="flex:1;height:1px;background:var(--border);"></div>
+        </div>
+        <div style="display:flex;gap:0.5rem;align-items:center;">
+          <input type="text" id="mvEditNewCat" placeholder="Category name…" style="flex:1;padding:0.45rem 0.7rem;font-size:0.82rem;">
+          <input type="text" id="mvEditCatIcon" placeholder="💪" title="Emoji icon" style="width:3.5rem;text-align:center;padding:0.45rem 0.4rem;font-size:1rem;" maxlength="4">
+        </div>
+      </div>
     </div>
-    <div style="display:flex;gap:0.75rem;justify-content:flex-end;margin-top:1rem;">
+
+    <div style="display:flex;gap:0.75rem;justify-content:flex-end;margin-top:1.25rem;">
       <button class="btn btn-ghost" onclick="closeMovementEditModal()">Cancel</button>
       <button class="btn btn-red" onclick="adminSaveMovementEdit()">SAVE CHANGES</button>
     </div>
