@@ -2371,7 +2371,9 @@ const DASH_SECTIONS = {
         <button onclick="clearLbDateFilter()" style="width:2rem;height:2rem;border-radius:4px;border:1px solid var(--border);background:var(--card);color:var(--muted);cursor:pointer;font-size:0.75rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;" title="Show all dates">✕</button>
       </div>
       <div id="dash-leaderboard"></div>
-      <div id="dash-lb-benchmarks" style="margin-top:0.25rem;"></div>
+      <div id="dash-lb-heroes" style="margin-top:0.25rem;"></div>
+      <div id="dash-lb-girls" style="margin-top:0.25rem;"></div>
+      <div id="dash-lb-other" style="margin-top:0.25rem;"></div>
       <div id="dash-lb-open" style="margin-top:0.25rem;"></div>`;
     }
   },
@@ -6482,14 +6484,18 @@ const BENCHMARK_WORKOUTS = {
   ]
 };
 
-const _ALL_BENCHMARK_NAMES = new Set([
-  ...BENCHMARK_WORKOUTS.heroes.map(w => w.name),
-  ...BENCHMARK_WORKOUTS.girls.map(w => w.name),
-  ...BENCHMARK_WORKOUTS.other.map(w => w.name)
-]);
-const _OPEN_NAME_RE = /^\d{2,4}\.\d+[a-z]?$/;
+const _HERO_NAMES  = new Set(BENCHMARK_WORKOUTS.heroes.map(w => w.name));
+const _GIRL_NAMES  = new Set(BENCHMARK_WORKOUTS.girls.map(w => w.name));
+const _OTHER_NAMES = new Set(BENCHMARK_WORKOUTS.other.map(w => w.name));
+const _ALL_BENCHMARK_NAMES = new Set([..._HERO_NAMES, ..._GIRL_NAMES, ..._OTHER_NAMES]);
+const _OPEN_NAME_RE = /^(open\s+)?\d{2,4}\.\d+[a-z]?$/i;
 function isBenchmarkWod(name) { return _ALL_BENCHMARK_NAMES.has(name); }
-function isOpenWod(name) { return _OPEN_NAME_RE.test((name || '').trim()); }
+function isHeroWod(name)      { return _HERO_NAMES.has(name); }
+function isGirlsWod(name)     { return _GIRL_NAMES.has(name); }
+function isOtherBenchmarkWod(name) { return _OTHER_NAMES.has(name); }
+function isOpenWod(name)      { return _OPEN_NAME_RE.test((name || '').trim()); }
+// Normalise "Open 25.1" → "25.1" so scores logged either way match the Open workout list
+function normaliseOpenName(name) { return (name || '').trim().replace(/^open\s+/i, ''); }
 
 const OPEN_WORKOUTS = [
   { name: '11.1', year: 2011, desc: 'AMRAP 10:\n30 Double-unders\n15 Power Snatches (75/55 lbs)', type: 'amrap' },
@@ -6679,7 +6685,7 @@ function renderLeaderboard() {
   });
 
   allEntries.forEach(e => {
-    const key = e.name || e.exercise || 'Unknown';
+    const key = normaliseOpenName(e.name || e.exercise || 'Unknown');
     if (!grouped[key]) grouped[key] = [];
     grouped[key].push(e);
   });
@@ -6745,18 +6751,21 @@ function renderLeaderboard() {
     </div>`;
   }).join('');
 
-  renderLbPermanentSection('dash-lb-benchmarks', 'Benchmark Results', e => isBenchmarkWod(e.name));
-  renderLbPermanentSection('dash-lb-open', 'Open Results', e => isOpenWod(e.name));
+  renderLbPermanentSection('dash-lb-heroes', 'Hero WODs', e => isHeroWod(e.name));
+  renderLbPermanentSection('dash-lb-girls', 'The Girls', e => isGirlsWod(e.name));
+  renderLbPermanentSection('dash-lb-other', 'Benchmark Workouts', e => isOtherBenchmarkWod(e.name));
+  renderLbPermanentSection('dash-lb-open', 'Open Workouts', e => isOpenWod(e.name));
 }
 
 function renderLbPermanentSection(elId, title, filterFn) {
   const el = document.getElementById(elId);
   if (!el) return;
-  if (!leaderboardCache) { el.innerHTML = ''; return; }
+  const sectionHeader = `<div style="margin-top:1.5rem;"><div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem;padding-bottom:0.4rem;border-bottom:1px solid var(--border);">${title}</div>`;
+  if (!leaderboardCache) { el.innerHTML = sectionHeader + `<div style="text-align:center;color:var(--muted);padding:1rem 0;font-size:0.8rem;">Loading…</div></div>`; return; }
   const wods = (leaderboardCache.wods || []).filter(e => filterFn(e));
-  if (!wods.length) { el.innerHTML = ''; return; }
+  if (!wods.length) { el.innerHTML = sectionHeader + `<div style="text-align:center;color:var(--muted);padding:1rem 0;font-size:0.8rem;">No results yet. Log a workout and share it on the leaderboard!</div></div>`; return; }
   const grouped = {};
-  wods.forEach(e => { const k = e.name || 'Unknown'; if (!grouped[k]) grouped[k] = []; grouped[k].push(e); });
+  wods.forEach(e => { const k = normaliseOpenName(e.name) || 'Unknown'; if (!grouped[k]) grouped[k] = []; grouped[k].push(e); });
   function scoreToNum(e) {
     const s = (e.score || '').toString().trim();
     if (/^\d+:\d{2}(:\d{2})?$/.test(s)) {
@@ -6766,9 +6775,8 @@ function renderLbPermanentSection(elId, title, filterFn) {
     const n = parseFloat(s.replace(/[^0-9.]/g, '')); return isNaN(n) ? 0 : n;
   }
   const ranks = ['gold','silver','bronze'];
-  el.innerHTML = `<div style="margin-top:1.5rem;">
-    <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem;padding-bottom:0.4rem;border-bottom:1px solid var(--border);">${title}</div>
-    ${Object.entries(grouped).sort(([a],[b])=>a.localeCompare(b)).map(([name, entries]) => {
+  el.innerHTML = sectionHeader +
+    `${Object.entries(grouped).sort(([a],[b])=>a.localeCompare(b)).map(([name, entries]) => {
       const sorted = [...entries].sort((a,b) => scoreToNum(b) - scoreToNum(a));
       return `<div class="card" style="margin-bottom:0.75rem;padding:0.85rem 1rem;">
         <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.8rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:0.5rem;">${name}</div>
@@ -6793,6 +6801,7 @@ function renderLbPermanentSection(elId, title, filterFn) {
 }
 
 async function deleteLeaderboardEntry(id) {
+
   if (!profile.name) { showToast('Log in first'); return; }
   const e = (window._lbEntries || {})[id];
   if (!e) { showToast('Entry not found — try refreshing'); return; }
@@ -7006,7 +7015,25 @@ function renderBenchmarkWorkouts() {
   const cardsHtml = workouts.map(w => {
     const safeName = w.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     const safeDesc = w.desc.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n');
-    return `<div class="card" style="padding:1rem;margin-bottom:0.65rem;">
+    const myScores = (state.wods || []).filter(wod => (wod.name || '').trim() === w.name)
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    const bestScore = myScores.length ? myScores.reduce((best, e) => {
+      const s = (e.score || '').toString().trim();
+      const b2 = (best.score || '').toString().trim();
+      const toN = sc => { if (/^\d+:\d{2}/.test(sc)) { const p=sc.split(':').map(Number); return -(p.length===3?p[0]*3600+p[1]*60+p[2]:p[0]*60+p[1]); } const n=parseFloat(sc); return isNaN(n)?0:n; };
+      return toN(s) > toN(b2) ? e : best;
+    }) : null;
+    const pct = bestScore ? calcBenchmarkPercentile(w.name, bestScore.score) : null;
+    const scoreHtml = myScores.length ? `
+      <div onclick="event.stopPropagation();showWorkoutHistory('${safeName}')"
+        style="margin-top:0.6rem;padding:0.5rem 0.65rem;border-top:1px solid var(--border);background:rgba(255,255,255,0.03);border-radius:0 0 4px 4px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:0.5rem;">
+        <div>
+          <div style="font-size:0.68rem;color:var(--muted);font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.15rem;">Your best · ${myScores.length} ${myScores.length===1?'entry':'entries'}</div>
+          <div style="font-size:0.9rem;color:var(--text);font-weight:600;">${bestScore.score || '—'}${bestScore.rx ? ' <span style="font-size:0.68rem;color:var(--muted);font-weight:400;">'+bestScore.rx.toUpperCase()+'</span>' : ''}${pct ? ' <span style="font-size:0.65rem;color:#fbbf24;font-family:\'Barlow Condensed\';font-weight:700;">~'+pct+'th %ile</span>' : ''}</div>
+        </div>
+        <div style="font-size:0.72rem;color:var(--red);font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.06em;text-transform:uppercase;flex-shrink:0;">View all ›</div>
+      </div>` : '';
+    return `<div class="card" style="padding:1rem;margin-bottom:0.65rem;padding-bottom:${myScores.length?'0':'1rem'};">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem;">
         <div style="flex:1;min-width:0;">
           <div style="font-family:'Bebas Neue';font-size:1.1rem;letter-spacing:0.05em;margin-bottom:0.35rem;">${w.name}</div>
@@ -7015,6 +7042,7 @@ function renderBenchmarkWorkouts() {
         <button class="btn btn-red btn-sm" style="flex-shrink:0;margin-top:0.2rem;"
           onclick="logBenchmarkWod('${safeName}','${safeDesc}','${w.type}')">LOG</button>
       </div>
+      ${scoreHtml}
     </div>`;
   }).join('');
   el.innerHTML = tabHtml + cardsHtml;
@@ -7030,8 +7058,24 @@ function renderOpenWorkouts() {
   </div>`;
   const filtered = openYearFilter === 'all' ? OPEN_WORKOUTS : OPEN_WORKOUTS.filter(w => w.year == openYearFilter);
   const cardsHtml = filtered.map(w => {
+    const safeName = w.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
     const safeDesc = w.desc.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n');
-    return `<div class="card" style="padding:1rem;margin-bottom:0.65rem;">
+    const myScores = (state.wods || []).filter(wod => normaliseOpenName(wod.name) === w.name)
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    const bestScore = myScores.length ? myScores.reduce((best, e) => {
+      const toN = sc => { const s=(sc||'').toString().trim(); if (/^\d+:\d{2}/.test(s)) { const p=s.split(':').map(Number); return -(p.length===3?p[0]*3600+p[1]*60+p[2]:p[0]*60+p[1]); } const n=parseFloat(s); return isNaN(n)?0:n; };
+      return toN(e.score) > toN(best.score) ? e : best;
+    }) : null;
+    const scoreHtml = myScores.length ? `
+      <div onclick="event.stopPropagation();showWorkoutHistory('${safeName}')"
+        style="margin-top:0.6rem;padding:0.5rem 0.65rem;border-top:1px solid var(--border);background:rgba(255,255,255,0.03);border-radius:0 0 4px 4px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:0.5rem;">
+        <div>
+          <div style="font-size:0.68rem;color:var(--muted);font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.15rem;">Your best · ${myScores.length} ${myScores.length===1?'entry':'entries'}</div>
+          <div style="font-size:0.9rem;color:var(--text);font-weight:600;">${bestScore.score || '—'}${bestScore.rx ? ' <span style="font-size:0.68rem;color:var(--muted);font-weight:400;">'+bestScore.rx.toUpperCase()+'</span>' : ''}</div>
+        </div>
+        <div style="font-size:0.72rem;color:var(--red);font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.06em;text-transform:uppercase;flex-shrink:0;">View all ›</div>
+      </div>` : '';
+    return `<div class="card" style="padding:1rem;margin-bottom:0.65rem;padding-bottom:${myScores.length?'0':'1rem'};">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem;">
         <div style="flex:1;min-width:0;">
           <div style="display:flex;align-items:baseline;gap:0.5rem;margin-bottom:0.35rem;">
@@ -7043,9 +7087,72 @@ function renderOpenWorkouts() {
         <button class="btn btn-red btn-sm" style="flex-shrink:0;margin-top:0.2rem;"
           onclick="logBenchmarkWod('${w.name}','${safeDesc}','${w.type}')">LOG</button>
       </div>
+      ${scoreHtml}
     </div>`;
   }).join('');
   el.innerHTML = yearHtml + cardsHtml;
+}
+
+function showWorkoutHistory(name) {
+  const toN = sc => { const s=(sc||'').toString().trim(); if (/^\d+:\d{2}(:\d{2})?$/.test(s)) { const p=s.split(':').map(Number); return -(p.length===3?p[0]*3600+p[1]*60+p[2]:p[0]*60+p[1]); } const n=parseFloat(s.replace(/[^0-9.]/g,'')); return isNaN(n)?0:n; };
+  const entries = (state.wods || []).filter(w => {
+    const n = (w.name || '').trim();
+    return n === name || normaliseOpenName(n) === name;
+  }).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const best = entries.length ? [...entries].sort((a,b) => toN(b.score) - toN(a.score))[0] : null;
+
+  let modal = document.getElementById('workoutHistoryModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'workoutHistoryModal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.85);display:flex;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto;';
+    document.body.appendChild(modal);
+  }
+
+  const safeName = name.replace(/'/g,"\\'");
+  const safeDesc = (() => {
+    const bm = [...BENCHMARK_WORKOUTS.heroes, ...BENCHMARK_WORKOUTS.girls, ...BENCHMARK_WORKOUTS.other].find(w => w.name === name);
+    const ow = OPEN_WORKOUTS.find(w => w.name === name);
+    const src = bm || ow;
+    return src ? src.desc.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n') : '';
+  })();
+  const wodType = (() => {
+    const bm = [...BENCHMARK_WORKOUTS.heroes, ...BENCHMARK_WORKOUTS.girls, ...BENCHMARK_WORKOUTS.other].find(w => w.name === name);
+    const ow = OPEN_WORKOUTS.find(w => w.name === name);
+    return (bm || ow)?.type || 'fortime';
+  })();
+
+  const rowsHtml = entries.length ? entries.map(e => {
+    const isBest = e === best;
+    const pct = calcBenchmarkPercentile(name, e.score);
+    return `<div style="display:flex;align-items:center;gap:0.75rem;padding:0.65rem 0;border-bottom:1px solid var(--border);">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:0.78rem;color:var(--muted);">${formatDate(e.date)}${e.rx ? ' · <span style="color:var(--text);">' + e.rx.toUpperCase() + '</span>' : ''}</div>
+        ${e.notes ? `<div style="font-size:0.72rem;color:var(--muted);font-style:italic;margin-top:0.15rem;white-space:pre-wrap;">${e.notes}</div>` : ''}
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div style="font-size:0.95rem;font-weight:600;color:${isBest ? '#fbbf24' : 'var(--text)'};">${e.score || '—'}${isBest ? ' ⭐' : ''}</div>
+        ${pct ? `<div style="font-size:0.6rem;color:#fbbf24;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.06em;text-transform:uppercase;">~${pct}th %ile</div>` : ''}
+      </div>
+    </div>`;
+  }).join('') : `<div style="text-align:center;color:var(--muted);padding:2rem;font-size:0.85rem;">No logged scores yet.<br><span style="font-size:0.75rem;">Tap LOG to record your first score!</span></div>`;
+
+  modal.innerHTML = `<div style="background:var(--dark);border:1px solid var(--border);border-radius:8px;width:100%;max-width:480px;margin:auto;overflow:hidden;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:1rem;border-bottom:1px solid var(--border);">
+      <div>
+        <div style="font-family:'Bebas Neue';font-size:1.3rem;letter-spacing:0.08em;">${name}</div>
+        <div style="font-size:0.72rem;color:var(--muted);">${entries.length} logged ${entries.length === 1 ? 'score' : 'scores'}</div>
+      </div>
+      <div style="display:flex;gap:0.5rem;align-items:center;">
+        ${safeDesc ? `<button class="btn btn-red btn-sm" onclick="logBenchmarkWod('${safeName}','${safeDesc}','${wodType}');document.getElementById('workoutHistoryModal').style.display='none'">+ LOG</button>` : ''}
+        <button onclick="document.getElementById('workoutHistoryModal').style.display='none'" style="background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer;padding:0.25rem;">&#x2715;</button>
+      </div>
+    </div>
+    <div style="padding:0 1rem 1rem;">${rowsHtml}</div>
+  </div>`;
+
+  modal.style.display = 'flex';
+  modal.onclick = e => { if (e.target === modal) modal.style.display = 'none'; };
 }
 
 function logBenchmarkWod(name, desc, type) {
