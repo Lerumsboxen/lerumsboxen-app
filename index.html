@@ -2370,19 +2370,27 @@ const DASH_SECTIONS = {
         <button data-lb-nav="next" id="lbNavNext" style="width:2rem;height:2rem;border-radius:4px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">›</button>
         <button onclick="clearLbDateFilter()" style="width:2rem;height:2rem;border-radius:4px;border:1px solid var(--border);background:var(--card);color:var(--muted);cursor:pointer;font-size:0.75rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;" title="Show all dates">✕</button>
       </div>
-      <div id="dash-leaderboard"></div>`;
+      <div id="dash-leaderboard"></div>
+      <div id="dash-lb-benchmarks" style="margin-top:0.25rem;"></div>
+      <div id="dash-lb-open" style="margin-top:0.25rem;"></div>`;
     }
   },
   challenges: {
-    render: () => { fetchChallenges(); },
+    render: () => {
+      if (challengeTab === 'benchmarks') { renderBenchmarkWorkouts(); fetchChallenges(); }
+      else if (challengeTab === 'open') { renderOpenWorkouts(); fetchChallenges(); }
+      else fetchChallenges();
+    },
     build: () => `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:0.75rem;">
         <div class="section-title" style="margin:0;flex:1;">Challenges</div>
         <button class="btn btn-red" onclick="openChallengeModal()">+ CREATE</button>
       </div>
-      <div style="display:flex;gap:0;margin-bottom:1.25rem;border-bottom:1px solid var(--border);">
-        <button id="ch-tab-inbox" onclick="switchChallengeTab('inbox')" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;padding:0.65rem 1.2rem;background:none;border:none;border-bottom:3px solid var(--red);color:var(--red);cursor:pointer;">Inbox</button>
-        <button id="ch-tab-sent" onclick="switchChallengeTab('sent')" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;padding:0.65rem 1.2rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;">Sent</button>
+      <div style="display:flex;gap:0;margin-bottom:1.25rem;border-bottom:1px solid var(--border);overflow-x:auto;">
+        <button id="ch-tab-inbox" onclick="switchChallengeTab('inbox')" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;padding:0.65rem 1.1rem;background:none;border:none;border-bottom:3px solid var(--red);color:var(--red);cursor:pointer;white-space:nowrap;">Inbox</button>
+        <button id="ch-tab-sent" onclick="switchChallengeTab('sent')" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;padding:0.65rem 1.1rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;white-space:nowrap;">Sent</button>
+        <button id="ch-tab-benchmarks" onclick="switchChallengeTab('benchmarks')" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;padding:0.65rem 1.1rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;white-space:nowrap;">Benchmarks</button>
+        <button id="ch-tab-open" onclick="switchChallengeTab('open')" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;padding:0.65rem 1.1rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;white-space:nowrap;">Open</button>
       </div>
       <div id="dash-challenges"></div>`
   },
@@ -6429,6 +6437,173 @@ function updateProfilePreview() {
   refreshAvatarPreviews();
 }
 
+// ===== BENCHMARK & OPEN WORKOUT DATA =====
+const BENCHMARK_WORKOUTS = {
+  heroes: [
+    { name: 'Murph',    desc: '1 mile Run\n100 Pull-ups\n200 Push-ups\n300 Air Squats\n1 mile Run\n\nFor Time (with 20/14 lb vest)', type: 'fortime' },
+    { name: 'Nate',     desc: 'AMRAP 20:\n2 Muscle-ups\n4 Handstand Push-ups\n8 KB Swings (70/53 lbs)', type: 'amrap' },
+    { name: 'DT',       desc: '5 Rounds for time:\n12 Deadlifts (155/105 lbs)\n9 Hang Power Cleans (155/105 lbs)\n6 Push Jerks (155/105 lbs)', type: 'fortime' },
+    { name: 'Tommy V',  desc: '21-15-9 for time:\nThrusters (115/75 lbs)\nRope Climbs (15 ft)', type: 'fortime' },
+    { name: 'Jack',     desc: 'AMRAP 20:\n10 Push Press (115/75 lbs)\n10 KB Swings (1.5 pood)\n10 Box Jumps (24")', type: 'amrap' },
+    { name: 'Michael',  desc: '3 Rounds for time:\n800m Run\n50 Back Extensions\n50 Sit-ups', type: 'fortime' },
+    { name: 'Randy',    desc: '75 Power Snatches (75/55 lbs)\nFor Time', type: 'fortime' },
+    { name: 'Ryan',     desc: '5 Rounds for time:\n7 Muscle-ups\n21 Burpees', type: 'fortime' },
+    { name: 'Danny',    desc: 'AMRAP 20:\n30 Box Jumps (24")\n20 Push Press (115/75 lbs)\n10 Pull-ups', type: 'amrap' },
+    { name: 'Whitten',  desc: '5 Rounds for time:\n22 KB Swings (1.5 pood)\n22 Box Jumps (24")\n400m Run\n22 Burpees\n22 Wall Balls (20/14 lbs)', type: 'fortime' },
+    { name: 'Josh',     desc: '21-15-9 for time:\nOHS (95/65 lbs)\nL-sit (leaning rest)', type: 'fortime' },
+    { name: 'Adam',     desc: '2 Rounds for time:\n50 Wall Balls (20/14 lbs)\n50 Double-unders\n40 Pull-ups\n40 Box Jumps (24")\n30 Hang Cleans (135/95 lbs)\n30 HSPU\n20 DB Lunges\n20 L Pull-ups', type: 'fortime' },
+  ],
+  girls: [
+    { name: 'Fran',      desc: '21-15-9 for time:\nThrusters (95/65 lbs)\nPull-ups', type: 'fortime' },
+    { name: 'Annie',     desc: '50-40-30-20-10 for time:\nDouble-unders\nSit-ups', type: 'fortime' },
+    { name: 'Barbara',   desc: '5 Rounds for time:\n20 Pull-ups\n30 Push-ups\n40 Sit-ups\n50 Air Squats\n(3 min rest between rounds)', type: 'fortime' },
+    { name: 'Cindy',     desc: 'AMRAP 20:\n5 Pull-ups\n10 Push-ups\n15 Air Squats', type: 'amrap' },
+    { name: 'Diane',     desc: '21-15-9 for time:\nDeadlifts (225/155 lbs)\nHandstand Push-ups', type: 'fortime' },
+    { name: 'Elizabeth', desc: '21-15-9 for time:\nCleans (135/95 lbs)\nRing Dips', type: 'fortime' },
+    { name: 'Eva',       desc: '5 Rounds for time:\n800m Run\n30 KB Swings (70/53 lbs)\n30 Pull-ups', type: 'fortime' },
+    { name: 'Grace',     desc: '30 Clean & Jerks (135/95 lbs)\nFor Time', type: 'fortime' },
+    { name: 'Helen',     desc: '3 Rounds for time:\n400m Run\n21 KB Swings (53/35 lbs)\n12 Pull-ups', type: 'fortime' },
+    { name: 'Isabel',    desc: '30 Snatches (135/95 lbs)\nFor Time', type: 'fortime' },
+    { name: 'Jackie',    desc: 'For time:\n1000m Row\n50 Thrusters (45/35 lbs)\n30 Pull-ups', type: 'fortime' },
+    { name: 'Karen',     desc: '150 Wall Balls (20/14 lbs)\nFor Time', type: 'fortime' },
+    { name: 'Kelly',     desc: '5 Rounds for time:\n400m Run\n30 Box Jumps (24/20")\n30 Wall Balls (20/14 lbs)', type: 'fortime' },
+    { name: 'Linda',     desc: '10-9-8-7-6-5-4-3-2-1 for time:\nDeadlift (1.5× BW)\nBench Press (BW)\nClean (0.75× BW)', type: 'fortime' },
+    { name: 'Mary',      desc: 'AMRAP 20:\n5 Handstand Push-ups\n10 Pistols\n15 Pull-ups', type: 'amrap' },
+    { name: 'Nancy',     desc: '5 Rounds for time:\n400m Run\n15 OHS (95/65 lbs)', type: 'fortime' },
+    { name: 'Nicole',    desc: 'AMRAP 20:\n400m Run\nMax Pull-ups', type: 'amrap' },
+    { name: 'Amanda',    desc: '9-7-5 for time:\nMuscle-ups\nSnatches (135/95 lbs)', type: 'fortime' },
+  ],
+  other: [
+    { name: 'Fight Gone Bad',   desc: '3 Rounds (1 min each station, 1 min rest):\nWall Balls (20/14 lbs)\nSumo DL High Pull (75/55 lbs)\nBox Jumps (20")\nPush Press (75/55 lbs)\nRow (calories)', type: 'amrap' },
+    { name: 'The Seven',        desc: '7 Rounds for time:\n7 HSPU\n7 Thrusters (135/95 lbs)\n7 Knees-to-elbows\n7 Deadlifts (245/165 lbs)\n7 Burpees\n7 KB Swings (70/53 lbs)\n7 Pull-ups', type: 'fortime' },
+    { name: 'Baseline',         desc: 'For time:\n500m Row\n40 Air Squats\n30 Sit-ups\n20 Push-ups\n10 Pull-ups', type: 'fortime' },
+    { name: 'Death by Pull-ups',desc: 'EMOM: 1 pull-up minute 1, 2 pull-ups minute 2…\nAdd 1 rep each minute until you cannot complete the reps.\nScore = last completed round.', type: 'emom' },
+    { name: 'Filthy 50',        desc: 'For time:\n50 Box Jumps (24")\n50 Jumping Pull-ups\n50 KB Swings (35 lbs)\n50 Walking Lunges\n50 Knees-to-elbows\n50 Push Press (45 lbs)\n50 Back Extensions\n50 Wall Balls (20 lbs)\n50 Burpees\n50 Double-unders', type: 'fortime' },
+  ]
+};
+
+const _ALL_BENCHMARK_NAMES = new Set([
+  ...BENCHMARK_WORKOUTS.heroes.map(w => w.name),
+  ...BENCHMARK_WORKOUTS.girls.map(w => w.name),
+  ...BENCHMARK_WORKOUTS.other.map(w => w.name)
+]);
+const _OPEN_NAME_RE = /^\d{2,4}\.\d+[a-z]?$/;
+function isBenchmarkWod(name) { return _ALL_BENCHMARK_NAMES.has(name); }
+function isOpenWod(name) { return _OPEN_NAME_RE.test((name || '').trim()); }
+
+const OPEN_WORKOUTS = [
+  { name: '11.1', year: 2011, desc: 'AMRAP 10:\n30 Double-unders\n15 Power Snatches (75/55 lbs)', type: 'amrap' },
+  { name: '11.2', year: 2011, desc: 'AMRAP 15:\n9 Deadlifts (155/100 lbs)\n12 Push-ups\n15 Box Jumps (24/20")', type: 'amrap' },
+  { name: '11.3', year: 2011, desc: 'AMRAP 5:\nSquat Clean & Jerk (165/110 lbs)', type: 'amrap' },
+  { name: '11.4', year: 2011, desc: 'AMRAP 10:\n60 Bar-facing Burpees\n30 OHS (120/90 lbs)\n10 Muscle-ups', type: 'amrap' },
+  { name: '11.5', year: 2011, desc: 'AMRAP 20:\n5 Power Cleans (145/100 lbs)\n10 Toes-to-bar\n15 Wall Balls (20/14 lbs)', type: 'amrap' },
+  { name: '11.6', year: 2011, desc: 'AMRAP 7:\n3-6-9… Thrusters (100/65 lbs) + C2B Pull-ups', type: 'amrap' },
+  { name: '12.1', year: 2012, desc: 'AMRAP 7:\nBurpees', type: 'amrap' },
+  { name: '12.2', year: 2012, desc: 'AMRAP 10:\nSnatch ladder 75→135→165→210 lbs (45→75→100→120 lbs)', type: 'amrap' },
+  { name: '12.3', year: 2012, desc: 'AMRAP 18:\n15 Box Jumps (24/20")\n12 Push Press (115/75 lbs)\n9 Toes-to-bar', type: 'amrap' },
+  { name: '12.4', year: 2012, desc: 'AMRAP 12:\n150 Wall Balls (20/14 lbs)\n90 Double-unders\n30 Muscle-ups', type: 'amrap' },
+  { name: '12.5', year: 2012, desc: 'AMRAP 7:\n3-6-9… Thrusters (100/65 lbs) + C2B Pull-ups', type: 'amrap' },
+  { name: '13.1', year: 2013, desc: 'AMRAP 17:\n40 Burpees → 30 Snatches (75/45) → 30 Burpees → 30 Snatches (135/75) → 20 Burpees → 30 Snatches (165/100) → 10 Burpees → Max Snatches (210/120)', type: 'amrap' },
+  { name: '13.2', year: 2013, desc: 'AMRAP 10:\n5 S2OH (115/75 lbs)\n10 Deadlifts (115/75 lbs)\n15 Box Jumps (24/20")', type: 'amrap' },
+  { name: '13.3', year: 2013, desc: 'AMRAP 12:\n150 Wall Balls (20/14 lbs)\n90 Double-unders\n30 Muscle-ups', type: 'amrap' },
+  { name: '13.4', year: 2013, desc: 'AMRAP 7:\n3-6-9… Clean & Jerks (135/95 lbs) + Toes-to-bar', type: 'amrap' },
+  { name: '13.5', year: 2013, desc: 'Increasing AMRAP:\n15 Thrusters (100/65) + 15 C2B — extend 4 min each 90/180 reps', type: 'amrap' },
+  { name: '14.1', year: 2014, desc: 'AMRAP 10:\n30 Double-unders\n15 Power Snatches (75/55 lbs)', type: 'amrap' },
+  { name: '14.2', year: 2014, desc: 'Every 3 min (AMRAP):\n10 OHS (95/65 lbs) + 10 C2B (add 2 reps per movement each round)', type: 'amrap' },
+  { name: '14.3', year: 2014, desc: 'AMRAP 8:\n10-15-20-25-30 Deadlifts at increasing weights\n15 Box Jumps (24/20") between each set', type: 'amrap' },
+  { name: '14.4', year: 2014, desc: 'AMRAP 14:\n60 Cal Row\n50 Toes-to-bar\n40 Wall Balls (20/14 lbs)\n30 Cleans (135/95 lbs)\n20 Muscle-ups', type: 'amrap' },
+  { name: '14.5', year: 2014, desc: '21-18-15-12-9-6-3 for time:\nThrusters (95/65 lbs)\nBar-facing Burpees', type: 'fortime' },
+  { name: '15.1', year: 2015, desc: 'AMRAP 9:\n15 Toes-to-bar\n10 Deadlifts (115/75 lbs)\n5 Snatches (115/75 lbs)', type: 'amrap' },
+  { name: '15.2', year: 2015, desc: 'AMRAP 6 (extending):\n2-4-6… OHS (95/65 lbs) + 4-8-12… C2B Pull-ups', type: 'amrap' },
+  { name: '15.3', year: 2015, desc: 'AMRAP 14:\n7 Muscle-ups\n50 Wall Balls (20/14 lbs)\n100 Double-unders', type: 'amrap' },
+  { name: '15.4', year: 2015, desc: 'AMRAP 8:\n3-6-9… HSPU + 3 Cleans (185/125 lbs) per round', type: 'amrap' },
+  { name: '15.5', year: 2015, desc: '27-21-15-9 for time:\nRow (calories)\nThrusters (95/65 lbs)', type: 'fortime' },
+  { name: '16.1', year: 2016, desc: 'AMRAP 20:\n25 ft OH Walking Lunge (95/65 lbs)\n8 Bar Muscle-ups (×2 each round)', type: 'amrap' },
+  { name: '16.2', year: 2016, desc: 'Increasing AMRAP:\n25 TTB + 50 DU + 15 Squat Cleans (135/85) → heavier cleans each extension', type: 'amrap' },
+  { name: '16.3', year: 2016, desc: 'AMRAP 7:\n10 Power Snatches (75/55 lbs)\n3 Bar Muscle-ups', type: 'amrap' },
+  { name: '16.4', year: 2016, desc: 'AMRAP 13:\n55 Deadlifts (225/155 lbs)\n55 Wall Balls (20/14 lbs)\n55 Cal Row\n55 HSPU', type: 'amrap' },
+  { name: '16.5', year: 2016, desc: '21-18-15-12-9-6-3 for time:\nThrusters (95/65 lbs)\nBar-facing Burpees', type: 'fortime' },
+  { name: '17.1', year: 2017, desc: 'AMRAP 20:\n10 DB Snatches (50/35 lbs)\n15 Burpee Box Jump-overs (24/20")', type: 'amrap' },
+  { name: '17.2', year: 2017, desc: 'AMRAP 12:\n2-4-6-8… TTB + 2-4-6-8… DB Hang C&J (50/35 lbs)\n+50 ft DB Walking Lunges each round', type: 'amrap' },
+  { name: '17.3', year: 2017, desc: 'AMRAP 8:\nPower Snatch ladder (95→135→185→225→245 lbs)\n3 C2B Pull-ups before each weight', type: 'amrap' },
+  { name: '17.4', year: 2017, desc: 'For time:\n55 Deadlifts (225/155 lbs)\n55 Wall Balls (20/14 lbs)\n55 Cal Row\n55 HSPU\n(13 min cap)', type: 'fortime' },
+  { name: '17.5', year: 2017, desc: 'AMRAP 10:\n9 Thrusters (95/65 lbs)\n35 Double-unders', type: 'amrap' },
+  { name: '18.1', year: 2018, desc: 'AMRAP 20:\n8 Toes-to-bar\n10 DB Hang C&J (50/35 lbs)\n14/12 cal Row', type: 'amrap' },
+  { name: '18.2', year: 2018, desc: '1-2-3…10 Squat Cleans (185/125 lbs)\n8 Bar Muscle-ups after each set\n(12 min cap)', type: 'fortime' },
+  { name: '18.3', year: 2018, desc: 'AMRAP 14:\n100 DU → 20 OHS (115/80) → 100 DU → 12 Ring MU → 100 DU → 20 DB Snatches (50/35) → 100 DU → 12 Bar MU', type: 'amrap' },
+  { name: '18.4', year: 2018, desc: 'For time:\n21-15-9 Deadlifts (225/155) + HSPU\nthen 21-15-9 Deadlifts (315/205) + HR Push-ups\n(9 min cap)', type: 'fortime' },
+  { name: '18.5', year: 2018, desc: 'AMRAP 7:\n3-6-9… Thrusters (100/65 lbs) + C2B Pull-ups', type: 'amrap' },
+  { name: '19.1', year: 2019, desc: 'AMRAP 15:\n19 Wall Balls (20/14 lbs)\n19 Cal Row', type: 'amrap' },
+  { name: '19.2', year: 2019, desc: 'AMRAP 8 (extending every 8 min):\n25 TTB\n50 Double-unders\n15 Squat Cleans (135/85)', type: 'amrap' },
+  { name: '19.3', year: 2019, desc: 'For time:\n200 ft DB OH Walking Lunge (50/35)\n50 DB Box Step-overs (50/35, 24/20")\n50 Strict HSPU\n200 ft Handstand Walk\n(10 min cap)', type: 'fortime' },
+  { name: '19.4', year: 2019, desc: 'For time:\n3 Rounds: 10 Pistols + 12 HSPU + 15 Pull-ups\n+ Max Double-unders\n(12 min cap)', type: 'fortime' },
+  { name: '19.5', year: 2019, desc: '33-27-21-15-9 for time:\nThrusters (95/65 lbs)\nC2B Pull-ups\n(20 min cap)', type: 'fortime' },
+  { name: '20.1', year: 2020, desc: 'AMRAP 10:\n4 DB Hang C&J (50/35 lbs)\n6 Burpees over rower\n24 Cal Row', type: 'amrap' },
+  { name: '20.2', year: 2020, desc: 'AMRAP 20:\n4 DB Thrusters (50/35 lbs)\n6 TTB\n24 Double-unders', type: 'amrap' },
+  { name: '20.3', year: 2020, desc: 'For time:\n21-18-15 Ring Muscle-ups + Power Snatches (225/150 → 185/125 → 135/85 lbs)\n(9 min cap)', type: 'fortime' },
+  { name: '20.4', year: 2020, desc: 'For time:\n30 Box Jumps + C&J ladder (95→135→185→225→275 lbs, 15-15-10-10-5 reps)\n(20 min cap)', type: 'fortime' },
+  { name: '21.1', year: 2021, desc: 'AMRAP 15:\n1 Wall Walk\n10 DB Box Step-overs (50/35, 24/20")\n14 Cal Row', type: 'amrap' },
+  { name: '21.2', year: 2021, desc: 'AMRAP 20:\n95 Double-unders\n10 TTB\n10 DB Power Cleans (50/35)\n200m Run', type: 'amrap' },
+  { name: '21.3', year: 2021, desc: 'For time:\n1-10 Front Squat ladder (165/110 lbs)\n+1 Bar MU between each set\n(15 min cap)', type: 'fortime' },
+  { name: '21.4', year: 2021, desc: 'For time:\n30 C2B + 30 PC (155/105) + 1 mile Run + 100 Pull-ups + 100 Thrusters (45/35)\n(30 min cap)', type: 'fortime' },
+  { name: '22.1', year: 2022, desc: 'AMRAP 15:\n3 Wall Walks\n12 DB Snatches (50/35 lbs)\n15 Box Jump-overs (24/20")', type: 'amrap' },
+  { name: '22.2', year: 2022, desc: 'For time:\n1-10 Squat Snatch ladder (165/110 lbs)\n10 Bar MU after each set\n(8 min cap)', type: 'fortime' },
+  { name: '22.3', year: 2022, desc: 'AMRAP 12:\n1 Legless Rope Climb\n6 Thrusters (115/75 lbs)\n6 C2B Pull-ups (increasing ladder)', type: 'amrap' },
+  { name: '23.1', year: 2023, desc: 'AMRAP 14:\n60 Cal Row\n50 TTB\n40 Wall Balls (20/14 lbs)\n30 Cleans (135/95 lbs)\n20 Ring Muscle-ups', type: 'amrap' },
+  { name: '23.2', year: 2023, desc: 'For time:\n1000m Row\n50 Thrusters (45/35 lbs)\n30 Pull-ups\n(12 min cap)', type: 'fortime' },
+  { name: '23.3', year: 2023, desc: 'AMRAP 12:\nThrusters + C2B Pull-ups at increasing weights per segment', type: 'amrap' },
+  { name: '24.1', year: 2024, desc: 'AMRAP 15:\n3 Wall Walks\n12 DB Snatches (50/35 lbs)\n15 Box Jump-overs (24/20")', type: 'amrap' },
+  { name: '24.2', year: 2024, desc: 'For time:\n21-15-9:\nThrusters (95/65 lbs)\nBar Muscle-ups\n(9 min cap)', type: 'fortime' },
+  { name: '24.3', year: 2024, desc: 'AMRAP 20:\nRow calories + DB S2OH (50/35) + Box Step-overs + TTB + DB Deadlifts', type: 'amrap' },
+];
+
+// Approximate community percentile brackets (not from BTWB — based on general CrossFit community data)
+// fortime: p90/p75/p50/p25/p10 = seconds at each cutoff (lower time = better)
+// amrap:   p90/p75/p50/p25/p10 = rounds at each cutoff (higher rounds = better)
+const BENCHMARK_PERCENTILES = {
+  'Fran':     { type:'fortime', p90:120,  p75:195,  p50:300,  p25:450,  p10:600  },
+  'Grace':    { type:'fortime', p90:55,   p75:90,   p50:150,  p25:210,  p10:300  },
+  'Helen':    { type:'fortime', p90:570,  p75:660,  p50:780,  p25:900,  p10:1080 },
+  'Diane':    { type:'fortime', p90:120,  p75:175,  p50:270,  p25:390,  p10:540  },
+  'Karen':    { type:'fortime', p90:420,  p75:540,  p50:720,  p25:900,  p10:1200 },
+  'Isabel':   { type:'fortime', p90:75,   p75:120,  p50:190,  p25:280,  p10:390  },
+  'Nancy':    { type:'fortime', p90:600,  p75:720,  p50:900,  p25:1080, p10:1320 },
+  'Jackie':   { type:'fortime', p90:360,  p75:450,  p50:600,  p25:780,  p10:960  },
+  'Annie':    { type:'fortime', p90:420,  p75:570,  p50:780,  p25:1020, p10:1320 },
+  'Amanda':   { type:'fortime', p90:90,   p75:135,  p50:210,  p25:330,  p10:480  },
+  'Murph':    { type:'fortime', p90:2520, p75:2880, p50:3360, p25:3900, p10:4500 },
+  'DT':       { type:'fortime', p90:270,  p75:360,  p50:480,  p25:630,  p10:810  },
+  'Randy':    { type:'fortime', p90:150,  p75:210,  p50:300,  p25:420,  p10:570  },
+  'Cindy':    { type:'amrap',   p90:25,   p75:22,   p50:18,   p25:15,   p10:12   },
+  'Mary':     { type:'amrap',   p90:25,   p75:20,   p50:15,   p25:12,   p10:9    },
+  'Nate':     { type:'amrap',   p90:18,   p75:15,   p50:12,   p25:9,    p10:6    },
+};
+
+function _parseScoreToSecs(score) {
+  const s = (score || '').toString().trim();
+  const parts = s.split(':').map(Number);
+  if (parts.length < 2 || parts.some(isNaN)) return null;
+  return parts.length === 3 ? parts[0]*3600 + parts[1]*60 + parts[2] : parts[0]*60 + parts[1];
+}
+
+function calcBenchmarkPercentile(name, score) {
+  const d = BENCHMARK_PERCENTILES[name];
+  if (!d || !score) return null;
+  if (d.type === 'fortime') {
+    const s = _parseScoreToSecs(score);
+    if (!s) return null;
+    if (s <= d.p90) return 90; if (s <= d.p75) return 75;
+    if (s <= d.p50) return 50; if (s <= d.p25) return 25; return 10;
+  }
+  if (d.type === 'amrap') {
+    const r = parseInt(score);
+    if (isNaN(r)) return null;
+    if (r >= d.p90) return 90; if (r >= d.p75) return 75;
+    if (r >= d.p50) return 50; if (r >= d.p25) return 25; return 10;
+  }
+  return null;
+}
+
 // ===== LEADERBOARD =====
 let leaderboardCache = null;
 let leaderboardLoading = false;
@@ -6557,7 +6732,10 @@ function renderLeaderboard() {
             <div class="member-name">${e.memberName || 'Anonymous'}</div>
             <div class="member-meta">${formatDate(e.date)} ${e.rx ? '· ' + e.rx.toUpperCase() : ''}</div>
           </div>
-          <div class="member-score">${e._type === 'strength' ? (dispWeight || '—') : (e.score || '—')}</div>
+          <div style="margin-left:auto;flex-shrink:0;text-align:right;">
+            <div class="member-score" style="margin-left:0;">${e._type === 'strength' ? (dispWeight || '—') : (e.score || '—')}</div>
+            ${e._type === 'wod' && calcBenchmarkPercentile(e.name, e.score) ? `<div style="font-size:0.6rem;color:#fbbf24;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.06em;text-transform:uppercase;">~${calcBenchmarkPercentile(e.name, e.score)}th %ile</div>` : ''}
+          </div>
           ${e.memberName === profile.name ? `
           <button onclick="deleteLeaderboardEntry('${e.id}')"
             title="Remove from leaderboard"
@@ -6566,6 +6744,52 @@ function renderLeaderboard() {
         </div>`}).join('')}
     </div>`;
   }).join('');
+
+  renderLbPermanentSection('dash-lb-benchmarks', 'Benchmark Results', e => isBenchmarkWod(e.name));
+  renderLbPermanentSection('dash-lb-open', 'Open Results', e => isOpenWod(e.name));
+}
+
+function renderLbPermanentSection(elId, title, filterFn) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (!leaderboardCache) { el.innerHTML = ''; return; }
+  const wods = (leaderboardCache.wods || []).filter(e => filterFn(e));
+  if (!wods.length) { el.innerHTML = ''; return; }
+  const grouped = {};
+  wods.forEach(e => { const k = e.name || 'Unknown'; if (!grouped[k]) grouped[k] = []; grouped[k].push(e); });
+  function scoreToNum(e) {
+    const s = (e.score || '').toString().trim();
+    if (/^\d+:\d{2}(:\d{2})?$/.test(s)) {
+      const parts = s.split(':').map(Number);
+      return -(parts.length === 3 ? parts[0]*3600 + parts[1]*60 + parts[2] : parts[0]*60 + parts[1]);
+    }
+    const n = parseFloat(s.replace(/[^0-9.]/g, '')); return isNaN(n) ? 0 : n;
+  }
+  const ranks = ['gold','silver','bronze'];
+  el.innerHTML = `<div style="margin-top:1.5rem;">
+    <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem;padding-bottom:0.4rem;border-bottom:1px solid var(--border);">${title}</div>
+    ${Object.entries(grouped).sort(([a],[b])=>a.localeCompare(b)).map(([name, entries]) => {
+      const sorted = [...entries].sort((a,b) => scoreToNum(b) - scoreToNum(a));
+      return `<div class="card" style="margin-bottom:0.75rem;padding:0.85rem 1rem;">
+        <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.8rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:0.5rem;">${name}</div>
+        ${sorted.map((e,i) => {
+          const pct = calcBenchmarkPercentile(e.name, e.score);
+          return `<div class="member-row" style="position:relative;">
+            <div class="rank-badge ${ranks[i]||''}">${i+1}</div>
+            <div style="width:2rem;height:2rem;border-radius:50%;background:var(--red);display:flex;align-items:center;justify-content:center;font-size:1rem;overflow:hidden;flex-shrink:0;">${e.avatar||'💪'}</div>
+            <div>
+              <div class="member-name">${e.memberName||'Anonymous'}</div>
+              <div class="member-meta">${formatDate(e.date)}${e.rx?' · '+e.rx.toUpperCase():''}</div>
+            </div>
+            <div style="margin-left:auto;flex-shrink:0;text-align:right;">
+              <div class="member-score" style="margin-left:0;">${e.score||'—'}</div>
+              ${pct?`<div style="font-size:0.6rem;color:#fbbf24;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.06em;text-transform:uppercase;">~${pct}th %ile</div>`:''}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+    }).join('')}
+  </div>`;
 }
 
 async function deleteLeaderboardEntry(id) {
@@ -6692,17 +6916,21 @@ let challengesCache = null;
 
 function switchChallengeTab(tab) {
   challengeTab = tab;
-  ['inbox','sent'].forEach(t => {
+  ['inbox','sent','benchmarks','open'].forEach(t => {
     const btn = document.getElementById('ch-tab-' + t);
     if (!btn) return;
     const active = t === tab;
     btn.style.color = active ? 'var(--red)' : 'var(--muted)';
     btn.style.borderBottom = active ? '3px solid var(--red)' : '3px solid transparent';
   });
-  renderChallenges();
+  if (tab === 'benchmarks') renderBenchmarkWorkouts();
+  else if (tab === 'open') renderOpenWorkouts();
+  else if (!challengesCache) fetchChallenges();
+  else renderChallenges();
 }
 
 function renderChallenges() {
+  if (challengeTab === 'benchmarks' || challengeTab === 'open') return;
   const el = document.getElementById('dash-challenges');
   if (!el) return;
   if (!challengesCache) { el.innerHTML = '<div style="text-align:center;color:var(--muted);padding:2rem;">Loading…</div>'; return; }
@@ -6745,16 +6973,92 @@ function renderChallenges() {
 
 async function fetchChallenges() {
   const el = document.getElementById('dash-challenges');
-  if (el) el.innerHTML = '<div style="text-align:center;color:var(--muted);padding:2rem;">Loading challenges…</div>';
+  const showDom = (challengeTab === 'inbox' || challengeTab === 'sent');
+  if (showDom && el) el.innerHTML = '<div style="text-align:center;color:var(--muted);padding:2rem;">Loading challenges…</div>';
   try {
     const data = await xhrPost(APPS_SCRIPT_URL, { action: 'getChallenges', memberName: profile.name || '' });
     if (data.error) throw new Error(data.error);
     challengesCache = data;
-    renderChallenges();
+    renderChallenges(); // no-ops if on benchmarks/open tab
     updateChallengeBadge();
   } catch(e) {
-    if (el) el.innerHTML = `<div style="text-align:center;color:var(--muted);padding:2rem;">Could not load challenges.<br><small>${e.message}</small></div>`;
+    if (showDom && el) el.innerHTML = `<div style="text-align:center;color:var(--muted);padding:2rem;">Could not load challenges.<br><small>${e.message}</small></div>`;
   }
+}
+
+// ===== BENCHMARK / OPEN WORKOUT RENDERERS =====
+let benchmarkSubTab = 'heroes';
+let openYearFilter = 'all';
+
+function renderBenchmarkWorkouts() {
+  const el = document.getElementById('dash-challenges');
+  if (!el) return;
+  const tabs = [
+    { id: 'heroes', label: 'Hero WODs' },
+    { id: 'girls',  label: 'The Girls' },
+    { id: 'other',  label: 'Benchmarks' },
+  ];
+  const tabHtml = `<div style="display:flex;gap:0;margin-bottom:1rem;border-bottom:1px solid var(--border);">
+    ${tabs.map(t => `<button id="bsub-${t.id}" onclick="benchmarkSubTab='${t.id}';renderBenchmarkWorkouts()"
+      style="font-family:'Barlow Condensed';font-weight:700;font-size:0.8rem;letter-spacing:0.1em;text-transform:uppercase;padding:0.55rem 1rem;background:none;border:none;border-bottom:3px solid ${benchmarkSubTab===t.id?'var(--red)':'transparent'};color:${benchmarkSubTab===t.id?'var(--red)':'var(--muted)'};cursor:pointer;white-space:nowrap;">${t.label}</button>`).join('')}
+  </div>`;
+  const workouts = BENCHMARK_WORKOUTS[benchmarkSubTab] || [];
+  const cardsHtml = workouts.map(w => {
+    const safeName = w.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    const safeDesc = w.desc.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n');
+    return `<div class="card" style="padding:1rem;margin-bottom:0.65rem;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-family:'Bebas Neue';font-size:1.1rem;letter-spacing:0.05em;margin-bottom:0.35rem;">${w.name}</div>
+          <div style="font-size:0.78rem;color:var(--muted);white-space:pre-wrap;line-height:1.5;">${w.desc}</div>
+        </div>
+        <button class="btn btn-red btn-sm" style="flex-shrink:0;margin-top:0.2rem;"
+          onclick="logBenchmarkWod('${safeName}','${safeDesc}','${w.type}')">LOG</button>
+      </div>
+    </div>`;
+  }).join('');
+  el.innerHTML = tabHtml + cardsHtml;
+}
+
+function renderOpenWorkouts() {
+  const el = document.getElementById('dash-challenges');
+  if (!el) return;
+  const years = ['all', ...[...new Set(OPEN_WORKOUTS.map(w => w.year))].sort((a,b)=>b-a)];
+  const yearHtml = `<div style="display:flex;gap:0.35rem;flex-wrap:wrap;margin-bottom:1rem;">
+    ${years.map(y => `<button onclick="openYearFilter='${y}';renderOpenWorkouts()"
+      style="font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.08em;text-transform:uppercase;padding:0.28rem 0.65rem;background:${openYearFilter==y?'var(--red)':'var(--card)'};color:${openYearFilter==y?'#fff':'var(--muted)'};border:1px solid ${openYearFilter==y?'var(--red)':'var(--border)'};border-radius:3px;cursor:pointer;white-space:nowrap;">${y==='all'?'All':y}</button>`).join('')}
+  </div>`;
+  const filtered = openYearFilter === 'all' ? OPEN_WORKOUTS : OPEN_WORKOUTS.filter(w => w.year == openYearFilter);
+  const cardsHtml = filtered.map(w => {
+    const safeDesc = w.desc.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n');
+    return `<div class="card" style="padding:1rem;margin-bottom:0.65rem;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem;">
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:baseline;gap:0.5rem;margin-bottom:0.35rem;">
+            <span style="font-family:'Bebas Neue';font-size:1.1rem;letter-spacing:0.05em;">${w.name}</span>
+            <span style="font-size:0.68rem;color:var(--muted);font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">${w.year} Open</span>
+          </div>
+          <div style="font-size:0.78rem;color:var(--muted);white-space:pre-wrap;line-height:1.5;">${w.desc}</div>
+        </div>
+        <button class="btn btn-red btn-sm" style="flex-shrink:0;margin-top:0.2rem;"
+          onclick="logBenchmarkWod('${w.name}','${safeDesc}','${w.type}')">LOG</button>
+      </div>
+    </div>`;
+  }).join('');
+  el.innerHTML = yearHtml + cardsHtml;
+}
+
+function logBenchmarkWod(name, desc, type) {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('wodDate').value = today;
+  document.getElementById('wodName').value = name;
+  document.getElementById('wodDesc').value = desc;
+  document.getElementById('wodType').value = type || 'fortime';
+  document.getElementById('wodScore').value = '';
+  document.getElementById('wodNotes').value = '';
+  const shareEl = document.getElementById('wodShare');
+  if (shareEl) shareEl.checked = true;
+  openWodModalDisplay();
 }
 
 // ===== MEMBERS SECTION =====
