@@ -1519,6 +1519,17 @@
     return json({wods:wods,strength:strength,prs:prs});
   }
 
+  if (action === "getCustomMovements") {
+    var sheetName = e.parameter.sheet || "Movements";
+    var sheet = ss.getSheetByName(sheetName);
+    if (!sheet) return json({movements: [], error: "Sheet '" + sheetName + "' not found"});
+    var lastRow = sheet.getLastRow();
+    if (lastRow < 1) return json({movements: []});
+    var vals = sheet.getRange(1, 1, lastRow, 1).getValues();
+    var movements = vals.map(function(r){ return (r[0]||"").toString().trim(); }).filter(function(v){ return v.length > 0; });
+    return json({movements: movements});
+  }
+
   return json({error: "Unknown action"});
 }
 
@@ -1588,7 +1599,7 @@ function json(obj) {
       </div>
 
       <!-- PRs -->
-      <div style="border:1px solid rgba(34,197,94,0.2);border-radius:3px;padding:1rem;">
+      <div style="border:1px solid rgba(34,197,94,0.2);border-radius:3px;padding:1rem;margin-bottom:0.75rem;">
         <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.8rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--success);margin-bottom:0.75rem;">🏆 Personal Records</div>
         <div class="form-group" style="margin-bottom:0.75rem;">
           <label>Sheet Tab Name</label>
@@ -1599,6 +1610,22 @@ function json(obj) {
           <button class="btn btn-ghost btn-sm" onclick="pullSheet('prs')">⬇ PULL</button>
         </div>
         <div id="syncStatus-prs" style="margin-top:0.6rem;font-size:0.8rem;color:var(--muted);font-family:'Barlow Condensed';letter-spacing:0.05em;min-height:1.2em;"></div>
+      </div>
+
+      <!-- Custom Movements -->
+      <div style="border:1px solid rgba(96,165,250,0.25);border-radius:3px;padding:1rem;">
+        <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.8rem;letter-spacing:0.15em;text-transform:uppercase;color:#60a5fa;margin-bottom:0.5rem;">💡 Custom Movements</div>
+        <p style="font-size:0.78rem;color:var(--muted);margin-bottom:0.75rem;line-height:1.5;">
+          Add a sheet tab named <strong style="color:var(--text);">Movements</strong> to your spreadsheet. Put one movement per row in column A. These will be selectable in all workout builders and the strength picker, but won't appear in the Movements library.
+        </p>
+        <div class="form-group" style="margin-bottom:0.75rem;">
+          <label>Sheet Tab Name</label>
+          <input type="text" id="sheetCustomMovements" value="Movements" placeholder="e.g. Movements"
+            oninput="localStorage.setItem('lerums_sheet_custom_movements', this.value.trim())">
+        </div>
+        <button class="btn btn-sm" style="background:#60a5fa;color:#000;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:2px;cursor:pointer;" onclick="fetchCustomMovements()">⬇ SYNC MOVEMENTS</button>
+        <div id="syncStatus-customMovements" style="margin-top:0.6rem;font-size:0.8rem;color:var(--muted);font-family:'Barlow Condensed';letter-spacing:0.05em;min-height:1.2em;"></div>
+        <div id="customMovementsList" style="margin-top:0.5rem;"></div>
       </div>
     </div>
 
@@ -1845,6 +1872,7 @@ let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
 };
 // migrate older saves
 if (!state.strength) state.strength = [];
+if (!state.customMovements) state.customMovements = [];
 if (!state.dailyProgram) state.dailyProgram = {};
 
 // ===== HARDCODED WEB APP URL =====
@@ -2843,7 +2871,9 @@ function filterStrMovementDropdown() {
   const dd = document.getElementById('strMovementDropdown');
   if (!input || !dd) return;
   const q = input.value.toLowerCase().trim();
-  const matches = q ? MOVEMENTS.filter(m => m.toLowerCase().includes(q)) : MOVEMENTS;
+  const custom = state.customMovements || [];
+  const allMov = custom.length ? [...MOVEMENTS, ...custom.filter(m => !MOVEMENTS.includes(m))] : MOVEMENTS;
+  const matches = q ? allMov.filter(m => m.toLowerCase().includes(q)) : allMov;
   if (!matches.length) { dd.style.display = 'none'; return; }
   dd.style.display = 'block';
   dd.innerHTML = matches.map(m => `
@@ -2999,7 +3029,9 @@ function filterWDd(rid, listFlag) {
   const dd = document.getElementById('wdd-' + rid);
   if (!input || !dd) return;
   const q = input.value.toLowerCase().trim();
-  const list = (listFlag === 'rest') ? MOVEMENTS_WITH_REST : BUILDER_MOVEMENTS;
+  const custom = state.customMovements || [];
+  const base = (listFlag === 'rest') ? MOVEMENTS_WITH_REST : BUILDER_MOVEMENTS;
+  const list = custom.length ? [...base, ...custom.filter(m => !base.includes(m))] : base;
   const matches = q ? list.filter(m => m.toLowerCase().includes(q)) : list;
   if (!matches.length) { dd.style.display = 'none'; return; }
   dd.style.display = 'block';
@@ -3722,14 +3754,23 @@ function updateSyncSummary() {
   const p = document.getElementById('sumPRs'); if (p) p.textContent = state.prs.length;
   const ls = localStorage.getItem('lerums_last_sync') || 'Never';
   const t = document.getElementById('sumLastSync'); if (t) t.textContent = ls;
-  // Restore program settings into form
   loadProgramSettings();
-  // Show last program sync status
   const lastProg = localStorage.getItem('lb_lerums_program_last_sync');
   const progStatus = document.getElementById('programSyncStatus');
   if (progStatus && lastProg) {
     progStatus.textContent = '✓ Last synced: ' + lastProg;
     progStatus.style.color = 'var(--success)';
+  }
+  // Restore custom movements sheet tab name
+  const cmTab = document.getElementById('sheetCustomMovements');
+  if (cmTab) cmTab.value = localStorage.getItem('lerums_sheet_custom_movements') || 'Movements';
+  // Show already-synced custom movements
+  renderCustomMovementsList();
+  const cmCount = (state.customMovements || []).length;
+  const cmStatus = document.getElementById('syncStatus-customMovements');
+  if (cmStatus && cmCount > 0) {
+    cmStatus.textContent = `✓ ${cmCount} custom movement${cmCount !== 1 ? 's' : ''} loaded`;
+    cmStatus.style.color = 'var(--success)';
   }
 }
 
@@ -4508,6 +4549,41 @@ async function diagProgramSync() {
   } catch(e) {
     if (statusEl) { statusEl.textContent = '✗ ' + e.message; statusEl.style.color = 'var(--red)'; }
   }
+}
+
+async function fetchCustomMovements() {
+  const scriptUrl = localStorage.getItem('lerums_apps_script_url') || '';
+  if (!scriptUrl) { showToast('Set your Web App URL first'); return; }
+  const sheetName = document.getElementById('sheetCustomMovements')?.value.trim()
+    || localStorage.getItem('lerums_sheet_custom_movements') || 'Movements';
+  const statusEl = document.getElementById('syncStatus-customMovements');
+  if (statusEl) { statusEl.textContent = 'Syncing…'; statusEl.style.color = 'var(--muted)'; }
+  try {
+    const data = await xhrPost(scriptUrl, { action: 'getCustomMovements', sheet: sheetName });
+    if (data.error && !data.movements) throw new Error(data.error);
+    const movements = (data.movements || []).filter(m => m && m.trim());
+    state.customMovements = movements;
+    save();
+    renderCustomMovementsList();
+    const msg = movements.length
+      ? `✓ ${movements.length} custom movement${movements.length !== 1 ? 's' : ''} loaded`
+      : `✓ Synced — sheet "${sheetName}" is empty`;
+    if (statusEl) { statusEl.textContent = msg; statusEl.style.color = 'var(--success)'; }
+    showToast(`Custom movements synced! (${movements.length})`);
+  } catch(e) {
+    if (statusEl) { statusEl.textContent = '✗ ' + e.message; statusEl.style.color = 'var(--red)'; }
+    showToast('Sync failed: ' + e.message);
+  }
+}
+
+function renderCustomMovementsList() {
+  const el = document.getElementById('customMovementsList');
+  if (!el) return;
+  const list = state.customMovements || [];
+  if (!list.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div style="margin-top:0.5rem;display:flex;flex-wrap:wrap;gap:0.35rem;">
+    ${list.map(m => `<span style="background:rgba(96,165,250,0.12);border:1px solid rgba(96,165,250,0.3);border-radius:3px;padding:0.15rem 0.55rem;font-size:0.78rem;color:#60a5fa;font-family:'Barlow Condensed';letter-spacing:0.05em;">${m}</span>`).join('')}
+  </div>`;
 }
 
 async function fetchDailyProgram(silent = false) {
