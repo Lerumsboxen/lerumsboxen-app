@@ -4552,7 +4552,7 @@ async function diagProgramSync() {
 }
 
 async function fetchCustomMovements() {
-  const scriptUrl = localStorage.getItem('lerums_apps_script_url') || '';
+  const scriptUrl = APPS_SCRIPT_URL;
   if (!scriptUrl) { showToast('Set your Web App URL first'); return; }
   const sheetName = document.getElementById('sheetCustomMovements')?.value.trim()
     || localStorage.getItem('lerums_sheet_custom_movements') || 'Movements';
