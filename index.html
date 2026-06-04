@@ -1087,8 +1087,8 @@
       </button>
       <button class="home-btn" id="hbtn-challenges" onclick="selectDashSection('challenges')">
         <span class="home-btn-icon">⚡</span>
-        <span class="home-btn-label">Challenges</span>
-        <span class="home-btn-sub">Send & receive challenges</span>
+        <span class="home-btn-label">Challenges &amp; Benchmarks</span>
+        <span class="home-btn-sub">Challenges &amp; benchmark WODs</span>
       </button>
       <button class="home-btn" id="hbtn-members" onclick="selectDashSection('members')">
         <span class="home-btn-icon">👥</span>
@@ -1754,7 +1754,7 @@ function json(obj) {
 
 <!-- WOD MODAL -->
 <div class="modal-overlay" id="wodModal" style="display:none;" onclick="closeWodModal(event)">
-  <div class="modal">
+  <div class="modal" style="max-width:660px;padding:1.25rem 1.25rem 1.5rem;">
     <div class="modal-title">
       LOG WORKOUT
       <button class="close-btn" onclick="closeWodModal()">✕</button>
@@ -2191,17 +2191,28 @@ const DASH_SECTIONS = {
     }
   },
   challenges: {
-    render: () => { fetchChallenges(); },
-    build: () => `
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:0.75rem;">
-        <div class="section-title" style="margin:0;flex:1;">Challenges</div>
-        <button class="btn btn-red" onclick="openChallengeModal()">+ CREATE</button>
+    render: () => {
+      if (challengeTab === 'inbox' || challengeTab === 'sent') fetchChallenges();
+      else renderBenchmarkTab(challengeTab);
+    },
+    build: () => {
+      const tabBtn = (id, label, active) => `<button id="ch-tab-${id}" onclick="switchChallengeTab('${id}')"
+        style="font-family:'Barlow Condensed';font-weight:700;font-size:0.78rem;letter-spacing:0.08em;text-transform:uppercase;padding:0.6rem 0.9rem;background:none;border:none;border-bottom:3px solid ${active?'var(--red)':'transparent'};color:${active?'var(--red)':'var(--muted)'};cursor:pointer;white-space:nowrap;">${label}</button>`;
+      const active = challengeTab || 'inbox';
+      return `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.75rem;">
+        <div class="section-title" style="margin:0;flex:1;">Challenges &amp; Benchmarks</div>
+        ${active==='inbox'||active==='sent' ? `<button class="btn btn-red" onclick="openChallengeModal()">+ CREATE</button>` : ''}
       </div>
-      <div style="display:flex;gap:0;margin-bottom:1.25rem;border-bottom:1px solid var(--border);">
-        <button id="ch-tab-inbox" onclick="switchChallengeTab('inbox')" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;padding:0.65rem 1.2rem;background:none;border:none;border-bottom:3px solid var(--red);color:var(--red);cursor:pointer;">Inbox</button>
-        <button id="ch-tab-sent" onclick="switchChallengeTab('sent')" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;padding:0.65rem 1.2rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;">Sent</button>
+      <div style="display:flex;gap:0;margin-bottom:1.25rem;border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none;">
+        ${tabBtn('inbox',   'Inbox',      active==='inbox')}
+        ${tabBtn('sent',    'Sent',       active==='sent')}
+        ${tabBtn('girls',   'Girls',      active==='girls')}
+        ${tabBtn('hero',    'Hero WODs',  active==='hero')}
+        ${tabBtn('open',    'Open WODs',  active==='open')}
       </div>
-      <div id="dash-challenges"></div>`
+      <div id="dash-challenges"></div>`;
+    }
   },
   members: {
     render: () => { renderMembersList(); },
@@ -3122,53 +3133,65 @@ function _wRowHtml(cid, rid, movType, opts, emomMode) {
 
   const rmBtn = `<button onmousedown="event.preventDefault()" onclick="document.getElementById('wrow-${rid}').remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.9rem;padding:0.2rem;line-height:1;">✕</button>`;
 
+  // Shared input style — compact to maximise movement name space
+  const iS = 'padding:0.28rem 0.35rem;font-size:0.8rem;';
+  const sS = 'padding:0.28rem 0.2rem;font-size:0.76rem;';
+  const gap = 'gap:0.35rem;';
+
   if (movType === 'cardio') {
     // 1.Distance  2.Movement  3.Unit
     const units = ['m','km','cal','min'];
     const uOpts = units.map(u => `<option value="${u}"${u===(o.unit||'m')?' selected':''}>${u}</option>`).join('');
-    return `<div style="display:grid;grid-template-columns:65px 1fr 50px auto;gap:0.4rem;margin-bottom:0.4rem;align-items:center;">
-      <input type="number" id="wamt-${rid}" value="${esc(o.reps||'')}" placeholder="Dist." min="0" style="padding:0.3rem 0.4rem;font-size:0.82rem;">
+    return `<div style="display:grid;grid-template-columns:58px 1fr 48px auto;${gap}margin-bottom:0.4rem;align-items:center;">
+      <input type="number" id="wamt-${rid}" value="${esc(o.reps||'')}" placeholder="Dist." min="0" style="${iS}">
       ${movPicker}
-      <select id="wunit-${rid}" style="padding:0.3rem 0.2rem;font-size:0.78rem;">${uOpts}</select>
+      <select id="wunit-${rid}" style="${sS}">${uOpts}</select>
       ${rmBtn}
     </div>`;
+
   } else if (movType === 'combined') {
-    // Both weight (kg/lbs) AND height (cm/inch) — e.g. Box Jump Over with DB
-    // Determine default units from custom movement definition
+    // Two-line layout: movement gets full width, values on second line
     const customMov = getCustomMovement(o.movement || '');
     const unitParts = (customMov?.unit || 'kg+cm').toLowerCase().split(/[+&, ]+/);
-    const defWeightUnit = unitParts.find(p => ['kg','lbs'].includes(p)) || 'kg';
-    const defHeightUnit = unitParts.find(p => ['cm','inch'].includes(p)) || 'cm';
-    const wOpts = ['kg','lbs'].map(u => `<option value="${u}"${u===(o.weightUnit||defWeightUnit)?' selected':''}>${u}</option>`).join('');
-    const hOpts = ['cm','inch'].map(u => `<option value="${u}"${u===(o.heightUnit||defHeightUnit)?' selected':''}>${u}</option>`).join('');
-    return `<div style="display:grid;grid-template-columns:46px 1fr 52px 40px 52px 40px auto;gap:0.35rem;margin-bottom:0.4rem;align-items:center;">
-      <input type="number" id="wreps-${rid}" value="${esc(o.reps||'')}" placeholder="Reps" min="0" style="padding:0.3rem 0.35rem;font-size:0.82rem;">
-      ${movPicker}
-      <input type="number" id="wamt-${rid}" value="${esc(o.weight||'')}" placeholder="kg" min="0" step="0.5" style="padding:0.3rem 0.35rem;font-size:0.82rem;">
-      <select id="wunit-${rid}" style="padding:0.3rem 0.1rem;font-size:0.75rem;">${wOpts}</select>
-      <input type="number" id="wamt2-${rid}" value="${esc(o.height||'')}" placeholder="cm" min="0" style="padding:0.3rem 0.35rem;font-size:0.82rem;">
-      <select id="wunit2-${rid}" style="padding:0.3rem 0.1rem;font-size:0.75rem;">${hOpts}</select>
-      ${rmBtn}
+    const defWU = unitParts.find(p => ['kg','lbs'].includes(p)) || 'kg';
+    const defHU = unitParts.find(p => ['cm','inch'].includes(p)) || 'cm';
+    const wOpts = ['kg','lbs'].map(u => `<option value="${u}"${u===(o.weightUnit||defWU)?' selected':''}>${u}</option>`).join('');
+    const hOpts = ['cm','inch'].map(u => `<option value="${u}"${u===(o.heightUnit||defHU)?' selected':''}>${u}</option>`).join('');
+    return `<div style="margin-bottom:0.5rem;background:var(--black);border:1px solid var(--border);border-radius:3px;padding:0.35rem 0.4rem;">
+      <div style="display:grid;grid-template-columns:46px 1fr auto;${gap}align-items:center;margin-bottom:0.35rem;">
+        <input type="number" id="wreps-${rid}" value="${esc(o.reps||'')}" placeholder="Reps" min="0" style="${iS}">
+        ${movPicker}
+        ${rmBtn}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 42px 1fr 48px;${gap}align-items:center;">
+        <input type="number" id="wamt-${rid}" value="${esc(o.weight||'')}" placeholder="Weight" min="0" step="0.5" style="${iS}">
+        <select id="wunit-${rid}" style="${sS}">${wOpts}</select>
+        <input type="number" id="wamt2-${rid}" value="${esc(o.height||'')}" placeholder="Height" min="0" style="${iS}">
+        <select id="wunit2-${rid}" style="${sS}">${hOpts}</select>
+      </div>
     </div>`;
+
   } else if (movType === 'weighted' || movType === 'height') {
+    // 1.Reps  2.Movement  3.Weight/Height  4.Unit
     const units = movType === 'height' ? ['cm','inch'] : ['kg','lbs'];
     const uOpts = units.map(u => `<option value="${u}"${u===(o.unit||units[0])?' selected':''}>${u}</option>`).join('');
-    const wPlaceholder = movType === 'height' ? 'cm' : 'kg';
-    return `<div style="display:grid;grid-template-columns:50px 1fr 60px 46px auto;gap:0.4rem;margin-bottom:0.4rem;align-items:center;">
-      <input type="number" id="wreps-${rid}" value="${esc(o.reps||'')}" placeholder="Reps" min="0" style="padding:0.3rem 0.4rem;font-size:0.82rem;">
+    const wPh = movType === 'height' ? 'Height' : 'Weight';
+    return `<div style="display:grid;grid-template-columns:46px 1fr 62px 44px auto;${gap}margin-bottom:0.4rem;align-items:center;">
+      <input type="number" id="wreps-${rid}" value="${esc(o.reps||'')}" placeholder="Reps" min="0" style="${iS}">
       ${movPicker}
-      <input type="number" id="wamt-${rid}" value="${esc(o.weight||'')}" placeholder="${wPlaceholder}" min="0" step="0.5" style="padding:0.3rem 0.4rem;font-size:0.82rem;">
-      <select id="wunit-${rid}" style="padding:0.3rem 0.2rem;font-size:0.78rem;">${uOpts}</select>
+      <input type="number" id="wamt-${rid}" value="${esc(o.weight||'')}" placeholder="${wPh}" min="0" step="0.5" style="${iS}">
+      <select id="wunit-${rid}" style="${sS}">${uOpts}</select>
       ${rmBtn}
     </div>`;
+
   } else {
-    // default: Reps | Movement | Unit
+    // default: 1.Reps  2.Movement  3.Unit
     const units = ['reps','m','s','cal','kg'];
     const uOpts = units.map(u => `<option value="${u}"${u===(o.unit||'reps')?' selected':''}>${u}</option>`).join('');
-    return `<div style="display:grid;grid-template-columns:50px 1fr 50px auto;gap:0.4rem;margin-bottom:0.4rem;align-items:center;">
-      <input type="number" id="wreps-${rid}" value="${esc(o.reps||'')}" placeholder="Reps" min="0" style="padding:0.3rem 0.4rem;font-size:0.82rem;">
+    return `<div style="display:grid;grid-template-columns:46px 1fr 48px auto;${gap}margin-bottom:0.4rem;align-items:center;">
+      <input type="number" id="wreps-${rid}" value="${esc(o.reps||'')}" placeholder="Reps" min="0" style="${iS}">
       ${movPicker}
-      <select id="wunit-${rid}" style="padding:0.3rem 0.2rem;font-size:0.78rem;">${uOpts}</select>
+      <select id="wunit-${rid}" style="${sS}">${uOpts}</select>
       ${rmBtn}
     </div>`;
   }
@@ -5531,14 +5554,101 @@ let challengesCache = null;
 
 function switchChallengeTab(tab) {
   challengeTab = tab;
-  ['inbox','sent'].forEach(t => {
+  ['inbox','sent','girls','hero','open'].forEach(t => {
     const btn = document.getElementById('ch-tab-' + t);
     if (!btn) return;
     const active = t === tab;
     btn.style.color = active ? 'var(--red)' : 'var(--muted)';
     btn.style.borderBottom = active ? '3px solid var(--red)' : '3px solid transparent';
   });
-  renderChallenges();
+  // Show/hide CREATE button
+  const createBtn = document.querySelector('#dash-challenges')?.parentElement?.querySelector('.btn-red');
+  if (createBtn) createBtn.style.display = (tab==='inbox'||tab==='sent') ? '' : 'none';
+  if (tab === 'inbox' || tab === 'sent') renderChallenges();
+  else renderBenchmarkTab(tab);
+}
+
+// ===== BENCHMARK WORKOUTS =====
+const BENCHMARK_WODS = {
+  girls: [
+    { name:'Fran',     type:'fortime', desc:'21-15-9\nThrusters 43/29 kg\nPull-ups' },
+    { name:'Grace',    type:'fortime', desc:'30 Clean & Jerks 61/43 kg\nFor Time' },
+    { name:'Helen',    type:'fortime', desc:'3 Rounds for Time\nRun 400 m\n21 KB Swings 24/16 kg\n12 Pull-ups' },
+    { name:'Isabel',   type:'fortime', desc:'30 Snatches 61/43 kg\nFor Time' },
+    { name:'Jackie',   type:'fortime', desc:'For Time\nRow 1 000 m\n50 Thrusters 20/15 kg\n30 Pull-ups' },
+    { name:'Karen',    type:'fortime', desc:'150 Wall Balls 9/6 kg\nFor Time' },
+    { name:'Annie',    type:'fortime', desc:'50-40-30-20-10\nDouble Unders\nSit-ups' },
+    { name:'Barbara',  type:'fortime', desc:'5 Rounds for Time (3 min rest between rounds)\n20 Pull-ups\n30 Push-ups\n40 Sit-ups\n50 Air Squats' },
+    { name:'Chelsea',  type:'emom',    desc:'EMOM x30\n5 Pull-ups\n10 Push-ups\n15 Air Squats' },
+    { name:'Cindy',    type:'amrap',   desc:'AMRAP 20 min\n5 Pull-ups\n10 Push-ups\n15 Air Squats' },
+    { name:'Diane',    type:'fortime', desc:'21-15-9\nDeadlifts 102/70 kg\nHandstand Push-ups' },
+    { name:'Elizabeth',type:'fortime', desc:'21-15-9\nCleans 61/43 kg\nRing Dips' },
+    { name:'Eva',      type:'fortime', desc:'5 Rounds for Time\nRun 800 m\n30 KB Swings 32/24 kg\n30 Pull-ups' },
+    { name:'Kelly',    type:'fortime', desc:'5 Rounds for Time\nRun 400 m\n30 Box Jumps 61/51 cm\n30 Wall Balls 9/6 kg' },
+    { name:'Linda',    type:'fortime', desc:'10-9-8-7-6-5-4-3-2-1\nDeadlifts 1.5×BW\nBench Press BW\nCleans 0.75×BW' },
+    { name:'Mary',     type:'amrap',   desc:'AMRAP 20 min\n5 Handstand Push-ups\n10 Pistols (alternating)\n15 Pull-ups' },
+    { name:'Nancy',    type:'fortime', desc:'5 Rounds for Time\nRun 400 m\n15 OHS 43/29 kg' },
+    { name:'Nicole',   type:'amrap',   desc:'AMRAP 20 min\nRun 400 m\nMax Pull-ups' },
+  ],
+  hero: [
+    { name:'Murph',     type:'fortime', desc:'For Time (20/14 kg vest)\nRun 1 600 m\n100 Pull-ups\n200 Push-ups\n300 Air Squats\nRun 1 600 m\n(Partition as needed)' },
+    { name:'DT',        type:'fortime', desc:'5 Rounds for Time\n12 Deadlifts 70/47 kg\n9 Hang Power Cleans 70/47 kg\n6 Push Jerks 70/47 kg' },
+    { name:'Michael',   type:'fortime', desc:'3 Rounds for Time\nRun 800 m\n50 Back Extensions\n50 Sit-ups' },
+    { name:'Randy',     type:'fortime', desc:'75 Power Snatches 34/24 kg\nFor Time' },
+    { name:'Nate',      type:'amrap',   desc:'AMRAP 20 min\n2 Muscle-ups\n4 Handstand Push-ups\n8 KB Swings 32/24 kg' },
+    { name:'Jason',     type:'fortime', desc:'For Time\n100 Squats\n5 Muscle-ups\n75 Squats\n10 Muscle-ups\n50 Squats\n15 Muscle-ups\n25 Squats\n20 Muscle-ups' },
+    { name:'Tommy V',   type:'fortime', desc:'21-15-9\nThrusters 61/43 kg\n15-12-9\nRope Climbs' },
+    { name:'Whitten',   type:'fortime', desc:'5 Rounds for Time\nRun 800 m\n50 Push-ups\n50 Sit-ups\n50 Air Squats\n50 Box Jumps 61/51 cm' },
+    { name:'Badger',    type:'fortime', desc:'3 Rounds for Time\nRun 1 Mile\n30 Squat Cleans 43/29 kg\n30 Pull-ups' },
+    { name:'Chad',      type:'other',   desc:'1 000 Step-ups 51/41 cm\n(Weighted vest 20/14 kg)' },
+    { name:'Lumberjack 20', type:'fortime', desc:'20 Deadlifts 102/70 kg\nRun 400 m\n20 KB Swings 32/24 kg\nRun 400 m\n20 Overhead Squats 43/29 kg\nRun 400 m\n20 Burpees\nRun 400 m\n20 Chest-to-Bar Pull-ups\nRun 400 m\n20 Box Jumps 61/51 cm\nRun 400 m\n20 DB Snatches 22/15 kg\nRun 400 m' },
+  ],
+  open: [
+    { name:'25.1',  type:'amrap',   desc:'AMRAP 15 min\n3 Squat Snatches 43/29 kg\n3 Bar Muscle-ups\n6 Squat Snatches 43/29 kg\n6 Bar Muscle-ups\n(+3 each round)' },
+    { name:'24.1',  type:'fortime', desc:'3 Rounds for Time (Time cap 15 min)\n21 Dumbbell Snatches 22.5/15 kg\n21 Lateral Burpees over Dumbbell' },
+    { name:'24.2',  type:'fortime', desc:'For Time (Time cap 20 min)\n50 Toes-to-Bar\n50 Double Unders\n25 Squat Cleans 61/43 kg\n50 Double Unders\n50 Toes-to-Bar' },
+    { name:'24.3',  type:'fortime', desc:'For Time\nRow 3 000/2 500 m\n(then) AMRAP in remaining time' },
+    { name:'23.1',  type:'amrap',   desc:'AMRAP 14 min\n60 Cal Row\n50 Toes-to-Bar\n40 Wall Balls 9/6 kg\n30 Cleans 61/43 kg\n20 Muscle-ups' },
+    { name:'23.2',  type:'fortime', desc:'For Time (Time cap 20 min)\n1-10-1 Ladder\nThrusters 43/29 kg\nBar Muscle-ups' },
+    { name:'23.3',  type:'amrap',   desc:'AMRAP 12 min (with 10 min cap for deadlifts)\n5 Deadlifts 102/70 kg\n10 Deadlifts\n15 Deadlifts…\n(then) Row 100 cal' },
+    { name:'22.1',  type:'amrap',   desc:'AMRAP 15 min\n3 Wall Walks\n12 DB Snatches 22.5/15 kg\n15 Box Jumps 61/51 cm' },
+    { name:'22.2',  type:'fortime', desc:'1-2-3-4-5-6-7-8-9-10 Ladder\nDeadlifts 102/70 kg\nBar-facing Burpees\n(Time cap 20 min)' },
+    { name:'22.3',  type:'fortime', desc:'21-15-9\nThrusters 43/29 kg\n(then) 21-15-9\nChest-to-Bar Pull-ups' },
+    { name:'21.1',  type:'amrap',   desc:'AMRAP 15 min\n1 Wall Walk\n10 DB Snatches 22.5/15 kg\n15 Box Jumps 61/51 cm\n2 Wall Walks\n10 DB Snatches…\n(+1 wall walk each round)' },
+    { name:'21.2',  type:'fortime', desc:'For Time (Time cap 20 min)\nDeadlifts 102/70 kg\nBar-facing Burpees\n21-15-9-9-15-21' },
+    { name:'21.3',  type:'fortime', desc:'AMRAP 15 min\nDouble Unders / Wall Balls\nCleans\n(Complex ladder)' },
+  ],
+};
+
+function renderBenchmarkTab(tab) {
+  const el = document.getElementById('dash-challenges');
+  if (!el) return;
+  const wods = BENCHMARK_WODS[tab] || [];
+  const typeColor = { amrap:'var(--red)', fortime:'#fbbf24', emom:'#60a5fa', roundsfortime:'#c084fc', other:'#94a3b8' };
+  const typeLabel = { amrap:'AMRAP', fortime:'For Time', emom:'EMOM', roundsfortime:'Rounds for Time', other:'Other' };
+  el.innerHTML = wods.map(w => `
+    <div class="card" style="padding:0.85rem 1rem;margin-bottom:0.65rem;">
+      <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.4rem;">
+        <div style="font-family:'Bebas Neue';font-size:1.2rem;letter-spacing:0.06em;color:var(--text);flex:1;">${w.name}</div>
+        <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.68rem;letter-spacing:0.12em;text-transform:uppercase;color:${typeColor[w.type]||'var(--muted)'};border:1px solid ${typeColor[w.type]||'var(--border)'};border-radius:2px;padding:0.15rem 0.45rem;">${typeLabel[w.type]||w.type}</span>
+      </div>
+      <div style="font-size:0.82rem;color:#aaa;line-height:1.5;margin-bottom:0.65rem;white-space:pre-line;">${w.desc}</div>
+      <button onclick="logBenchmark('${w.name.replace(/'/g,"\\'")}','${w.type}',${JSON.stringify(w.desc).replace(/'/g,"\\'")})"
+        class="btn btn-red" style="font-size:0.72rem;padding:0.3rem 0.75rem;">LOG IT</button>
+    </div>`).join('');
+}
+
+function logBenchmark(name, type, desc) {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('wodDate').value = today;
+  document.getElementById('wodName').value = name;
+  document.getElementById('wodDesc').value = desc;
+  document.getElementById('wodType').value = type;
+  document.getElementById('wodScore').value = '';
+  document.getElementById('wodNotes').value = '';
+  resetWodBuilders();
+  openWodModalDisplay();
+  onWodTypeChange(true);
 }
 
 function renderChallenges() {
