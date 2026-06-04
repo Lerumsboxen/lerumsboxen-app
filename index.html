@@ -1524,9 +1524,18 @@
     var sheet = ss.getSheetByName(sheetName);
     if (!sheet) return json({movements: [], error: "Sheet '" + sheetName + "' not found"});
     var lastRow = sheet.getLastRow();
-    if (lastRow < 1) return json({movements: []});
-    var vals = sheet.getRange(1, 1, lastRow, 1).getValues();
-    var movements = vals.map(function(r){ return (r[0]||"").toString().trim(); }).filter(function(v){ return v.length > 0; });
+    if (lastRow < 2) return json({movements: []});
+    var numCols = Math.max(sheet.getLastColumn(), 3);
+    // Row 1 is the header (Movement | Unit | Default Value) — start from row 2
+    var vals = sheet.getRange(2, 1, lastRow - 1, numCols).getValues();
+    var movements = [];
+    vals.forEach(function(r) {
+      var name = (r[0]||"").toString().trim();
+      if (!name) return;
+      var unit = (r[1]||"").toString().trim();
+      var defaultVal = (r[2]||"").toString().trim();
+      movements.push({ name: name, unit: unit, defaultValue: defaultVal });
+    });
     return json({movements: movements});
   }
 
@@ -1873,6 +1882,10 @@ let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
 // migrate older saves
 if (!state.strength) state.strength = [];
 if (!state.customMovements) state.customMovements = [];
+// Normalise legacy plain-string entries to objects
+state.customMovements = state.customMovements.map(m =>
+  typeof m === 'string' ? {name: m, unit: '', defaultValue: ''} : m
+);
 if (!state.dailyProgram) state.dailyProgram = {};
 
 // ===== HARDCODED WEB APP URL =====
@@ -2871,8 +2884,8 @@ function filterStrMovementDropdown() {
   const dd = document.getElementById('strMovementDropdown');
   if (!input || !dd) return;
   const q = input.value.toLowerCase().trim();
-  const custom = state.customMovements || [];
-  const allMov = custom.length ? [...MOVEMENTS, ...custom.filter(m => !MOVEMENTS.includes(m))] : MOVEMENTS;
+  const customNames = (state.customMovements || []).map(m => typeof m === 'string' ? m : m.name);
+  const allMov = customNames.length ? [...MOVEMENTS, ...customNames.filter(m => !MOVEMENTS.includes(m))] : MOVEMENTS;
   const matches = q ? allMov.filter(m => m.toLowerCase().includes(q)) : allMov;
   if (!matches.length) { dd.style.display = 'none'; return; }
   dd.style.display = 'block';
@@ -2944,8 +2957,34 @@ let emomRowCount = 0;
 const BUILDER_ONLY_MOVEMENTS = ['Row', 'Run', 'Air Bike', 'Bike-Erg', 'Ski-Erg'];
 const BUILDER_MOVEMENTS = [...MOVEMENTS, ...BUILDER_ONLY_MOVEMENTS, 'Rest'];
 
+// Return the custom movement object for a name (or null)
+function getCustomMovement(name) {
+  if (!name) return null;
+  const list = state.customMovements || [];
+  return list.find(m => {
+    const mn = typeof m === 'string' ? m : m.name;
+    return mn.toLowerCase() === name.toLowerCase();
+  }) || null;
+}
+
+// Derive movement type from a unit string
+function unitToMovType(unit) {
+  if (!unit) return null;
+  const u = unit.toLowerCase();
+  if (['cm','inch'].includes(u)) return 'height';
+  if (['kg','lbs'].includes(u)) return 'weighted';
+  if (['m','km','cal','min'].includes(u)) return 'cardio';
+  return null;
+}
+
 function getMovType(name) {
   if (!name) return 'default';
+  // Check custom movement preset unit first
+  const custom = getCustomMovement(name);
+  if (custom && typeof custom === 'object' && custom.unit) {
+    const fromUnit = unitToMovType(custom.unit);
+    if (fromUnit) return fromUnit;
+  }
   const n = name.toLowerCase().trim();
   if (/^(run|row|ski-erg|air bike|bike-erg)$/.test(n)) return 'cardio';
   if (/box jump/i.test(n)) return 'height';
@@ -3029,9 +3068,9 @@ function filterWDd(rid, listFlag) {
   const dd = document.getElementById('wdd-' + rid);
   if (!input || !dd) return;
   const q = input.value.toLowerCase().trim();
-  const custom = state.customMovements || [];
+  const customNames = (state.customMovements || []).map(m => typeof m === 'string' ? m : m.name);
   const base = (listFlag === 'rest') ? MOVEMENTS_WITH_REST : BUILDER_MOVEMENTS;
-  const list = custom.length ? [...base, ...custom.filter(m => !base.includes(m))] : base;
+  const list = customNames.length ? [...base, ...customNames.filter(m => !base.includes(m))] : base;
   const matches = q ? list.filter(m => m.toLowerCase().includes(q)) : list;
   if (!matches.length) { dd.style.display = 'none'; return; }
   dd.style.display = 'block';
@@ -3055,8 +3094,17 @@ function selectWMov(rid, name, listFlag) {
   const prevReps = document.getElementById('wreps-' + rid)?.value || '';
   const prevAmt  = document.getElementById('wamt-' + rid)?.value || '';
   const prevUnit = document.getElementById('wunit-' + rid)?.value || '';
-  const newType  = getMovType(name);
-  rowEl.innerHTML = _wRowHtml(cid, rid, newType, { movement: name, reps: prevReps, weight: prevAmt, unit: prevUnit }, emomMode);
+  // Apply preset unit/default from custom movement definition
+  const custom = getCustomMovement(name);
+  const presetUnit  = (custom && typeof custom === 'object') ? (custom.unit || '') : '';
+  const presetValue = (custom && typeof custom === 'object') ? pickGenderedValue(custom.defaultValue || '') : '';
+  const newType = getMovType(name);
+  rowEl.innerHTML = _wRowHtml(cid, rid, newType, {
+    movement: name,
+    reps:   prevReps,
+    weight: presetValue || prevAmt,
+    unit:   presetUnit  || prevUnit,
+  }, emomMode);
 }
 
 function hideWDd(rid) {
@@ -3134,12 +3182,14 @@ function _parseWorkoutLines(text) {
     if (!m) return;
     const reps = m[1];
     const rest = m[2].trim();
-    const weightMatch = rest.match(/\b(\d+(?:[.,]\d+)?)\s*(?:\/\d+(?:[.,]\d+)?\s*)?(kg|lbs|cm|m(?!\w)|s(?!\w)|cal)\b/i);
-    const unit = weightMatch ? weightMatch[2].toLowerCase().replace('m','m') : 'reps';
-    const movDesc = rest.replace(/\b\d+(?:[.,]\d+)?(?:\/\d+(?:[.,]\d+)?)?\s*(?:kg|lbs|cm|m(?!\w)|s(?!\w)|cal)\b/gi, '').trim();
+    // Match weight patterns including X/Y (gendered), e.g. "60/40 kg" or "60 kg"
+    const weightMatch = rest.match(/\b(\d+(?:[.,]\d+)?(?:\s*\/\s*\d+(?:[.,]\d+)?)?)\s*(kg|lbs|cm|m(?!\w)|s(?!\w)|cal)\b/i);
+    const unit = weightMatch ? weightMatch[2].toLowerCase() : 'reps';
+    const rawWeight = weightMatch ? weightMatch[1] : '';
+    const weight = rawWeight ? pickGenderedValue(rawWeight) : '';
+    const movDesc = rest.replace(/\b\d+(?:[.,]\d+)?(?:\s*\/\s*\d+(?:[.,]\d+)?)?\s*(?:kg|lbs|cm|m(?!\w)|s(?!\w)|cal)\b/gi, '').trim();
     const known = BUILDER_MOVEMENTS.find(mv => movDesc.toLowerCase().includes(mv.toLowerCase()));
     const movType = getMovType(known || movDesc);
-    const weight = (movType === 'weighted' || movType === 'height') ? (weightMatch ? weightMatch[1] : '') : '';
     parsed.push({ reps, weight, unit: movType === 'cardio' ? (unit === 'reps' ? 'm' : unit) : unit, movement: known || movDesc });
   });
   return parsed;
@@ -4561,7 +4611,10 @@ async function fetchCustomMovements() {
   try {
     const data = await xhrPost(scriptUrl, { action: 'getCustomMovements', sheet: sheetName });
     if (data.error && !data.movements) throw new Error(data.error);
-    const movements = (data.movements || []).filter(m => m && m.trim());
+    // Normalise to objects — handle both legacy strings and new {name,unit,defaultValue}
+    const movements = (data.movements || [])
+      .map(m => typeof m === 'string' ? {name: m, unit: '', defaultValue: ''} : m)
+      .filter(m => m && m.name && m.name.trim());
     state.customMovements = movements;
     save();
     renderCustomMovementsList();
@@ -4582,7 +4635,15 @@ function renderCustomMovementsList() {
   const list = state.customMovements || [];
   if (!list.length) { el.innerHTML = ''; return; }
   el.innerHTML = `<div style="margin-top:0.5rem;display:flex;flex-wrap:wrap;gap:0.35rem;">
-    ${list.map(m => `<span style="background:rgba(96,165,250,0.12);border:1px solid rgba(96,165,250,0.3);border-radius:3px;padding:0.15rem 0.55rem;font-size:0.78rem;color:#60a5fa;font-family:'Barlow Condensed';letter-spacing:0.05em;">${m}</span>`).join('')}
+    ${list.map(m => {
+      const name = typeof m === 'string' ? m : m.name;
+      const unit = typeof m === 'object' && m.unit ? m.unit : '';
+      const def  = typeof m === 'object' && m.defaultValue ? m.defaultValue : '';
+      const meta = [unit, def].filter(Boolean).join(' · ');
+      return `<span style="background:rgba(96,165,250,0.12);border:1px solid rgba(96,165,250,0.3);border-radius:3px;padding:0.15rem 0.55rem;font-size:0.78rem;color:#60a5fa;font-family:'Barlow Condensed';letter-spacing:0.05em;">
+        ${name}${meta ? ` <span style="opacity:0.65;">(${meta})</span>` : ''}
+      </span>`;
+    }).join('')}
   </div>`;
 }
 
@@ -4782,10 +4843,11 @@ const AVATAR_EMOJIS = ['💪','🏋️','🤸','🥊','🏃','🚴','🧗','⚡'
 const KG_TO_LBS = 2.20462;
 
 let profile = JSON.parse(localStorage.getItem('lerums_profile') || 'null') || {
-  name: '', avatar: '💪', photo: null, passwordHash: null, unit: 'kg'
+  name: '', avatar: '💪', photo: null, passwordHash: null, unit: 'kg', gender: 'male'
 };
 // Migrate old profile
 if (!profile.unit) profile.unit = 'kg';
+if (!profile.gender) profile.gender = 'male';
 
 // Weight display helpers
 function toDisplayUnit(kg) {
@@ -4896,6 +4958,27 @@ function setProfileUnit(unit) {
   });
 }
 
+function setProfileGender(gender) {
+  profile.gender = gender;
+  ['', '2'].forEach(suffix => {
+    const m = document.getElementById('genderBtnMale'   + suffix);
+    const f = document.getElementById('genderBtnFemale' + suffix);
+    if (m) m.classList.toggle('active', gender === 'male');
+    if (f) f.classList.toggle('active', gender === 'female');
+  });
+}
+
+// Extract the correct weight from a "X/Y" pattern based on profile gender.
+// e.g. "60/40 kg" → 60 for male, 40 for female.
+// Also handles single values (no slash) — returns them as-is.
+function pickGenderedValue(str) {
+  if (!str) return '';
+  const s = str.toString().trim();
+  const slashMatch = s.match(/^(\d+(?:[.,]\d+)?)\s*\/\s*(\d+(?:[.,]\d+)?)/);
+  if (!slashMatch) return s;
+  return (profile.gender === 'female') ? slashMatch[2] : slashMatch[1];
+}
+
 function isAdmin() {
   if (profile.name === 'Calle Centerlund') return true;
   // Also check if the member has been granted admin in the Members sheet (col E = "admin")
@@ -4941,6 +5024,7 @@ function openProfileModal() {
     // Avatar in logged-in view — use refreshAvatarPreviews (no embedded file input)
     refreshAvatarPreviews();
     setProfileUnit(profile.unit || 'kg');
+    setProfileGender(profile.gender || 'male');
     // Emoji picker in logged-in view
     const picker = document.getElementById('avatarPicker');
     if (picker) picker.innerHTML = AVATAR_EMOJIS.map(e => `
@@ -4954,6 +5038,7 @@ function openProfileModal() {
     const statusEl = document.getElementById('profilePasswordStatus');
     if (statusEl) { statusEl.textContent = ''; }
     setProfileUnit(profile.unit || 'kg');
+    setProfileGender(profile.gender || 'male');
     updateProfilePreview();
     const pickerOut = document.getElementById('avatarPickerOut');
     if (pickerOut) pickerOut.innerHTML = AVATAR_EMOJIS.map(e => `
@@ -6110,6 +6195,16 @@ window.addEventListener('orientationchange', () => {
           </div>
         </div>
       </div>
+      <!-- Gender (used to auto-select Rx/scaled weight in workouts) -->
+      <div class="form-group" style="margin-bottom:1rem;">
+        <label>Gender <span style="font-size:0.72rem;color:var(--muted);font-weight:400;">— selects your weight from e.g. 60/40 kg</span></label>
+        <div style="margin-top:0.4rem;">
+          <div class="unit-pill">
+            <button id="genderBtnMale" onclick="setProfileGender('male')" class="active">♂ Male</button>
+            <button id="genderBtnFemale" onclick="setProfileGender('female')">♀ Female</button>
+          </div>
+        </div>
+      </div>
       <!-- Emoji picker (always editable) -->
       <div class="form-group" style="margin-bottom:1.25rem;">
         <label>Avatar</label>
@@ -6145,6 +6240,15 @@ window.addEventListener('orientationchange', () => {
           <div class="unit-pill">
             <button id="unitBtnKg2" onclick="setProfileUnit('kg')" class="active">kg</button>
             <button id="unitBtnLbs2" onclick="setProfileUnit('lbs')">lbs</button>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Gender <span style="font-size:0.72rem;color:var(--muted);font-weight:400;">— selects your weight from e.g. 60/40 kg</span></label>
+        <div style="margin-top:0.4rem;">
+          <div class="unit-pill">
+            <button id="genderBtnMale2" onclick="setProfileGender('male')" class="active">♂ Male</button>
+            <button id="genderBtnFemale2" onclick="setProfileGender('female')">♀ Female</button>
           </div>
         </div>
       </div>
