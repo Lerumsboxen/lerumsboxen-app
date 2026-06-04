@@ -1642,6 +1642,10 @@ function json(obj) {
           <label style="font-size:0.7rem;">OLY</label>
           <input type="text" id="colOly" value="H" maxlength="2" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase();saveProgramSettings()">
         </div>
+        <div class="form-group" style="margin:0;">
+          <label style="font-size:0.7rem;">Accessory Work</label>
+          <input type="text" id="colAccessory" value="I" maxlength="2" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase();saveProgramSettings()">
+        </div>
       </div>
       <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
         <button class="btn btn-sm" style="background:#fbbf24;color:#000;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:2px;cursor:pointer;" onclick="fetchDailyProgram()">⟳ SYNC NOW</button>
@@ -1723,36 +1727,22 @@ function json(obj) {
 
     <!-- FOR TIME BUILDER -->
     <div id="fortimeBuilder" style="display:none;margin-bottom:1rem;">
-      <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;flex-wrap:wrap;">
-        <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.78rem;letter-spacing:0.12em;text-transform:uppercase;color:#fbbf24;">⏱ For Time</div>
-      </div>
-      <div style="display:grid;grid-template-columns:60px 80px 1fr auto;gap:0.4rem;margin-bottom:0.3rem;">
-        <label style="font-size:0.72rem;color:var(--muted);margin:0;align-self:center;">Reps</label>
-        <label style="font-size:0.72rem;color:var(--muted);margin:0;align-self:center;">Unit</label>
-        <label style="font-size:0.72rem;color:var(--muted);margin:0;align-self:center;">Movement</label>
-        <div></div>
-      </div>
+      <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.78rem;letter-spacing:0.12em;text-transform:uppercase;color:#fbbf24;margin-bottom:0.6rem;">⏱ For Time — movements</div>
       <div id="fortimeRows"></div>
-      <button class="btn btn-ghost btn-sm" onclick="addFortimeRow()" style="margin-top:0.5rem;width:100%;">+ ADD MOVEMENT</button>
+      <button class="btn btn-ghost btn-sm" onclick="addFortimeRow()" style="margin-top:0.4rem;width:100%;">+ ADD MOVEMENT</button>
     </div>
 
     <!-- ROUNDS FOR TIME BUILDER -->
     <div id="rftBuilder" style="display:none;margin-bottom:1rem;">
-      <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.6rem;flex-wrap:wrap;">
         <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.78rem;letter-spacing:0.12em;text-transform:uppercase;color:#c084fc;">🔁 Rounds for Time</div>
         <div style="display:flex;align-items:center;gap:0.4rem;margin-left:auto;">
           <label style="font-size:0.75rem;color:var(--muted);margin:0;">Rounds</label>
           <input type="number" id="rftRounds" min="1" max="50" value="3" style="width:56px;padding:0.3rem 0.5rem;font-size:0.85rem;">
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:60px 80px 1fr auto;gap:0.4rem;margin-bottom:0.3rem;">
-        <label style="font-size:0.72rem;color:var(--muted);margin:0;align-self:center;">Reps</label>
-        <label style="font-size:0.72rem;color:var(--muted);margin:0;align-self:center;">Unit</label>
-        <label style="font-size:0.72rem;color:var(--muted);margin:0;align-self:center;">Movement</label>
-        <div></div>
-      </div>
       <div id="rftRows"></div>
-      <button class="btn btn-ghost btn-sm" onclick="addRftRow()" style="margin-top:0.5rem;width:100%;">+ ADD MOVEMENT</button>
+      <button class="btn btn-ghost btn-sm" onclick="addRftRow()" style="margin-top:0.4rem;width:100%;">+ ADD MOVEMENT</button>
     </div>
 
     <div class="form-row cols-2">
@@ -2045,6 +2035,12 @@ const DASH_SECTIONS = {
         <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#fbbf24;margin-bottom:0.5rem;">🏅 OLY</div>
         <div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.oly)}</div>
         <button data-log="oly" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#b45309;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ WORKOUT</button>
+      </div>` : ''}
+      ${prog && prog.accessory ? `
+      <div style="background:var(--card);border:1px solid rgba(148,163,184,0.4);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
+        <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#94a3b8;margin-bottom:0.5rem;">🔧 Accessory Work</div>
+        <div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.accessory)}</div>
+        <button data-log="accessory" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#475569;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG</button>
       </div>` : ''}`;
     }
   },
@@ -2531,6 +2527,18 @@ function logFromProgram(type) {
     document.getElementById('wodNotes').value = 'OLY session';
     openWodModalDisplay();
   }
+
+  if (type === 'accessory') {
+    document.getElementById('strDate').value = viewDate;
+    document.getElementById('strExercise').value = '';
+    document.getElementById('strNotes').value = stripHtml(prog.accessory || '');
+    const lbl = document.getElementById('strWeightLabel');
+    if (lbl) lbl.textContent = `Weight (${profile.unit || 'kg'})`;
+    setRowCount = 0;
+    document.getElementById('setsContainer').innerHTML = '';
+    addSetRow(); addSetRow(); addSetRow();
+    document.getElementById('strengthModal').style.display = 'flex';
+  }
 }
 
 // Event delegation for dynamically injected buttons (e.g. program banner log buttons)
@@ -2683,15 +2691,15 @@ function openWodModal() {
 }
 
 function resetWodBuilders() {
-  document.getElementById('emomBuilder').style.display = 'none';
-  document.getElementById('fortimeBuilder').style.display = 'none';
-  document.getElementById('rftBuilder').style.display = 'none';
-  document.getElementById('emomRows').innerHTML = '';
-  document.getElementById('fortimeRows').innerHTML = '';
-  document.getElementById('rftRows').innerHTML = '';
+  ['emomBuilder','fortimeBuilder','rftBuilder'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  ['emomRows','fortimeRows','rftRows'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '';
+  });
   emomRowCount = 0;
-  fortimeRowCount = 0;
-  rftRowCount = 0;
 }
 
 function saveWod() {
@@ -2902,6 +2910,133 @@ function onWodDescInput() {
 // ===== EMOM BUILDER =====
 let emomRowCount = 0;
 
+// ===== UNIFIED WORKOUT ROW BUILDER =====
+const BUILDER_ONLY_MOVEMENTS = ['Row', 'Run', 'Air Bike', 'Bike-Erg', 'Ski-Erg'];
+const BUILDER_MOVEMENTS = [...MOVEMENTS, ...BUILDER_ONLY_MOVEMENTS, 'Rest'];
+
+function getMovType(name) {
+  if (!name) return 'default';
+  const n = name.toLowerCase().trim();
+  if (/^(run|row|ski-erg|air bike|bike-erg)$/.test(n)) return 'cardio';
+  if (/box jump/i.test(n)) return 'height';
+  const weighted = MOVEMENT_CATEGORIES
+    .filter(c => ['Barbell','Clean','Snatch'].includes(c.cat))
+    .flatMap(c => c.moves);
+  if (weighted.some(m => m.toLowerCase() === n)) return 'weighted';
+  if (/^kb\b|kettlebell/i.test(n)) return 'weighted';
+  return 'default';
+}
+
+let _wRowId = 0;
+
+function addWRow(cid, opts) {
+  _wRowId++;
+  const rid = _wRowId;
+  const container = document.getElementById(cid);
+  if (!container) return rid;
+  opts = opts || {};
+  const emomMode = cid.startsWith('emom-slots');
+  const movType = getMovType(opts.movement);
+  const el = document.createElement('div');
+  el.id = 'wrow-' + rid;
+  el.dataset.movList = emomMode ? 'rest' : 'builder';
+  el.innerHTML = _wRowHtml(cid, rid, movType, opts, emomMode);
+  container.appendChild(el);
+  return rid;
+}
+
+function _wRowHtml(cid, rid, movType, opts, emomMode) {
+  const o = opts || {};
+  const esc = s => (s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+  const listFlag = emomMode ? 'rest' : 'builder';
+
+  const movPicker = `<div style="position:relative;">
+    <input type="text" id="wmov-${rid}" value="${esc(o.movement||'')}" placeholder="Movement…" autocomplete="off"
+      data-cid="${cid}" data-rid="${rid}"
+      style="width:100%;padding:0.3rem 0.5rem;font-size:0.82rem;"
+      oninput="filterWDd(${rid},'${listFlag}')" onfocus="filterWDd(${rid},'${listFlag}')"
+      onblur="setTimeout(()=>hideWDd(${rid}),150)">
+    <div id="wdd-${rid}" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:500;background:var(--card);border:1px solid var(--border);border-radius:4px;max-height:180px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>
+  </div>`;
+
+  const rmBtn = `<button onmousedown="event.preventDefault()" onclick="document.getElementById('wrow-${rid}').remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.9rem;padding:0.2rem;line-height:1;">✕</button>`;
+
+  if (movType === 'cardio') {
+    const units = ['m','km','cal','min'];
+    const uOpts = units.map(u => `<option value="${u}"${u===(o.unit||'m')?' selected':''}>${u}</option>`).join('');
+    return `<div style="display:grid;grid-template-columns:1fr 65px 50px auto;gap:0.4rem;margin-bottom:0.4rem;align-items:center;">
+      ${movPicker}
+      <input type="number" id="wamt-${rid}" value="${esc(o.reps||'')}" placeholder="Dist." min="0" style="padding:0.3rem 0.4rem;font-size:0.82rem;">
+      <select id="wunit-${rid}" style="padding:0.3rem 0.2rem;font-size:0.78rem;">${uOpts}</select>
+      ${rmBtn}
+    </div>`;
+  } else if (movType === 'weighted' || movType === 'height') {
+    const units = movType === 'height' ? ['cm','inch'] : ['kg','lbs'];
+    const uOpts = units.map(u => `<option value="${u}"${u===(o.unit||units[0])?' selected':''}>${u}</option>`).join('');
+    const wPlaceholder = movType === 'height' ? 'cm' : 'kg';
+    return `<div style="display:grid;grid-template-columns:50px 1fr 60px 46px auto;gap:0.4rem;margin-bottom:0.4rem;align-items:center;">
+      <input type="number" id="wreps-${rid}" value="${esc(o.reps||'')}" placeholder="Reps" min="0" style="padding:0.3rem 0.4rem;font-size:0.82rem;">
+      ${movPicker}
+      <input type="number" id="wamt-${rid}" value="${esc(o.weight||'')}" placeholder="${wPlaceholder}" min="0" step="0.5" style="padding:0.3rem 0.4rem;font-size:0.82rem;">
+      <select id="wunit-${rid}" style="padding:0.3rem 0.2rem;font-size:0.78rem;">${uOpts}</select>
+      ${rmBtn}
+    </div>`;
+  } else {
+    // default: Reps | Movement | Unit
+    const units = ['reps','m','s','cal','kg'];
+    const uOpts = units.map(u => `<option value="${u}"${u===(o.unit||'reps')?' selected':''}>${u}</option>`).join('');
+    return `<div style="display:grid;grid-template-columns:50px 1fr 50px auto;gap:0.4rem;margin-bottom:0.4rem;align-items:center;">
+      <input type="number" id="wreps-${rid}" value="${esc(o.reps||'')}" placeholder="Reps" min="0" style="padding:0.3rem 0.4rem;font-size:0.82rem;">
+      ${movPicker}
+      <select id="wunit-${rid}" style="padding:0.3rem 0.2rem;font-size:0.78rem;">${uOpts}</select>
+      ${rmBtn}
+    </div>`;
+  }
+}
+
+function filterWDd(rid, listFlag) {
+  const input = document.getElementById('wmov-' + rid);
+  const dd = document.getElementById('wdd-' + rid);
+  if (!input || !dd) return;
+  const q = input.value.toLowerCase().trim();
+  const list = (listFlag === 'rest') ? MOVEMENTS_WITH_REST : BUILDER_MOVEMENTS;
+  const matches = q ? list.filter(m => m.toLowerCase().includes(q)) : list;
+  if (!matches.length) { dd.style.display = 'none'; return; }
+  dd.style.display = 'block';
+  dd.innerHTML = matches.slice(0, 60).map(m => `
+    <div onmousedown="event.preventDefault();selectWMov(${rid},'${m.replace(/'/g,"\\'")}','${listFlag}');"
+      style="padding:0.5rem 0.75rem;cursor:pointer;font-size:0.85rem;border-bottom:1px solid var(--border);"
+      onmouseover="this.style.background='var(--card2)'"
+      onmouseout="this.style.background=''">
+      ${m === 'Rest' ? '😴 Rest' : m}
+    </div>`).join('');
+}
+
+function selectWMov(rid, name, listFlag) {
+  const input = document.getElementById('wmov-' + rid);
+  if (input) input.value = name;
+  hideWDd(rid);
+  const rowEl = document.getElementById('wrow-' + rid);
+  if (!rowEl) return;
+  const cid = input?.dataset?.cid || '';
+  const emomMode = (listFlag === 'rest');
+  const prevReps = document.getElementById('wreps-' + rid)?.value || '';
+  const prevAmt  = document.getElementById('wamt-' + rid)?.value || '';
+  const prevUnit = document.getElementById('wunit-' + rid)?.value || '';
+  const newType  = getMovType(name);
+  rowEl.innerHTML = _wRowHtml(cid, rid, newType, { movement: name, reps: prevReps, weight: prevAmt, unit: prevUnit }, emomMode);
+}
+
+function hideWDd(rid) {
+  const dd = document.getElementById('wdd-' + rid);
+  if (dd) dd.style.display = 'none';
+}
+
+// Thin wrappers so existing onclick attributes still work
+function addFortimeRow(reps, unit, movement) { addWRow('fortimeRows', {reps, unit, movement}); }
+function addRftRow(reps, unit, movement)     { addWRow('rftRows',     {reps, unit, movement}); }
+
+// ===== EMOM BUILDER =====
 function addEmomRow(movesPerMin) {
   movesPerMin = movesPerMin || 1;
   emomRowCount++;
@@ -2911,34 +3046,17 @@ function addEmomRow(movesPerMin) {
   const wrapper = document.createElement('div');
   wrapper.className = 'emom-minute-row';
   wrapper.id = 'emom-row-' + id;
-  wrapper.dataset.moves = movesPerMin;
-  wrapper.style.cssText = 'display:flex;flex-direction:column;gap:0.3rem;margin-bottom:0.5rem;background:var(--card2);border:1px solid var(--border);border-radius:4px;padding:0.5rem 0.6rem;';
-
-  const unitOpts = RFT_UNITS.map(u => `<option value="${u}"${u==='reps'?' selected':''}>${u}</option>`).join('');
-  let movesHtml = '';
-  for (let i = 0; i < movesPerMin; i++) {
-    const mid = id + '_' + i;
-    movesHtml += `
-      <div style="display:grid;grid-template-columns:60px 72px 1fr;gap:0.4rem;align-items:center;">
-        <input type="number" id="emom-reps-${mid}" placeholder="Reps" min="1" style="padding:0.3rem 0.4rem;font-size:0.82rem;">
-        <select id="emom-unit-${mid}" style="padding:0.3rem 0.3rem;font-size:0.82rem;">${unitOpts}</select>
-        <div style="position:relative;">
-          <input type="text" id="emom-mov-${mid}" placeholder="Movement…" autocomplete="off"
-            style="width:100%;padding:0.3rem 0.5rem;font-size:0.82rem;"
-            oninput="filterEmomMovDropdown('${mid}')" onfocus="filterEmomMovDropdown('${mid}')" onblur="setTimeout(()=>hideEmomMovDropdown('${mid}'),200)">
-          <div id="emom-dd-${mid}" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:400;background:var(--card);border:1px solid var(--border);border-radius:4px;max-height:180px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>
-        </div>
-      </div>`;
-  }
-
+  const innerCid = 'emom-slots-' + id;
+  wrapper.style.cssText = 'margin-bottom:0.5rem;background:var(--card2);border:1px solid var(--border);border-radius:4px;padding:0.5rem 0.6rem;';
   wrapper.innerHTML = `
-    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.2rem;">
-      <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.78rem;letter-spacing:0.1em;color:#60a5fa;min-width:24px;">${minuteNum}</span>
-      <span style="font-size:0.7rem;color:var(--muted);flex:1;">${movesPerMin > 1 ? movesPerMin + ' movements' : ''}</span>
-      <button onclick="removeEmomRow('${id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.85rem;padding:0 0.2rem;line-height:1;">✕</button>
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem;">
+      <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.78rem;letter-spacing:0.1em;color:#60a5fa;min-width:22px;">${minuteNum}</span>
+      <span style="font-size:0.7rem;color:var(--muted);flex:1;">${movesPerMin > 1 ? movesPerMin + ' movements/min' : ''}</span>
+      <button onclick="removeEmomRow(${id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.85rem;padding:0;line-height:1;">✕</button>
     </div>
-    ${movesHtml}`;
+    <div id="${innerCid}"></div>`;
   container.appendChild(wrapper);
+  for (let i = 0; i < movesPerMin; i++) addWRow(innerCid, {});
   renumberEmomRows();
   recalcEmomRounds();
 }
@@ -2961,9 +3079,8 @@ function recalcEmomRounds() {
   const mins = parseInt(document.getElementById('emomMinutes')?.value) || 0;
   const rows = document.querySelectorAll('#emomRows .emom-minute-row').length;
   if (mins > 0 && rows > 0) {
-    const rounds = Math.round(mins / rows);
     const el = document.getElementById('emomRounds');
-    if (el) el.value = rounds;
+    if (el) el.value = Math.round(mins / rows);
   }
 }
 
@@ -2976,55 +3093,44 @@ function recalcEmomMinutes() {
   }
 }
 
-function filterEmomMovDropdown(mid) {
-  const input = document.getElementById('emom-mov-' + mid);
-  const dd = document.getElementById('emom-dd-' + mid);
-  if (!input || !dd) return;
-  const q = input.value.toLowerCase().trim();
-  const matches = q ? MOVEMENTS_WITH_REST.filter(m => m.toLowerCase().includes(q)) : MOVEMENTS_WITH_REST;
-  if (!matches.length) { dd.style.display = 'none'; return; }
-  dd.style.display = 'block';
-  dd.innerHTML = matches.map(m => `
-    <div onmousedown="event.preventDefault();selectEmomMov('${mid}','${m.replace(/'/g,"\\'")}');"
-      style="padding:0.5rem 0.75rem;cursor:pointer;font-size:0.85rem;border-bottom:1px solid var(--border);"
-      onmouseover="this.style.background='var(--card2)'"
-      onmouseout="this.style.background=''">
-      ${m === 'Rest' ? '😴 Rest' : m}
-    </div>`).join('');
-}
-
-function selectEmomMov(mid, name) {
-  const input = document.getElementById('emom-mov-' + mid);
-  if (input) input.value = name;
-  hideEmomMovDropdown(mid);
-}
-
-function hideEmomMovDropdown(mid) {
-  const dd = document.getElementById('emom-dd-' + mid);
-  if (dd) dd.style.display = 'none';
+function _parseWorkoutLines(text) {
+  const parsed = [];
+  text.split('\n').forEach(line => {
+    line = line.trim();
+    if (!line || /^\d+\s*(?:rounds?|rds?|x)\b/i.test(line)) return;
+    const m = line.match(/^(\d+)\s+(.+)/);
+    if (!m) return;
+    const reps = m[1];
+    const rest = m[2].trim();
+    const weightMatch = rest.match(/\b(\d+(?:[.,]\d+)?)\s*(?:\/\d+(?:[.,]\d+)?\s*)?(kg|lbs|cm|m(?!\w)|s(?!\w)|cal)\b/i);
+    const unit = weightMatch ? weightMatch[2].toLowerCase().replace('m','m') : 'reps';
+    const movDesc = rest.replace(/\b\d+(?:[.,]\d+)?(?:\/\d+(?:[.,]\d+)?)?\s*(?:kg|lbs|cm|m(?!\w)|s(?!\w)|cal)\b/gi, '').trim();
+    const known = BUILDER_MOVEMENTS.find(mv => movDesc.toLowerCase().includes(mv.toLowerCase()));
+    const movType = getMovType(known || movDesc);
+    const weight = (movType === 'weighted' || movType === 'height') ? (weightMatch ? weightMatch[1] : '') : '';
+    parsed.push({ reps, weight, unit: movType === 'cardio' ? (unit === 'reps' ? 'm' : unit) : unit, movement: known || movDesc });
+  });
+  return parsed;
 }
 
 function parseEmomFromDesc() {
   const text = document.getElementById('wodDesc')?.value || '';
-  // detect total minutes from "EMOM x20" or "x 20" or "20 min"
   const minsMatch = text.match(/[xX]\s*(\d+)|(\d+)\s*min/i);
   const totalMins = minsMatch ? parseInt(minsMatch[1] || minsMatch[2]) : 0;
-  if (totalMins) {
-    const el = document.getElementById('emomMinutes');
-    if (el) el.value = totalMins;
-  }
+  if (totalMins) { const el = document.getElementById('emomMinutes'); if (el) el.value = totalMins; }
 
-  // parse numbered lines: "1 - 10 Toes to bar" or "1. 10 Toes to bar"
   const lineRe = /^\s*(\d+)\s*[-–.]\s*(.+)$/gm;
   const parsed = [];
   let m;
   while ((m = lineRe.exec(text)) !== null) {
     const detail = m[2].trim();
     const repsMatch = detail.match(/^(\d+)\s+(.+)/);
-    parsed.push({
-      reps: repsMatch ? repsMatch[1] : '',
-      desc: repsMatch ? repsMatch[2].trim() : detail
-    });
+    const desc = repsMatch ? repsMatch[2].trim() : (detail.toLowerCase() === 'rest' ? 'Rest' : detail);
+    const reps = repsMatch ? repsMatch[1] : '';
+    const weightM = detail.match(/\b(\d+(?:[.,]\d+)?)\s*(?:\/\d+)?\s*(kg|lbs|cm)\b/i);
+    const known = MOVEMENTS_WITH_REST.find(mv => desc.toLowerCase().includes(mv.toLowerCase()));
+    const movement = known || desc;
+    parsed.push({ reps, weight: weightM ? weightM[1] : '', unit: weightM ? weightM[2].toLowerCase() : (getMovType(movement) === 'cardio' ? 'm' : 'reps'), movement });
   }
 
   if (parsed.length > 0) {
@@ -3032,17 +3138,12 @@ function parseEmomFromDesc() {
     emomRowCount = 0;
     parsed.forEach(p => {
       addEmomRow(1);
-      const id = emomRowCount;
-      const mid = id + '_0';
-      const repsEl = document.getElementById('emom-reps-' + mid);
-      const movEl = document.getElementById('emom-mov-' + mid);
-      if (repsEl) repsEl.value = p.reps;
-      if (movEl) {
-        // try to match to known movement
-        const lower = p.desc.toLowerCase();
-        const known = MOVEMENTS_WITH_REST.find(mv => lower.includes(mv.toLowerCase()));
-        movEl.value = known || p.desc;
-      }
+      const innerCid = 'emom-slots-' + emomRowCount;
+      const ridEl = document.getElementById(innerCid)?.querySelector('[id^="wrow-"]');
+      if (!ridEl) return;
+      const rid = ridEl.id.replace('wrow-', '');
+      const movType = getMovType(p.movement);
+      ridEl.innerHTML = _wRowHtml(innerCid, rid, movType, p, true);
     });
     recalcEmomRounds();
   } else if (document.getElementById('emomRows').children.length === 0) {
@@ -3051,181 +3152,22 @@ function parseEmomFromDesc() {
   }
 }
 
-// ===== ROUNDS FOR TIME BUILDER =====
-let rftRowCount = 0;
-const RFT_UNITS = ['reps','kg','lbs','m','cm','s','cal'];
-
-function addRftRow(reps, unit, movement) {
-  rftRowCount++;
-  const id = rftRowCount;
-  const container = document.getElementById('rftRows');
-  const row = document.createElement('div');
-  row.id = 'rft-row-' + id;
-  row.style.cssText = 'display:grid;grid-template-columns:60px 80px 1fr auto;gap:0.4rem;margin-bottom:0.4rem;align-items:center;';
-  const unitOpts = RFT_UNITS.map(u => `<option value="${u}"${u===(unit||'reps')?' selected':''}>${u}</option>`).join('');
-  const mid = 'rft_' + id;
-  row.innerHTML = `
-    <input type="number" id="rft-reps-${id}" value="${reps||''}" placeholder="Reps" min="0" style="padding:0.3rem 0.4rem;font-size:0.82rem;">
-    <select id="rft-unit-${id}" style="padding:0.3rem 0.4rem;font-size:0.82rem;">${unitOpts}</select>
-    <div style="position:relative;">
-      <input type="text" id="rft-mov-${mid}" value="${movement||''}" placeholder="Movement…" autocomplete="off"
-        style="width:100%;padding:0.3rem 0.5rem;font-size:0.82rem;"
-        oninput="filterRftMovDropdown('${mid}')" onfocus="filterRftMovDropdown('${mid}')" onblur="setTimeout(()=>hideRftMovDropdown('${mid}'),200)">
-      <div id="rft-dd-${mid}" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:400;background:var(--card);border:1px solid var(--border);border-radius:4px;max-height:180px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>
-    </div>
-    <button onclick="removeRftRow(${id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.85rem;padding:0.2rem;">✕</button>`;
-  container.appendChild(row);
-}
-
-function removeRftRow(id) {
-  const el = document.getElementById('rft-row-' + id);
-  if (el) el.remove();
-}
-
-function filterRftMovDropdown(mid) {
-  const input = document.getElementById('rft-mov-' + mid);
-  const dd = document.getElementById('rft-dd-' + mid);
-  if (!input || !dd) return;
-  const q = input.value.toLowerCase().trim();
-  const matches = q ? MOVEMENTS.filter(m => m.toLowerCase().includes(q)) : MOVEMENTS;
-  if (!matches.length) { dd.style.display = 'none'; return; }
-  dd.style.display = 'block';
-  dd.innerHTML = matches.map(m => `
-    <div onmousedown="event.preventDefault();selectRftMov('${mid}','${m.replace(/'/g,"\\'")}');"
-      style="padding:0.5rem 0.75rem;cursor:pointer;font-size:0.85rem;border-bottom:1px solid var(--border);"
-      onmouseover="this.style.background='var(--card2)'"
-      onmouseout="this.style.background=''">
-      ${m}
-    </div>`).join('');
-}
-
-function selectRftMov(mid, name) {
-  const input = document.getElementById('rft-mov-' + mid);
-  if (input) input.value = name;
-  hideRftMovDropdown(mid);
-}
-
-function hideRftMovDropdown(mid) {
-  const dd = document.getElementById('rft-dd-' + mid);
-  if (dd) dd.style.display = 'none';
-}
-
-// ===== FOR TIME BUILDER =====
-let fortimeRowCount = 0;
-
-function addFortimeRow(reps, unit, movement) {
-  fortimeRowCount++;
-  const id = fortimeRowCount;
-  const container = document.getElementById('fortimeRows');
-  const row = document.createElement('div');
-  row.id = 'fortime-row-' + id;
-  row.style.cssText = 'display:grid;grid-template-columns:60px 80px 1fr auto;gap:0.4rem;margin-bottom:0.4rem;align-items:center;';
-  const unitOpts = RFT_UNITS.map(u => `<option value="${u}"${u===(unit||'reps')?' selected':''}>${u}</option>`).join('');
-  const mid = 'ft_' + id;
-  row.innerHTML = `
-    <input type="number" id="ft-reps-${id}" value="${reps||''}" placeholder="Reps" min="0" style="padding:0.3rem 0.4rem;font-size:0.82rem;">
-    <select id="ft-unit-${id}" style="padding:0.3rem 0.4rem;font-size:0.82rem;">${unitOpts}</select>
-    <div style="position:relative;">
-      <input type="text" id="ft-mov-${mid}" value="${movement||''}" placeholder="Movement…" autocomplete="off"
-        style="width:100%;padding:0.3rem 0.5rem;font-size:0.82rem;"
-        oninput="filterFtMovDropdown('${mid}')" onfocus="filterFtMovDropdown('${mid}')" onblur="setTimeout(()=>hideFtMovDropdown('${mid}'),200)">
-      <div id="ft-dd-${mid}" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:400;background:var(--card);border:1px solid var(--border);border-radius:4px;max-height:180px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>
-    </div>
-    <button onclick="removeFortimeRow(${id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.85rem;padding:0.2rem;">✕</button>`;
-  container.appendChild(row);
-}
-
-function removeFortimeRow(id) {
-  const el = document.getElementById('fortime-row-' + id);
-  if (el) el.remove();
-}
-
-function filterFtMovDropdown(mid) {
-  const input = document.getElementById('ft-mov-' + mid);
-  const dd = document.getElementById('ft-dd-' + mid);
-  if (!input || !dd) return;
-  const q = input.value.toLowerCase().trim();
-  const matches = q ? MOVEMENTS.filter(m => m.toLowerCase().includes(q)) : MOVEMENTS;
-  if (!matches.length) { dd.style.display = 'none'; return; }
-  dd.style.display = 'block';
-  dd.innerHTML = matches.map(m => `
-    <div onmousedown="event.preventDefault();selectFtMov('${mid}','${m.replace(/'/g,"\\'")}');"
-      style="padding:0.5rem 0.75rem;cursor:pointer;font-size:0.85rem;border-bottom:1px solid var(--border);"
-      onmouseover="this.style.background='var(--card2)'"
-      onmouseout="this.style.background=''">
-      ${m}
-    </div>`).join('');
-}
-
-function selectFtMov(mid, name) {
-  const input = document.getElementById('ft-mov-' + mid);
-  if (input) input.value = name;
-  hideFtMovDropdown(mid);
-}
-
-function hideFtMovDropdown(mid) {
-  const dd = document.getElementById('ft-dd-' + mid);
-  if (dd) dd.style.display = 'none';
-}
-
 function parseFortimeFromDesc() {
   const text = document.getElementById('wodDesc')?.value || '';
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l && !/^\d+\s*(?:rounds?|rds?|x)\b/i.test(l));
-  const parsed = [];
-  lines.forEach(line => {
-    const m = line.match(/^(\d+)\s+(.+)/);
-    if (m) {
-      const reps = m[1];
-      const rest = m[2].trim();
-      const unitMatch = rest.match(/\b(\d+(?:\.\d+)?)\s*(kg|lbs|m|cm|s|cal)\b/i);
-      const unit = unitMatch ? unitMatch[2].toLowerCase() : 'reps';
-      const movDesc = rest.replace(/\b\d+(?:\.\d+)?\s*(?:kg|lbs|m|cm|s|cal)\b/gi, '').trim();
-      const known = MOVEMENTS.find(mv => movDesc.toLowerCase().includes(mv.toLowerCase()));
-      parsed.push({ reps, unit, movement: known || movDesc });
-    }
-  });
-  if (parsed.length > 0) {
-    document.getElementById('fortimeRows').innerHTML = '';
-    fortimeRowCount = 0;
-    parsed.forEach(p => addFortimeRow(p.reps, p.unit, p.movement));
-  } else if (document.getElementById('fortimeRows').children.length === 0) {
-    addFortimeRow(); addFortimeRow(); addFortimeRow();
-  }
+  const parsed = _parseWorkoutLines(text);
+  document.getElementById('fortimeRows').innerHTML = '';
+  if (parsed.length > 0) parsed.forEach(p => addWRow('fortimeRows', p));
+  else { addWRow('fortimeRows', {}); addWRow('fortimeRows', {}); addWRow('fortimeRows', {}); }
 }
 
 function parseRftFromDesc() {
   const text = document.getElementById('wodDesc')?.value || '';
-  // detect rounds: "3 rounds", "3 rds", "3x"
   const rdsMatch = text.match(/(\d+)\s*(?:rounds?|rds?|x)\b/i);
-  if (rdsMatch) {
-    const el = document.getElementById('rftRounds');
-    if (el) el.value = rdsMatch[1];
-  }
-
-  // parse movement lines: "10 Pull-ups", "21 Thrusters 43kg"
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l && !/^\d+\s*(?:rounds?|rds?|x)\b/i.test(l));
-  const parsed = [];
-  lines.forEach(line => {
-    const m = line.match(/^(\d+)\s+(.+)/);
-    if (m) {
-      const reps = m[1];
-      const rest = m[2].trim();
-      // try unit detection
-      const unitMatch = rest.match(/\b(\d+(?:\.\d+)?)\s*(kg|lbs|m|cm|s|cal)\b/i);
-      const unit = unitMatch ? unitMatch[2].toLowerCase() : 'reps';
-      const movDesc = rest.replace(/\b\d+(?:\.\d+)?\s*(?:kg|lbs|m|cm|s|cal)\b/gi, '').trim();
-      const known = MOVEMENTS.find(mv => movDesc.toLowerCase().includes(mv.toLowerCase()));
-      parsed.push({ reps, unit, movement: known || movDesc });
-    }
-  });
-
-  if (parsed.length > 0) {
-    document.getElementById('rftRows').innerHTML = '';
-    rftRowCount = 0;
-    parsed.forEach(p => addRftRow(p.reps, p.unit, p.movement));
-  } else if (document.getElementById('rftRows').children.length === 0) {
-    addRftRow(); addRftRow(); addRftRow();
-  }
+  if (rdsMatch) { const el = document.getElementById('rftRounds'); if (el) el.value = rdsMatch[1]; }
+  const parsed = _parseWorkoutLines(text);
+  document.getElementById('rftRows').innerHTML = '';
+  if (parsed.length > 0) parsed.forEach(p => addWRow('rftRows', p));
+  else { addWRow('rftRows', {}); addWRow('rftRows', {}); addWRow('rftRows', {}); }
 }
 
 function openPRModalFor(movement) {
@@ -4376,13 +4318,14 @@ function colLetterToIndex(letter) {
 
 function getProgramCols() {
   return {
-    date:     colLetterToIndex(document.getElementById('colDate')?.value     || localStorage.getItem('lerums_col_date')     || 'B'),
-    strength: colLetterToIndex(document.getElementById('colStrength')?.value || localStorage.getItem('lerums_col_strength') || 'C'),
-    workout:  colLetterToIndex(document.getElementById('colWorkout')?.value  || localStorage.getItem('lerums_col_workout')  || 'D'),
-    club:     colLetterToIndex(document.getElementById('colClub')?.value     || localStorage.getItem('lerums_col_club')     || 'E'),
-    hyrox:    colLetterToIndex(document.getElementById('colHyrox')?.value    || localStorage.getItem('lerums_col_hyrox')    || 'F'),
-    endurance:colLetterToIndex(document.getElementById('colEndurance')?.value|| localStorage.getItem('lerums_col_endurance')|| 'G'),
-    oly:      colLetterToIndex(document.getElementById('colOly')?.value      || localStorage.getItem('lerums_col_oly')      || 'H'),
+    date:      colLetterToIndex(document.getElementById('colDate')?.value      || localStorage.getItem('lerums_col_date')      || 'B'),
+    strength:  colLetterToIndex(document.getElementById('colStrength')?.value  || localStorage.getItem('lerums_col_strength')  || 'C'),
+    workout:   colLetterToIndex(document.getElementById('colWorkout')?.value   || localStorage.getItem('lerums_col_workout')   || 'D'),
+    club:      colLetterToIndex(document.getElementById('colClub')?.value      || localStorage.getItem('lerums_col_club')      || 'E'),
+    hyrox:     colLetterToIndex(document.getElementById('colHyrox')?.value     || localStorage.getItem('lerums_col_hyrox')     || 'F'),
+    endurance: colLetterToIndex(document.getElementById('colEndurance')?.value || localStorage.getItem('lerums_col_endurance') || 'G'),
+    oly:       colLetterToIndex(document.getElementById('colOly')?.value       || localStorage.getItem('lerums_col_oly')       || 'H'),
+    accessory: colLetterToIndex(document.getElementById('colAccessory')?.value || localStorage.getItem('lerums_col_accessory') || 'I'),
   };
 }
 
@@ -4392,7 +4335,7 @@ function saveProgramSettings() {
   localStorage.setItem('lb_lerums_program_sheet', tab);
   localStorage.setItem('lb_lerums_program_auto', autoSync ? '1' : '0');
   // Save column letters
-  ['date','strength','workout','club','hyrox','endurance','oly'].forEach(k => {
+  ['date','strength','workout','club','hyrox','endurance','oly','accessory'].forEach(k => {
     const v = document.getElementById('col' + k.charAt(0).toUpperCase() + k.slice(1))?.value.toUpperCase().trim();
     if (v) localStorage.setItem('lerums_col_' + k, v);
   });
@@ -4406,7 +4349,7 @@ function loadProgramSettings() {
   const autoEl = document.getElementById('programAutoSync');
   if (autoEl) autoEl.checked = autoSync;
   // Load column letters
-  const defaults = {date:'B',strength:'C',workout:'D',club:'E',hyrox:'F',endurance:'G',oly:'H'};
+  const defaults = {date:'B',strength:'C',workout:'D',club:'E',hyrox:'F',endurance:'G',oly:'H',accessory:'I'};
   Object.entries(defaults).forEach(([k, def]) => {
     const el = document.getElementById('col' + k.charAt(0).toUpperCase() + k.slice(1));
     if (el) el.value = localStorage.getItem('lerums_col_' + k) || def;
