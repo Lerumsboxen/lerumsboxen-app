@@ -3092,7 +3092,12 @@ function addWRow(cid, opts) {
   if (!container) return rid;
   opts = opts || {};
   const emomMode = cid.startsWith('emom-slots');
-  const movType = getMovType(opts.movement);
+  // Determine type — respect pre-parsed opts that already know the correct type
+  let movType = getMovType(opts.movement);
+  // Auto-promote to combined when _parseWorkoutLines already computed both weight+height
+  if (movType !== 'combined' && opts.height != null && opts.height !== '' && opts.weight != null) {
+    movType = 'combined';
+  }
   const el = document.createElement('div');
   el.id = 'wrow-' + rid;
   el.dataset.movList = emomMode ? 'rest' : 'builder';
@@ -3118,11 +3123,12 @@ function _wRowHtml(cid, rid, movType, opts, emomMode) {
   const rmBtn = `<button onmousedown="event.preventDefault()" onclick="document.getElementById('wrow-${rid}').remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.9rem;padding:0.2rem;line-height:1;">✕</button>`;
 
   if (movType === 'cardio') {
+    // 1.Distance  2.Movement  3.Unit
     const units = ['m','km','cal','min'];
     const uOpts = units.map(u => `<option value="${u}"${u===(o.unit||'m')?' selected':''}>${u}</option>`).join('');
-    return `<div style="display:grid;grid-template-columns:1fr 65px 50px auto;gap:0.4rem;margin-bottom:0.4rem;align-items:center;">
-      ${movPicker}
+    return `<div style="display:grid;grid-template-columns:65px 1fr 50px auto;gap:0.4rem;margin-bottom:0.4rem;align-items:center;">
       <input type="number" id="wamt-${rid}" value="${esc(o.reps||'')}" placeholder="Dist." min="0" style="padding:0.3rem 0.4rem;font-size:0.82rem;">
+      ${movPicker}
       <select id="wunit-${rid}" style="padding:0.3rem 0.2rem;font-size:0.78rem;">${uOpts}</select>
       ${rmBtn}
     </div>`;
