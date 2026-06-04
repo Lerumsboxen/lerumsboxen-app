@@ -1364,22 +1364,52 @@
 
   if (action === "registerMember") {
     var sheet = ss.getSheetByName("Members") || ss.insertSheet("Members");
-    if (sheet.getLastRow() === 0) sheet.appendRow(["name","avatar","registered","lastSeen"]);
-    var name = data.name || "";
-    var avatar = data.avatar || "💪";
-    if (!name) return json({status: "ok"});
+    // New format: firstName | surname | avatar | registered | lastSeen | admin
+    if (sheet.getLastRow() === 0) {
+      sheet.appendRow(["firstName","surname","avatar","registered","lastSeen","admin"]);
+    }
+    var firstName = data.firstName || "";
+    var lastName  = data.lastName  || "";
+    var fullName  = data.name      || (firstName + (lastName ? " " + lastName : "")).trim();
+    var avatar    = data.avatar    || "💪";
+    if (!fullName) return json({status: "ok"});
     var vals = sheet.getDataRange().getValues();
     var found = false;
     for (var r = 1; r < vals.length; r++) {
-      if (vals[r][0] === name) {
-        sheet.getRange(r+1, 2).setValue(avatar);
-        sheet.getRange(r+1, 4).setValue(new Date().toISOString());
+      // Detect old format (col B = avatar emoji, i.e. not a plain surname)
+      var oldFmt = vals[r][1] && vals[r][1].toString().trim().length <= 3;
+      var storedFullName = oldFmt
+        ? vals[r][0].toString()
+        : (vals[r][0].toString() + (vals[r][1] ? " " + vals[r][1].toString() : "")).trim();
+      if (storedFullName === fullName) {
+        if (oldFmt) {
+          // Migrate this row to new format: insert surname column, shift avatar to col C
+          var oldAvatar    = vals[r][1] || "";
+          var oldReg       = vals[r][2] || "";
+          var oldLastSeen  = vals[r][3] || "";
+          var oldAdmin     = vals[r][4] || "";
+          sheet.getRange(r+1, 1, 1, 6).setValues([[
+            firstName || fullName.split(" ")[0] || fullName,
+            lastName  || fullName.split(" ").slice(1).join(" ") || "",
+            avatar || oldAvatar,
+            oldReg,
+            new Date().toISOString(),
+            oldAdmin
+          ]]);
+        } else {
+          sheet.getRange(r+1, 3).setValue(avatar);
+          sheet.getRange(r+1, 5).setValue(new Date().toISOString());
+        }
         found = true;
         break;
       }
     }
     if (!found) {
-      sheet.appendRow([name, avatar, new Date().toISOString(), new Date().toISOString()]);
+      sheet.appendRow([
+        firstName || fullName.split(" ")[0] || fullName,
+        lastName  || fullName.split(" ").slice(1).join(" ") || "",
+        avatar, new Date().toISOString(), new Date().toISOString(), ""
+      ]);
     }
     return json({status: "ok"});
   }
@@ -1389,9 +1419,20 @@
     if (!sheet || sheet.getLastRow() < 2) return json({members: []});
     var vals = sheet.getDataRange().getValues();
     var members = vals.slice(1).map(function(row) {
-      // Col E (index 4) can be "admin" to grant admin access
-      var isAdmin = row[4] && row[4].toString().toLowerCase().trim() === "admin";
-      return {name: row[0], avatar: row[1], registered: row[2], lastSeen: row[3], admin: isAdmin};
+      // Detect old format (col B is avatar/emoji, ≤3 chars) vs new format (col B = surname)
+      var oldFmt = row[1] && row[1].toString().trim().length <= 3;
+      var name, avatar, registered, lastSeen, adminFlag;
+      if (oldFmt) {
+        name = row[0].toString().trim();
+        avatar = row[1]; registered = row[2]; lastSeen = row[3];
+        adminFlag = row[4] && row[4].toString().toLowerCase().trim() === "admin";
+      } else {
+        var fn = row[0].toString().trim(), ln = row[1].toString().trim();
+        name = (fn + (ln ? " " + ln : "")).trim();
+        avatar = row[2]; registered = row[3]; lastSeen = row[4];
+        adminFlag = row[5] && row[5].toString().toLowerCase().trim() === "admin";
+      }
+      return {name: name, avatar: avatar, registered: registered, lastSeen: lastSeen, admin: adminFlag};
     }).filter(function(m) { return m.name; });
     return json({members: members});
   }
@@ -2046,12 +2087,22 @@ const DASH_SECTIONS = {
           <button data-log="strength" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#e0e0e0;color:#000;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG</button>
         </div>` : ''}
         ${prog.strength && prog.workout ? `<div style="border-top:1px solid var(--border);margin:0.75rem 0;"></div>` : ''}
-        ${prog.workout ? `
-        <div>
-          <div class="program-section-label">🏋️ WOD</div>
-          <div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.workout)}</div>
-          <button data-log="workout" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:var(--red);color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ WORKOUT</button>
-        </div>` : ''}
+        ${prog.workout ? (() => {
+          const wSplit = splitWorkoutText(prog.workout);
+          return `
+          <div>
+            <div class="program-section-label">🏋️ WOD</div>
+            <div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(wSplit.workout)}</div>
+            <button data-log="workout" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:var(--red);color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ WORKOUT</button>
+          </div>
+          ${wSplit.accessory ? `
+          <div style="border-top:1px solid var(--border);margin:0.75rem 0;"></div>
+          <div>
+            <div class="program-section-label">🔧 Accessory Work</div>
+            <div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(wSplit.accessory)}</div>
+            <button data-log="wod-accessory" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#475569;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG ACCESSORY</button>
+          </div>` : ''}`;
+        })() : ''}
       </div>` : (prog ? '' : '<div style="color:var(--muted);font-size:0.82rem;text-align:center;padding:1rem 0;">No program for this day — try syncing.</div>')}
       ${prog && prog.club ? `
       <div style="background:var(--card);border:1px solid rgba(167,139,250,0.4);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
@@ -2522,15 +2573,29 @@ function logFromProgram(type) {
   }
 
   if (type === 'workout') {
+    const wSplit = splitWorkoutText(prog.workout || '');
+    const workoutText = wSplit.workout;
     document.getElementById('wodDate').value = viewDate;
     document.getElementById('wodName').value = '';
-    const workoutText = stripHtml(prog.workout || '');
     document.getElementById('wodDesc').value = workoutText;
     document.getElementById('wodScore').value = '';
     document.getElementById('wodNotes').value = '';
     document.getElementById('wodType').value = detectWodType(workoutText);
     openWodModalDisplay();
     onWodTypeChange(true);
+  }
+
+  if (type === 'wod-accessory') {
+    const wSplit = splitWorkoutText(prog.workout || '');
+    document.getElementById('strDate').value = viewDate;
+    document.getElementById('strExercise').value = '';
+    document.getElementById('strNotes').value = wSplit.accessory;
+    const lbl = document.getElementById('strWeightLabel');
+    if (lbl) lbl.textContent = `Weight (${profile.unit || 'kg'})`;
+    setRowCount = 0;
+    document.getElementById('setsContainer').innerHTML = '';
+    addSetRow(); addSetRow(); addSetRow();
+    document.getElementById('strengthModal').style.display = 'flex';
   }
 
   if (type === 'club') {
@@ -3257,25 +3322,37 @@ function _parseWorkoutLines(text) {
     const heightPair = valuePairs.find(p => ['cm','inch'].includes(p.unit));
     const cardioPair = valuePairs.find(p => ['m','km','cal','min'].includes(p.unit));
 
-    if (movType === 'combined') {
+    // Auto-promote to combined if BOTH a weight value AND a height value are present in the line,
+    // regardless of whether the movement is in the custom list
+    const isCombined = movType === 'combined' || (weightPair && heightPair);
+
+    // Helper: pick gendered value and auto-convert lbs → kg
+    const pickW = (pair) => {
+      if (!pair) return '';
+      if (pair.unit === 'lbs') return lbsPickAndConvert(pair.raw);
+      return pickGenderedValue(pair.raw);
+    };
+    const unitW = (pair, fallback) => (pair?.unit === 'lbs') ? 'kg' : (pair?.unit || fallback);
+
+    if (isCombined) {
       parsed.push({
         reps,
-        weight:     weightPair ? pickGenderedValue(weightPair.raw) : '',
-        weightUnit: weightPair?.unit || 'kg',
-        height:     heightPair ? pickGenderedValue(heightPair.raw) : '',
-        heightUnit: heightPair?.unit || 'cm',
+        weight:     pickW(weightPair),
+        weightUnit: unitW(weightPair, 'kg'),
+        height:     pickW(heightPair),
+        heightUnit: unitW(heightPair, 'cm'),
         movement:   known,
       });
     } else if (movType === 'cardio') {
       const p = cardioPair || weightPair || heightPair;
-      parsed.push({ reps: p ? pickGenderedValue(p.raw) : reps, unit: p?.unit || 'm', movement: known });
+      parsed.push({ reps: p ? pickW(p) : reps, unit: p?.unit || 'm', movement: known });
     } else if (movType === 'weighted') {
-      parsed.push({ reps, weight: weightPair ? pickGenderedValue(weightPair.raw) : '', unit: weightPair?.unit || 'kg', movement: known });
+      parsed.push({ reps, weight: pickW(weightPair), unit: unitW(weightPair, 'kg'), movement: known });
     } else if (movType === 'height') {
-      parsed.push({ reps, weight: heightPair ? pickGenderedValue(heightPair.raw) : '', unit: heightPair?.unit || 'cm', movement: known });
+      parsed.push({ reps, weight: pickW(heightPair), unit: unitW(heightPair, 'cm'), movement: known });
     } else {
       const p = valuePairs[0];
-      parsed.push({ reps, unit: p?.unit || 'reps', weight: p ? pickGenderedValue(p.raw) : '', movement: known });
+      parsed.push({ reps, unit: unitW(p, 'reps'), weight: p ? pickW(p) : '', movement: known });
     }
   });
   return parsed;
@@ -4381,6 +4458,18 @@ function stripHtml(text) {
   return (text || '').replace(/<[^>]+>/g, '');
 }
 
+// Split a workout text at an "Accessory Work" heading into {workout, accessory}
+function splitWorkoutText(text) {
+  if (!text) return { workout: '', accessory: '' };
+  const clean = stripHtml(text);
+  const re = /\n?\s*accessory\s+work\s*:?\s*\n?/i;
+  const parts = clean.split(re);
+  return {
+    workout:   parts[0].trim(),
+    accessory: parts.length > 1 ? parts.slice(1).join('\n').trim() : ''
+  };
+}
+
 function enrichProgramText(text) {
   if (!text) return text;
   const lines = text.split('\n');
@@ -4933,12 +5022,25 @@ function updateRmChart() {
 const AVATAR_EMOJIS = ['💪','🏋️','🤸','🥊','🏃','🚴','🧗','⚡','🔥','🦅','🐺','🦁','👊','🎯','🧠','🌟'];
 const KG_TO_LBS = 2.20462;
 
+// Convert a lbs string (possibly gendered "135/95") to kg, picking by gender first
+function lbsPickAndConvert(raw) {
+  const picked = pickGenderedValue(raw);           // "135" or "95"
+  const kg = Math.round(parseFloat(picked.replace(',', '.')) / KG_TO_LBS);
+  return isNaN(kg) ? picked : String(kg);
+}
+
 let profile = JSON.parse(localStorage.getItem('lerums_profile') || 'null') || {
-  name: '', avatar: '💪', photo: null, passwordHash: null, unit: 'kg', gender: 'male'
+  name: '', firstName: '', lastName: '', avatar: '💪', photo: null, passwordHash: null, unit: 'kg', gender: 'male'
 };
 // Migrate old profile
 if (!profile.unit) profile.unit = 'kg';
 if (!profile.gender) profile.gender = 'male';
+// Migrate old single-name profile to firstName/lastName
+if (profile.name && !profile.firstName) {
+  const parts = profile.name.trim().split(/\s+/);
+  profile.firstName = parts.slice(0, -1).join(' ') || parts[0] || '';
+  profile.lastName  = parts.length > 1 ? parts[parts.length - 1] : '';
+}
 
 // Weight display helpers
 function toDisplayUnit(kg) {
@@ -4971,8 +5073,9 @@ async function saveProfile() {
   }
 
   // Logged-out: full setup flow
-  const name = document.getElementById('profileName').value.trim();
-  if (!name) { document.getElementById('profileName').focus(); return; }
+  const firstName = (document.getElementById('profileFirstName')?.value || '').trim();
+  const lastName  = (document.getElementById('profileLastName')?.value  || '').trim();
+  if (!firstName) { document.getElementById('profileFirstName')?.focus(); return; }
 
   const pw = document.getElementById('profilePassword').value;
   const statusEl = document.getElementById('profilePasswordStatus');
@@ -4985,7 +5088,9 @@ async function saveProfile() {
     profile.passwordHash = await hashPassword(pw);
   }
 
-  profile.name = name;
+  profile.firstName = firstName;
+  profile.lastName  = lastName;
+  profile.name = (firstName + (lastName ? ' ' + lastName : '')).trim();
   localStorage.setItem('lerums_profile', JSON.stringify(profile));
   updateHeaderProfile();
   closeProfileModal();
@@ -5124,7 +5229,8 @@ function openProfileModal() {
   } else {
     // Setup view
     document.getElementById('profileModalTitle').innerHTML = 'CREATE ACCOUNT <button class="close-btn" onclick="closeProfileModal()">✕</button>';
-    document.getElementById('profileName').value = '';
+    if (document.getElementById('profileFirstName')) document.getElementById('profileFirstName').value = '';
+    if (document.getElementById('profileLastName'))  document.getElementById('profileLastName').value  = '';
     document.getElementById('profilePassword').value = '';
     const statusEl = document.getElementById('profilePasswordStatus');
     if (statusEl) { statusEl.textContent = ''; }
@@ -5165,7 +5271,9 @@ function selectAvatar(emoji) {
 }
 
 function updateProfilePreview() {
-  const name = document.getElementById('profileName')?.value.trim() || 'Your Name';
+  const first = (document.getElementById('profileFirstName')?.value || '').trim();
+  const last  = (document.getElementById('profileLastName')?.value  || '').trim();
+  const name  = (first + (last ? ' ' + last : '')).trim() || 'Your Name';
   const nameEl = document.getElementById('profileNamePreview');
   if (nameEl) nameEl.textContent = name;
   refreshAvatarPreviews();
@@ -5574,9 +5682,11 @@ async function registerMember() {
   if (!profile.name) return;
   try {
     await xhrPost(APPS_SCRIPT_URL, {
-      action: 'registerMember',
-      name: profile.name,
-      avatar: profile.avatar || '💪'
+      action:    'registerMember',
+      name:      profile.name,
+      firstName: profile.firstName || profile.name.split(' ').slice(0, -1).join(' ') || profile.name,
+      lastName:  profile.lastName  || profile.name.split(' ').slice(-1).join(''),
+      avatar:    profile.avatar || '💪'
     });
   } catch(e) { /* silent */ }
 }
@@ -6316,9 +6426,15 @@ window.addEventListener('orientationchange', () => {
           <div style="font-size:0.75rem;color:var(--muted);">Your name shows on the leaderboard</div>
         </div>
       </div>
-      <div class="form-group">
-        <label>Your Name</label>
-        <input type="text" id="profileName" placeholder="e.g. Anna K." maxlength="30" oninput="updateProfilePreview()">
+      <div class="form-row cols-2">
+        <div class="form-group">
+          <label>First Name</label>
+          <input type="text" id="profileFirstName" placeholder="e.g. Anna" maxlength="30" oninput="updateProfilePreview()">
+        </div>
+        <div class="form-group">
+          <label>Surname</label>
+          <input type="text" id="profileLastName" placeholder="e.g. Karlsson" maxlength="30" oninput="updateProfilePreview()">
+        </div>
       </div>
       <div class="form-group">
         <label>Password <span style="color:var(--muted);font-weight:400;font-size:0.75rem;">— protects your account</span></label>
