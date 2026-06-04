@@ -2968,13 +2968,35 @@ function getCustomMovement(name) {
 }
 
 // Derive movement type from a unit string
+// Supports combined "kg+cm" or "cm+kg" for movements needing both weight and height
 function unitToMovType(unit) {
   if (!unit) return null;
   const u = unit.toLowerCase();
-  if (['cm','inch'].includes(u)) return 'height';
-  if (['kg','lbs'].includes(u)) return 'weighted';
-  if (['m','km','cal','min'].includes(u)) return 'cardio';
+  // Combined: contains both a weight and a height unit
+  const hasWeight = /kg|lbs/.test(u);
+  const hasHeight = /cm|inch/.test(u);
+  if (hasWeight && hasHeight) return 'combined';
+  if (hasHeight) return 'height';
+  if (hasWeight) return 'weighted';
+  if (/^(m|km|cal|min)$/.test(u)) return 'cardio';
   return null;
+}
+
+// Find the best matching movement name for a description string.
+// Checks custom movements first (they take priority), then built-ins.
+// Prefers the longest / most specific match over shorter substring matches.
+function findMovementMatch(text) {
+  if (!text) return null;
+  const lower = text.toLowerCase().trim();
+  const customNames = (state.customMovements || []).map(m => typeof m === 'string' ? m : m.name);
+  // Custom first, then built-ins (deduped)
+  const allMov = [...customNames, ...BUILDER_MOVEMENTS.filter(m => !customNames.some(c => c.toLowerCase() === m.toLowerCase()))];
+  // 1. Exact match
+  const exact = allMov.find(m => m.toLowerCase() === lower);
+  if (exact) return exact;
+  // 2. Longest substring match (more specific beats less specific)
+  const hits = allMov.filter(m => lower.includes(m.toLowerCase())).sort((a,b) => b.length - a.length);
+  return hits[0] || null;
 }
 
 function getMovType(name) {
@@ -3039,6 +3061,24 @@ function _wRowHtml(cid, rid, movType, opts, emomMode) {
       <select id="wunit-${rid}" style="padding:0.3rem 0.2rem;font-size:0.78rem;">${uOpts}</select>
       ${rmBtn}
     </div>`;
+  } else if (movType === 'combined') {
+    // Both weight (kg/lbs) AND height (cm/inch) — e.g. Box Jump Over with DB
+    // Determine default units from custom movement definition
+    const customMov = getCustomMovement(o.movement || '');
+    const unitParts = (customMov?.unit || 'kg+cm').toLowerCase().split(/[+&, ]+/);
+    const defWeightUnit = unitParts.find(p => ['kg','lbs'].includes(p)) || 'kg';
+    const defHeightUnit = unitParts.find(p => ['cm','inch'].includes(p)) || 'cm';
+    const wOpts = ['kg','lbs'].map(u => `<option value="${u}"${u===(o.weightUnit||defWeightUnit)?' selected':''}>${u}</option>`).join('');
+    const hOpts = ['cm','inch'].map(u => `<option value="${u}"${u===(o.heightUnit||defHeightUnit)?' selected':''}>${u}</option>`).join('');
+    return `<div style="display:grid;grid-template-columns:46px 1fr 52px 40px 52px 40px auto;gap:0.35rem;margin-bottom:0.4rem;align-items:center;">
+      <input type="number" id="wreps-${rid}" value="${esc(o.reps||'')}" placeholder="Reps" min="0" style="padding:0.3rem 0.35rem;font-size:0.82rem;">
+      ${movPicker}
+      <input type="number" id="wamt-${rid}" value="${esc(o.weight||'')}" placeholder="kg" min="0" step="0.5" style="padding:0.3rem 0.35rem;font-size:0.82rem;">
+      <select id="wunit-${rid}" style="padding:0.3rem 0.1rem;font-size:0.75rem;">${wOpts}</select>
+      <input type="number" id="wamt2-${rid}" value="${esc(o.height||'')}" placeholder="cm" min="0" style="padding:0.3rem 0.35rem;font-size:0.82rem;">
+      <select id="wunit2-${rid}" style="padding:0.3rem 0.1rem;font-size:0.75rem;">${hOpts}</select>
+      ${rmBtn}
+    </div>`;
   } else if (movType === 'weighted' || movType === 'height') {
     const units = movType === 'height' ? ['cm','inch'] : ['kg','lbs'];
     const uOpts = units.map(u => `<option value="${u}"${u===(o.unit||units[0])?' selected':''}>${u}</option>`).join('');
@@ -3091,19 +3131,28 @@ function selectWMov(rid, name, listFlag) {
   if (!rowEl) return;
   const cid = input?.dataset?.cid || '';
   const emomMode = (listFlag === 'rest');
-  const prevReps = document.getElementById('wreps-' + rid)?.value || '';
-  const prevAmt  = document.getElementById('wamt-' + rid)?.value || '';
-  const prevUnit = document.getElementById('wunit-' + rid)?.value || '';
+  const prevReps    = document.getElementById('wreps-'  + rid)?.value || '';
+  const prevAmt     = document.getElementById('wamt-'   + rid)?.value || '';
+  const prevUnit    = document.getElementById('wunit-'  + rid)?.value || '';
+  const prevAmt2    = document.getElementById('wamt2-'  + rid)?.value || '';
+  const prevUnit2   = document.getElementById('wunit2-' + rid)?.value || '';
   // Apply preset unit/default from custom movement definition
   const custom = getCustomMovement(name);
   const presetUnit  = (custom && typeof custom === 'object') ? (custom.unit || '') : '';
-  const presetValue = (custom && typeof custom === 'object') ? pickGenderedValue(custom.defaultValue || '') : '';
+  const rawDefault  = (custom && typeof custom === 'object') ? (custom.defaultValue || '') : '';
+  // defaultValue may be "60/40+50/40" (weight/height) or just "60/40"
+  const defParts    = rawDefault.split('+');
+  const presetValue = defParts[0] ? pickGenderedValue(defParts[0]) : '';
+  const presetHeight= defParts[1] ? pickGenderedValue(defParts[1]) : '';
   const newType = getMovType(name);
   rowEl.innerHTML = _wRowHtml(cid, rid, newType, {
-    movement: name,
-    reps:   prevReps,
-    weight: presetValue || prevAmt,
-    unit:   presetUnit  || prevUnit,
+    movement:    name,
+    reps:        prevReps,
+    weight:      presetValue  || prevAmt,
+    unit:        (newType !== 'combined' ? presetUnit : '') || prevUnit,
+    height:      presetHeight || prevAmt2,
+    weightUnit:  prevUnit,
+    heightUnit:  prevUnit2,
   }, emomMode);
 }
 
@@ -3173,6 +3222,9 @@ function recalcEmomMinutes() {
   }
 }
 
+// Regex for a single numeric value (possibly X/Y gendered) followed by a unit
+const _WEIGHT_RE = /\b(\d+(?:[.,]\d+)?(?:\s*\/\s*\d+(?:[.,]\d+)?)?)\s*(kg|lbs|cm|inch|m(?!\w)|s(?!\w)|cal|min)\b/gi;
+
 function _parseWorkoutLines(text) {
   const parsed = [];
   text.split('\n').forEach(line => {
@@ -3182,15 +3234,49 @@ function _parseWorkoutLines(text) {
     if (!m) return;
     const reps = m[1];
     const rest = m[2].trim();
-    // Match weight patterns including X/Y (gendered), e.g. "60/40 kg" or "60 kg"
-    const weightMatch = rest.match(/\b(\d+(?:[.,]\d+)?(?:\s*\/\s*\d+(?:[.,]\d+)?)?)\s*(kg|lbs|cm|m(?!\w)|s(?!\w)|cal)\b/i);
-    const unit = weightMatch ? weightMatch[2].toLowerCase() : 'reps';
-    const rawWeight = weightMatch ? weightMatch[1] : '';
-    const weight = rawWeight ? pickGenderedValue(rawWeight) : '';
-    const movDesc = rest.replace(/\b\d+(?:[.,]\d+)?(?:\s*\/\s*\d+(?:[.,]\d+)?)?\s*(?:kg|lbs|cm|m(?!\w)|s(?!\w)|cal)\b/gi, '').trim();
-    const known = BUILDER_MOVEMENTS.find(mv => movDesc.toLowerCase().includes(mv.toLowerCase()));
-    const movType = getMovType(known || movDesc);
-    parsed.push({ reps, weight, unit: movType === 'cardio' ? (unit === 'reps' ? 'm' : unit) : unit, movement: known || movDesc });
+
+    // Collect ALL value+unit pairs (e.g. "22,5/15 kg" and "50/40 cm")
+    const valuePairs = [];
+    let wx;
+    _WEIGHT_RE.lastIndex = 0;
+    while ((wx = _WEIGHT_RE.exec(rest)) !== null) valuePairs.push({ raw: wx[1], unit: wx[2].toLowerCase() });
+
+    // Remove all value+unit pairs from the movement description, then clean up commas
+    let movDesc = rest.replace(_WEIGHT_RE, '');
+    movDesc = movDesc.replace(/\s*,\s*,+\s*/g, ' ')   // collapse multiple commas
+                     .replace(/^\s*[,\s]+|[,\s]+\s*$/g, '') // strip leading/trailing commas
+                     .replace(/\s{2,}/g, ' ')               // collapse multiple spaces
+                     .trim();
+
+    // Find best movement match (custom first, then built-in)
+    const known = findMovementMatch(movDesc) || movDesc;
+    const movType = getMovType(known);
+
+    // Pick weight (kg/lbs) and height (cm/inch) values separately
+    const weightPair = valuePairs.find(p => ['kg','lbs'].includes(p.unit));
+    const heightPair = valuePairs.find(p => ['cm','inch'].includes(p.unit));
+    const cardioPair = valuePairs.find(p => ['m','km','cal','min'].includes(p.unit));
+
+    if (movType === 'combined') {
+      parsed.push({
+        reps,
+        weight:     weightPair ? pickGenderedValue(weightPair.raw) : '',
+        weightUnit: weightPair?.unit || 'kg',
+        height:     heightPair ? pickGenderedValue(heightPair.raw) : '',
+        heightUnit: heightPair?.unit || 'cm',
+        movement:   known,
+      });
+    } else if (movType === 'cardio') {
+      const p = cardioPair || weightPair || heightPair;
+      parsed.push({ reps: p ? pickGenderedValue(p.raw) : reps, unit: p?.unit || 'm', movement: known });
+    } else if (movType === 'weighted') {
+      parsed.push({ reps, weight: weightPair ? pickGenderedValue(weightPair.raw) : '', unit: weightPair?.unit || 'kg', movement: known });
+    } else if (movType === 'height') {
+      parsed.push({ reps, weight: heightPair ? pickGenderedValue(heightPair.raw) : '', unit: heightPair?.unit || 'cm', movement: known });
+    } else {
+      const p = valuePairs[0];
+      parsed.push({ reps, unit: p?.unit || 'reps', weight: p ? pickGenderedValue(p.raw) : '', movement: known });
+    }
   });
   return parsed;
 }
@@ -3206,13 +3292,18 @@ function parseEmomFromDesc() {
   let m;
   while ((m = lineRe.exec(text)) !== null) {
     const detail = m[2].trim();
+    if (detail.toLowerCase() === 'rest') { parsed.push({ reps: '', weight: '', unit: 'reps', movement: 'Rest' }); continue; }
     const repsMatch = detail.match(/^(\d+)\s+(.+)/);
-    const desc = repsMatch ? repsMatch[2].trim() : (detail.toLowerCase() === 'rest' ? 'Rest' : detail);
     const reps = repsMatch ? repsMatch[1] : '';
-    const weightM = detail.match(/\b(\d+(?:[.,]\d+)?)\s*(?:\/\d+)?\s*(kg|lbs|cm)\b/i);
-    const known = MOVEMENTS_WITH_REST.find(mv => desc.toLowerCase().includes(mv.toLowerCase()));
-    const movement = known || desc;
-    parsed.push({ reps, weight: weightM ? weightM[1] : '', unit: weightM ? weightM[2].toLowerCase() : (getMovType(movement) === 'cardio' ? 'm' : 'reps'), movement });
+    // Strip all value+unit pairs to get clean movement description
+    let rawDesc = (repsMatch ? repsMatch[2] : detail);
+    const weightM = rawDesc.match(/\b(\d+(?:[.,]\d+)?(?:\s*\/\s*\d+(?:[.,]\d+)?)?)\s*(kg|lbs|cm|inch)\b/i);
+    let cleanDesc = rawDesc.replace(/\b\d+(?:[.,]\d+)?(?:\s*\/\s*\d+(?:[.,]\d+)?)?\s*(?:kg|lbs|cm|inch|m(?!\w)|cal)\b/gi, '');
+    cleanDesc = cleanDesc.replace(/\s*,\s*,+\s*/g,' ').replace(/^\s*[,\s]+|[,\s]+\s*$/g,'').replace(/\s{2,}/g,' ').trim();
+    const movement = findMovementMatch(cleanDesc) || cleanDesc;
+    const weight = weightM ? pickGenderedValue(weightM[1]) : '';
+    const unit = weightM ? weightM[2].toLowerCase() : (getMovType(movement) === 'cardio' ? 'm' : 'reps');
+    parsed.push({ reps, weight, unit, movement });
   }
 
   if (parsed.length > 0) {
