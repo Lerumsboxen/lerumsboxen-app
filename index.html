@@ -731,12 +731,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    color: #ffffff;
   }
   .home-btn-icon svg {
     width: 1em; height: 1em;
     display: block;
     flex-shrink: 0;
   }
+  .home-btn.active .home-btn-icon { color: var(--red); }
   .home-grid.expanded .home-btn-icon {
     font-size: 2.2rem;
   }
@@ -1933,6 +1935,8 @@ let state = JSON.parse(localStorage.getItem('lerums_state') || 'null') || {
 // migrate older saves
 if (!state.strength) state.strength = [];
 if (!state.customMovements) state.customMovements = [];
+// null = use built-in BENCHMARK_WODS.open; array = admin-customised list
+if (state.openWods === undefined) state.openWods = null;
 // Normalise legacy plain-string entries to objects
 state.customMovements = state.customMovements.map(m =>
   typeof m === 'string' ? {name: m, unit: '', defaultValue: ''} : m
@@ -5942,6 +5946,83 @@ const BENCHMARK_WODS = {
   ],
 };
 
+// Returns the active Open WOD list (custom if set, built-in otherwise)
+function getOpenWods() {
+  return Array.isArray(state.openWods) ? state.openWods : BENCHMARK_WODS.open;
+}
+
+// ── Admin editing ─────────────────────────────────────────────
+let _editingOpenWodIdx = null; // null = new, number = index in list
+
+function openNewOpenWod() {
+  _editingOpenWodIdx = null;
+  document.getElementById('openWodEditTitle').textContent = 'Add Open WOD';
+  document.getElementById('owYear').value = new Date().getFullYear();
+  document.getElementById('owName').value = '';
+  document.getElementById('owType').value = 'fortime';
+  document.getElementById('owDesc').value = '';
+  document.getElementById('openWodEditModal').style.display = 'flex';
+}
+
+function openEditOpenWod(idx) {
+  _editingOpenWodIdx = idx;
+  const list = getOpenWods();
+  const w = list[idx];
+  if (!w) return;
+  document.getElementById('openWodEditTitle').textContent = 'Edit Open WOD';
+  document.getElementById('owYear').value  = w.year  || '';
+  document.getElementById('owName').value  = w.name  || '';
+  document.getElementById('owType').value  = w.type  || 'fortime';
+  document.getElementById('owDesc').value  = w.desc  || '';
+  document.getElementById('openWodEditModal').style.display = 'flex';
+}
+
+function closeOpenWodEditModal() {
+  document.getElementById('openWodEditModal').style.display = 'none';
+}
+
+function saveOpenWodEdit() {
+  const year = parseInt(document.getElementById('owYear').value) || 0;
+  const name = document.getElementById('owName').value.trim();
+  const type = document.getElementById('owType').value;
+  const desc = document.getElementById('owDesc').value.trim();
+  if (!name || !desc) { showToast('Name and description are required'); return; }
+
+  // If we haven't customised yet, make a deep copy of the built-in list
+  if (!Array.isArray(state.openWods)) {
+    state.openWods = BENCHMARK_WODS.open.map(w => ({ ...w }));
+  }
+
+  if (_editingOpenWodIdx === null) {
+    // Insert in the right year position (most recent first)
+    state.openWods.unshift({ year, name, type, desc });
+  } else {
+    state.openWods[_editingOpenWodIdx] = { year, name, type, desc };
+  }
+
+  save();
+  closeOpenWodEditModal();
+  renderBenchmarkTab('open');
+}
+
+function deleteOpenWod(idx) {
+  if (!confirm('Delete this workout?')) return;
+  if (!Array.isArray(state.openWods)) {
+    state.openWods = BENCHMARK_WODS.open.map(w => ({ ...w }));
+  }
+  state.openWods.splice(idx, 1);
+  save();
+  renderBenchmarkTab('open');
+}
+
+function resetOpenWodsToDefault() {
+  if (!confirm('Reset all Open WOD edits and restore the built-in list?')) return;
+  state.openWods = null;
+  save();
+  renderBenchmarkTab('open');
+  showToast('Open WODs reset to defaults');
+}
+
 function renderBenchmarkTab(tab) {
   const el = document.getElementById('dash-challenges');
   if (!el) return;
@@ -5961,12 +6042,38 @@ function renderBenchmarkTab(tab) {
     </div>`;
 
   if (tab === 'open') {
-    // Group by year, most recent first
+    const openList = getOpenWods(); // use custom or default
+    const admin = isAdmin();
+    // Group by year, most recent first (track global index for editing)
     const byYear = {};
-    wods.forEach(w => { const y = w.year || '?'; if (!byYear[y]) byYear[y] = []; byYear[y].push(w); });
-    el.innerHTML = Object.keys(byYear).sort((a,b) => b-a).map(year => `
+    openList.forEach((w, i) => {
+      const y = w.year || '?';
+      if (!byYear[y]) byYear[y] = [];
+      byYear[y].push({ w, i });
+    });
+
+    const openCard = ({ w, i }) => `
+      <div class="card" style="padding:0.85rem 1rem;margin-bottom:0.65rem;">
+        <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.4rem;">
+          <div style="font-family:'Bebas Neue';font-size:1.2rem;letter-spacing:0.06em;color:var(--text);flex:1;">${w.name}</div>
+          <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.68rem;letter-spacing:0.12em;text-transform:uppercase;color:${typeColor[w.type]||'var(--muted)'};border:1px solid ${typeColor[w.type]||'var(--border)'};border-radius:2px;padding:0.15rem 0.45rem;">${typeLabel[w.type]||w.type}</span>
+          ${admin ? `<button onclick="openEditOpenWod(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.85rem;padding:0.1rem 0.3rem;" title="Edit">✏️</button>
+          <button onclick="deleteOpenWod(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.85rem;padding:0.1rem 0.3rem;" title="Delete">🗑</button>` : ''}
+        </div>
+        <div style="font-size:0.82rem;color:#aaa;line-height:1.5;margin-bottom:0.65rem;white-space:pre-line;">${w.desc}</div>
+        <button onclick="logBenchmark('${w.name.replace(/'/g,"\\'")}','${w.type}',${JSON.stringify(w.desc).replace(/'/g,"\\'")})"
+          class="btn btn-red" style="font-size:0.72rem;padding:0.3rem 0.75rem;">LOG IT</button>
+      </div>`;
+
+    const adminBar = admin ? `
+      <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+        <button class="btn btn-ghost btn-sm" onclick="openNewOpenWod()">+ Add Workout</button>
+        ${Array.isArray(state.openWods) ? `<button class="btn btn-ghost btn-sm" onclick="resetOpenWodsToDefault()" style="color:var(--muted);">↩ Reset to defaults</button>` : ''}
+      </div>` : '';
+
+    el.innerHTML = adminBar + Object.keys(byYear).sort((a,b) => b-a).map(year => `
       <div style="font-family:'Bebas Neue';font-size:1.3rem;letter-spacing:0.1em;color:var(--red);margin:1.25rem 0 0.5rem;padding-bottom:0.3rem;border-bottom:1px solid var(--border);">${year} Open</div>
-      ${byYear[year].map(wodCard).join('')}`).join('');
+      ${byYear[year].map(openCard).join('')}`).join('');
   } else {
     el.innerHTML = wods.map(wodCard).join('');
   }
@@ -6653,6 +6760,43 @@ window.addEventListener('orientationchange', () => {
     <div style="display:flex;gap:0.75rem;justify-content:flex-end;margin-top:1rem;">
       <button class="btn btn-ghost" onclick="closeStrengthModal()">Cancel</button>
       <button class="btn btn-red" onclick="saveStrengthSession()">SAVE SESSION</button>
+    </div>
+  </div>
+</div>
+
+<!-- OPEN WOD EDIT MODAL (admin only) -->
+<div class="modal-overlay" id="openWodEditModal" style="display:none;z-index:250;" onclick="if(event.target===this)closeOpenWodEditModal()">
+  <div class="modal" style="max-width:500px;padding:1.25rem;">
+    <div class="modal-title" style="margin-bottom:1rem;">
+      <span id="openWodEditTitle">Edit Open WOD</span>
+      <button class="close-btn" onclick="closeOpenWodEditModal()">✕</button>
+    </div>
+    <div class="form-row cols-2">
+      <div class="form-group">
+        <label>Year</label>
+        <input type="number" id="owYear" placeholder="e.g. 2024" min="2011" max="2030" style="max-width:120px;">
+      </div>
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" id="owName" placeholder="e.g. 24.1">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>WOD Type</label>
+      <select id="owType">
+        <option value="amrap">AMRAP</option>
+        <option value="fortime">For Time</option>
+        <option value="emom">EMOM</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea id="owDesc" rows="6" placeholder="Enter workout description…" style="resize:vertical;"></textarea>
+    </div>
+    <div style="display:flex;gap:0.75rem;justify-content:flex-end;margin-top:1rem;">
+      <button class="btn btn-ghost" onclick="closeOpenWodEditModal()">Cancel</button>
+      <button class="btn btn-red" onclick="saveOpenWodEdit()">SAVE</button>
     </div>
   </div>
 </div>
