@@ -5548,6 +5548,250 @@ async function shareStrengthResult(session) {
   } catch(e) { showToast('Could not share: ' + e.message); }
 }
 
+// ===== BADGE SYSTEM =====
+
+const BADGE_LEVELS = [
+  { threshold: 0,       name: 'None',     color: '#444',    star: '' },
+  { threshold: 1,       name: 'Rookie',   color: '#8B6914', star: '🟫' },
+  { threshold: 2,       name: 'Bronze',   color: '#CD7F32', star: '🥉' },
+  { threshold: 3,       name: 'Silver',   color: '#C0C0C0', star: '🥈' },
+  { threshold: 4,       name: 'Gold',     color: '#FFD700', star: '🥇' },
+  { threshold: 5,       name: 'Diamond',  color: '#00BCD4', star: '💎' },
+  { threshold: 6,       name: 'Legend',   color: '#9B59B6', star: '🏆' },
+];
+
+const BADGE_DEFS = [
+  // ── Distance ───────────────────────────────────────────────
+  { id:'run',  icon:'🏃', label:'Runner',       group:'Distance', unit:'m',
+    keywords:['run'], excludes:['row','ski','bike'],
+    thresholds:[1000, 5000, 10000, 21097, 42195, 100000],
+    fmtFn: v => v >= 1000 ? (v/1000).toFixed(1)+' km' : v+' m' },
+  { id:'row',  icon:'🚣', label:'Rower',        group:'Distance', unit:'m',
+    keywords:['row'], excludes:[],
+    thresholds:[500, 2000, 5000, 10000, 42195, 100000],
+    fmtFn: v => v >= 1000 ? (v/1000).toFixed(1)+' km' : v+' m' },
+  { id:'ski',  icon:'⛷️', label:'Skier',        group:'Distance', unit:'m',
+    keywords:['ski'], excludes:[],
+    thresholds:[500, 2000, 5000, 10000, 42195, 100000],
+    fmtFn: v => v >= 1000 ? (v/1000).toFixed(1)+' km' : v+' m' },
+  { id:'bike', icon:'🚴', label:'Cyclist',      group:'Distance', unit:'m',
+    keywords:['bike'], excludes:[],
+    thresholds:[1000, 5000, 10000, 50000, 100000, 500000],
+    fmtFn: v => v >= 1000 ? (v/1000).toFixed(1)+' km' : v+' m' },
+  // ── Olympic Lifts ──────────────────────────────────────────
+  { id:'cnj',     icon:'🏋️', label:'Clean & Jerk', group:'Lifting', unit:'reps',
+    keywords:['clean & jerk','clean and jerk'], excludes:[],
+    thresholds:[25, 100, 300, 750, 1500, 5000],
+    fmtFn: v => v.toLocaleString()+' reps' },
+  { id:'clean',   icon:'🏋️', label:'Clean',         group:'Lifting', unit:'reps',
+    keywords:['clean'], excludes:['clean & jerk','clean and jerk'],
+    thresholds:[25, 100, 500, 1500, 3000, 10000],
+    fmtFn: v => v.toLocaleString()+' reps' },
+  { id:'snatch',  icon:'🏋️', label:'Snatch',        group:'Lifting', unit:'reps',
+    keywords:['snatch'], excludes:[],
+    thresholds:[25, 100, 500, 1500, 3000, 10000],
+    fmtFn: v => v.toLocaleString()+' reps' },
+  { id:'deadlift',icon:'💀', label:'Deadlift',      group:'Lifting', unit:'reps',
+    keywords:['deadlift'], excludes:[],
+    thresholds:[50, 250, 1000, 2500, 5000, 15000],
+    fmtFn: v => v.toLocaleString()+' reps' },
+  { id:'thruster',icon:'🔥', label:'Thruster',      group:'Lifting', unit:'reps',
+    keywords:['thruster'], excludes:[],
+    thresholds:[50, 250, 1000, 2500, 5000, 15000],
+    fmtFn: v => v.toLocaleString()+' reps' },
+  // ── Gymnastics ─────────────────────────────────────────────
+  { id:'mup',  icon:'🤸', label:'Muscle-Up',        group:'Gymnastics', unit:'reps',
+    keywords:['muscle-up','muscle up'], excludes:[],
+    thresholds:[25, 100, 500, 1500, 3000, 10000],
+    fmtFn: v => v.toLocaleString()+' reps' },
+  { id:'ctb',  icon:'💪', label:'Chest-to-Bar',     group:'Gymnastics', unit:'reps',
+    keywords:['chest-to-bar','chest to bar'], excludes:[],
+    thresholds:[50, 250, 1000, 2500, 5000, 15000],
+    fmtFn: v => v.toLocaleString()+' reps' },
+  { id:'pullup',icon:'💪', label:'Pull-up',          group:'Gymnastics', unit:'reps',
+    keywords:['pull-up','pull up'], excludes:['chest-to-bar','chest to bar'],
+    thresholds:[50, 250, 1000, 2500, 5000, 15000],
+    fmtFn: v => v.toLocaleString()+' reps' },
+  { id:'ttb',  icon:'🦵', label:'Toes to Bar',      group:'Gymnastics', unit:'reps',
+    keywords:['toes to bar','toes-to-bar'], excludes:[],
+    thresholds:[50, 250, 1000, 2500, 5000, 15000],
+    fmtFn: v => v.toLocaleString()+' reps' },
+  { id:'hspu', icon:'🤸', label:'HSPU',              group:'Gymnastics', unit:'reps',
+    keywords:['handstand push-up','handstand push up','hspu'], excludes:[],
+    thresholds:[25, 100, 500, 1500, 3000, 10000],
+    fmtFn: v => v.toLocaleString()+' reps' },
+  { id:'burpee',icon:'😅', label:'Burpee',           group:'Gymnastics', unit:'reps',
+    keywords:['burpee'], excludes:[],
+    thresholds:[50, 250, 1000, 2500, 5000, 15000],
+    fmtFn: v => v.toLocaleString()+' reps' },
+  { id:'du',   icon:'⚡', label:'Double Under',      group:'Gymnastics', unit:'reps',
+    keywords:['double under'], excludes:[],
+    thresholds:[100, 500, 2000, 5000, 10000, 50000],
+    fmtFn: v => v.toLocaleString()+' reps' },
+  { id:'boxjump',icon:'📦', label:'Box Jump',        group:'Gymnastics', unit:'reps',
+    keywords:['box jump'], excludes:[],
+    thresholds:[50, 250, 1000, 2500, 5000, 15000],
+    fmtFn: v => v.toLocaleString()+' reps' },
+  { id:'wallball',icon:'🏀', label:'Wall Ball',      group:'Gymnastics', unit:'reps',
+    keywords:['wall ball'], excludes:[],
+    thresholds:[50, 250, 1000, 2500, 5000, 15000],
+    fmtFn: v => v.toLocaleString()+' reps' },
+];
+
+// Parse reps/distance from a single WOD description text
+function parseBadgeContribFromWod(wod) {
+  const contrib = {};
+  const text = stripHtml(wod.desc || '');
+  if (!text.trim()) return contrib;
+
+  // detect round multiplier  e.g. "3 rounds", "5 rds"
+  const rdsM = text.match(/\b(\d+)\s*(?:rounds?|rds?)\b/i);
+  const rounds = rdsM ? Math.min(parseInt(rdsM[1]), 20) : 1;
+
+  // expand rep scheme shorthand: "21-15-9" → total 45
+  function expandScheme(scheme) {
+    return scheme.split('-').reduce((s, n) => s + (parseInt(n)||0), 0);
+  }
+
+  // collect accumulated rep-scheme from header lines (e.g. "21-15-9")
+  let schemeReps = 0;
+  let schemeActive = false;
+  const lines = text.split('\n');
+
+  lines.forEach(line => {
+    line = line.trim();
+    if (!line) return;
+    // rep scheme header line
+    if (/^\d+(?:-\d+)+$/.test(line)) {
+      schemeReps = expandScheme(line) * rounds;
+      schemeActive = true;
+      return;
+    }
+    // distance line: "Run 400 m" or "400 m Run"
+    const distMatch =
+      line.match(/(\d+(?:[.,]\d+)?)\s*(?:\/\d+(?:[.,]\d+)?)?\s*(km|m)\b/i) ||
+      line.match(/\b(km|m)\b.*?(\d+)/i);
+    const distValue = (() => {
+      const m = line.match(/\b(\d+(?:[.,]\d+)?)\s*(?:\/\d+(?:[.,]\d+)?)?\s*(km|m)\b/i);
+      if (!m) return 0;
+      const v = parseFloat(m[1].replace(',','.'));
+      return m[2].toLowerCase() === 'km' ? Math.round(v * 1000) : Math.round(v);
+    })();
+
+    const lowerLine = line.toLowerCase();
+
+    BADGE_DEFS.forEach(def => {
+      const matchesAny = def.keywords.some(kw => lowerLine.includes(kw));
+      if (!matchesAny) return;
+      const excluded = def.excludes.some(ex => lowerLine.includes(ex));
+      if (excluded) return;
+
+      if (def.unit === 'm') {
+        // distance-based badge
+        if (distValue > 0) {
+          contrib[def.id] = (contrib[def.id] || 0) + distValue * rounds;
+        } else if (def.id === 'row' || def.id === 'ski' || def.id === 'bike' || def.id === 'run') {
+          // cal → approximate meters (1 cal ≈ 20 m on rower/ski)
+          const calM = line.match(/\b(\d+)\s*cal\b/i);
+          if (calM) contrib[def.id] = (contrib[def.id] || 0) + parseInt(calM[1]) * 20;
+        }
+      } else {
+        // rep-based badge
+        const repM = line.match(/^(\d+)\s+/);
+        if (repM) {
+          contrib[def.id] = (contrib[def.id] || 0) + parseInt(repM[1]) * rounds;
+        } else if (schemeActive) {
+          contrib[def.id] = (contrib[def.id] || 0) + schemeReps;
+        }
+      }
+    });
+
+    // after non-scheme line, reset scheme if it's a movement line (not a label)
+    if (schemeActive && /^(\d+)\s+\w/.test(line)) schemeActive = false;
+  });
+
+  return contrib;
+}
+
+function computeBadgeStats() {
+  const totals = {};
+  (state.wods || []).forEach(w => {
+    const c = parseBadgeContribFromWod(w);
+    Object.entries(c).forEach(([id, v]) => { totals[id] = (totals[id]||0) + v; });
+  });
+  return totals;
+}
+
+function getBadgeLevelIdx(def, total) {
+  let idx = 0;
+  def.thresholds.forEach((t, i) => { if (total >= t) idx = i + 1; });
+  return Math.min(idx, BADGE_LEVELS.length - 1);
+}
+
+function openBadgesModal() {
+  const stats = computeBadgeStats();
+  const groups = {};
+  BADGE_DEFS.forEach(def => {
+    if (!groups[def.group]) groups[def.group] = [];
+    groups[def.group].push(def);
+  });
+
+  const groupIcons = { Distance:'🗺️', Lifting:'🏋️', Gymnastics:'🤸' };
+
+  let html = '';
+  Object.entries(groups).forEach(([group, defs]) => {
+    html += `<div style="margin-bottom:1.5rem;">
+      <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem;">${groupIcons[group]||''} ${group}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:0.6rem;">`;
+
+    defs.forEach(def => {
+      const total = stats[def.id] || 0;
+      const levelIdx = getBadgeLevelIdx(def, total);
+      const level = BADGE_LEVELS[levelIdx];
+      const nextLevel = BADGE_LEVELS[Math.min(levelIdx + 1, BADGE_LEVELS.length - 1)];
+      const nextThreshold = def.thresholds[levelIdx] || def.thresholds[def.thresholds.length - 1];
+      const prevThreshold = levelIdx > 0 ? def.thresholds[levelIdx - 1] : 0;
+      const progress = levelIdx >= def.thresholds.length
+        ? 100
+        : Math.min(100, Math.round(((total - prevThreshold) / (nextThreshold - prevThreshold)) * 100));
+      const earned = levelIdx > 0;
+      const isMax = levelIdx >= def.thresholds.length;
+      const formatted = def.fmtFn(total);
+
+      html += `<div style="background:var(--card2);border:1px solid ${earned ? level.color+'55' : 'var(--border)'};border-radius:6px;padding:0.65rem 0.75rem;">
+        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem;">
+          <span style="font-size:1.3rem;line-height:1;">${def.icon}</span>
+          <div style="flex:1;min-width:0;">
+            <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.82rem;letter-spacing:0.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${def.label}</div>
+            <div style="font-size:0.7rem;color:${earned ? level.color : 'var(--muted)'};">${earned ? level.star+' '+level.name : 'Not started'}</div>
+          </div>
+        </div>
+        <div style="font-size:0.72rem;color:var(--muted);margin-bottom:0.3rem;">${formatted}${!isMax ? ` / ${def.fmtFn(nextThreshold)} for ${nextLevel.name}` : ' — MAX LEVEL'}</div>
+        <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden;">
+          <div style="height:100%;width:${progress}%;background:${earned ? level.color : '#555'};border-radius:2px;transition:width 0.5s;"></div>
+        </div>
+      </div>`;
+    });
+
+    html += `</div></div>`;
+  });
+
+  if (!html) html = '<div style="color:var(--muted);text-align:center;padding:2rem;">Log some workouts to start earning badges!</div>';
+
+  document.getElementById('badgesContent').innerHTML = html;
+  document.getElementById('badgesModal').style.display = 'flex';
+  // Update button to show earned count
+  const earned = BADGE_DEFS.filter(d => getBadgeLevelIdx(d, stats[d.id]||0) > 0).length;
+  const btn = document.getElementById('badgesBtn');
+  if (btn) btn.textContent = `🏅 My Badges${earned ? ' ('+earned+' earned)' : ''}`;
+}
+
+function closeBadgesModal(e) {
+  if (!e || e.target === document.getElementById('badgesModal')) {
+    document.getElementById('badgesModal').style.display = 'none';
+  }
+}
+
 // ===== CHALLENGES =====
 let challengeTab = 'inbox';
 let challengesCache = null;
@@ -6323,6 +6567,17 @@ window.addEventListener('orientationchange', () => {
   </div>
 </div>
 
+<!-- BADGES MODAL -->
+<div class="modal-overlay" id="badgesModal" style="display:none;" onclick="closeBadgesModal(event)">
+  <div class="modal" style="max-width:620px;padding:1.25rem;">
+    <div class="modal-title" style="margin-bottom:1rem;">
+      🏅 MY BADGES
+      <button class="close-btn" onclick="closeBadgesModal()">✕</button>
+    </div>
+    <div id="badgesContent"></div>
+  </div>
+</div>
+
 <!-- FULLSCREEN TIMER OVERLAY -->
 <div id="timerOverlay">
   <button class="timer-close" onclick="closeTimerOverlay()">✕</button>
@@ -6528,6 +6783,7 @@ window.addEventListener('orientationchange', () => {
         <div class="avatar-picker" id="avatarPicker"></div>
       </div>
       <button class="btn btn-red" onclick="saveProfile()" style="width:100%;margin-bottom:0.5rem;">SAVE CHANGES</button>
+      <button class="btn btn-ghost" onclick="openBadgesModal()" style="width:100%;margin-bottom:0.5rem;" id="badgesBtn">🏅 My Badges</button>
       <button class="btn btn-ghost" onclick="confirmLogout()" style="width:100%;color:var(--muted);">Switch account / Log out</button>
     </div>
 
