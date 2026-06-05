@@ -728,9 +728,17 @@
     font-size: 1.3rem;
     line-height: 1;
     transition: font-size 0.25s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .home-btn-icon svg {
+    width: 1em; height: 1em;
+    display: block;
+    flex-shrink: 0;
   }
   .home-grid.expanded .home-btn-icon {
-    font-size: 2.6rem;
+    font-size: 2.2rem;
   }
   .home-btn-label {
     font-family: 'Bebas Neue', sans-serif;
@@ -740,7 +748,9 @@
     transition: font-size 0.25s ease;
   }
   .home-grid.expanded .home-btn-label {
-    font-size: 1.6rem;
+    font-size: 1.1rem;
+    line-height: 1.2;
+    text-align: center;
   }
   .home-btn-sub {
     font-family: 'Barlow Condensed', sans-serif;
@@ -1056,42 +1066,42 @@
   <div class="page active" id="page-dashboard">
     <div class="home-grid expanded" id="homeGrid">
       <button class="home-btn" id="hbtn-log" onclick="selectDashSection('log')">
-        <span class="home-btn-icon">📋</span>
+        <span class="home-btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg></span>
         <span class="home-btn-label">Log</span>
         <span class="home-btn-sub">Workouts & strength</span>
       </button>
       <button class="home-btn" id="hbtn-programming" onclick="selectDashSection('programming')">
-        <span class="home-btn-icon">📅</span>
+        <span class="home-btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="8" y1="18" x2="14" y2="18"/></svg></span>
         <span class="home-btn-label">Programming</span>
         <span class="home-btn-sub">WOD & lifting</span>
       </button>
       <button class="home-btn" id="hbtn-timer" onclick="selectDashSection('timer')">
-        <span class="home-btn-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;display:inline-block;vertical-align:middle;"><circle cx="12" cy="13" r="8"/><polyline points="12 9 12 13 14.5 15.5"/><path d="M9 3h6"/><path d="M12 3v2"/></svg></span>
+        <span class="home-btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><polyline points="12 9 12 13 14.5 15.5"/><path d="M9 3h6"/><path d="M12 3v2"/></svg></span>
         <span class="home-btn-label">Timer</span>
         <span class="home-btn-sub">Stopwatch & countdown</span>
       </button>
       <button class="home-btn" id="hbtn-prs" onclick="selectDashSection('prs')">
-        <span class="home-btn-icon">🏆</span>
+        <span class="home-btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></span>
         <span class="home-btn-label">PRs</span>
         <span class="home-btn-sub">Personal records</span>
       </button>
       <button class="home-btn" id="hbtn-movements" onclick="selectDashSection('movements')">
-        <span class="home-btn-icon">💪</span>
+        <span class="home-btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="10" width="3" height="4" rx="1"/><rect x="19" y="10" width="3" height="4" rx="1"/><rect x="4.5" y="11" width="2.5" height="2" rx="0.5"/><rect x="17" y="11" width="2.5" height="2" rx="0.5"/><line x1="7" y1="12" x2="17" y2="12"/></svg></span>
         <span class="home-btn-label">Movements</span>
         <span class="home-btn-sub">Exercise library</span>
       </button>
       <button class="home-btn" id="hbtn-leaderboard" onclick="selectDashSection('leaderboard')">
-        <span class="home-btn-icon">🥇</span>
+        <span class="home-btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg></span>
         <span class="home-btn-label">Leaderboard</span>
         <span class="home-btn-sub">Box scores & rankings</span>
       </button>
       <button class="home-btn" id="hbtn-challenges" onclick="selectDashSection('challenges')">
-        <span class="home-btn-icon">⚡</span>
+        <span class="home-btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
         <span class="home-btn-label">Challenges &amp; Benchmarks</span>
         <span class="home-btn-sub">Challenges &amp; benchmark WODs</span>
       </button>
       <button class="home-btn" id="hbtn-members" onclick="selectDashSection('members')">
-        <span class="home-btn-icon">👥</span>
+        <span class="home-btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
         <span class="home-btn-label">Box Buddies</span>
         <span class="home-btn-sub">Box members & their PRs</span>
       </button>
@@ -5848,19 +5858,87 @@ const BENCHMARK_WODS = {
     { name:'Lumberjack 20', type:'fortime', desc:'20 Deadlifts 102/70 kg\nRun 400 m\n20 KB Swings 32/24 kg\nRun 400 m\n20 Overhead Squats 43/29 kg\nRun 400 m\n20 Burpees\nRun 400 m\n20 Chest-to-Bar Pull-ups\nRun 400 m\n20 Box Jumps 61/51 cm\nRun 400 m\n20 DB Snatches 22/15 kg\nRun 400 m' },
   ],
   open: [
-    { name:'25.1',  type:'amrap',   desc:'AMRAP 15 min\n3 Squat Snatches 43/29 kg\n3 Bar Muscle-ups\n6 Squat Snatches 43/29 kg\n6 Bar Muscle-ups\n(+3 each round)' },
-    { name:'24.1',  type:'fortime', desc:'3 Rounds for Time (Time cap 15 min)\n21 Dumbbell Snatches 22.5/15 kg\n21 Lateral Burpees over Dumbbell' },
-    { name:'24.2',  type:'fortime', desc:'For Time (Time cap 20 min)\n50 Toes-to-Bar\n50 Double Unders\n25 Squat Cleans 61/43 kg\n50 Double Unders\n50 Toes-to-Bar' },
-    { name:'24.3',  type:'fortime', desc:'For Time\nRow 3 000/2 500 m\n(then) AMRAP in remaining time' },
-    { name:'23.1',  type:'amrap',   desc:'AMRAP 14 min\n60 Cal Row\n50 Toes-to-Bar\n40 Wall Balls 9/6 kg\n30 Cleans 61/43 kg\n20 Muscle-ups' },
-    { name:'23.2',  type:'fortime', desc:'For Time (Time cap 20 min)\n1-10-1 Ladder\nThrusters 43/29 kg\nBar Muscle-ups' },
-    { name:'23.3',  type:'amrap',   desc:'AMRAP 12 min (with 10 min cap for deadlifts)\n5 Deadlifts 102/70 kg\n10 Deadlifts\n15 Deadlifts…\n(then) Row 100 cal' },
-    { name:'22.1',  type:'amrap',   desc:'AMRAP 15 min\n3 Wall Walks\n12 DB Snatches 22.5/15 kg\n15 Box Jumps 61/51 cm' },
-    { name:'22.2',  type:'fortime', desc:'1-2-3-4-5-6-7-8-9-10 Ladder\nDeadlifts 102/70 kg\nBar-facing Burpees\n(Time cap 20 min)' },
-    { name:'22.3',  type:'fortime', desc:'21-15-9\nThrusters 43/29 kg\n(then) 21-15-9\nChest-to-Bar Pull-ups' },
-    { name:'21.1',  type:'amrap',   desc:'AMRAP 15 min\n1 Wall Walk\n10 DB Snatches 22.5/15 kg\n15 Box Jumps 61/51 cm\n2 Wall Walks\n10 DB Snatches…\n(+1 wall walk each round)' },
-    { name:'21.2',  type:'fortime', desc:'For Time (Time cap 20 min)\nDeadlifts 102/70 kg\nBar-facing Burpees\n21-15-9-9-15-21' },
-    { name:'21.3',  type:'fortime', desc:'AMRAP 15 min\nDouble Unders / Wall Balls\nCleans\n(Complex ladder)' },
+    // ── 2025 ──────────────────────────────────────────────────
+    { year:2025, name:'25.1', type:'amrap',   desc:'AMRAP 15 min\n3 Squat Snatches 43/29 kg + 3 Bar Muscle-ups\n6 + 6 … (+3 each round)' },
+    { year:2025, name:'25.2', type:'fortime', desc:'For Time (Time cap 15 min)\n5 Rounds\n4 Rope Climbs\n10 Hang Power Cleans 61/43 kg' },
+    { year:2025, name:'25.3', type:'fortime', desc:'For Time (Time cap 15 min)\n25 Pull-ups\n50 DU\n25 Thrusters 43/29 kg\n50 DU\n25 Pull-ups' },
+    // ── 2024 ──────────────────────────────────────────────────
+    { year:2024, name:'24.1', type:'fortime', desc:'3 Rounds for Time (Time cap 15 min)\n21 DB Snatches 22.5/15 kg\n21 Lateral Burpees over DB' },
+    { year:2024, name:'24.2', type:'fortime', desc:'For Time (Time cap 20 min)\n50 Toes-to-Bar\n50 Double Unders\n25 Squat Cleans 61/43 kg\n50 Double Unders\n50 Toes-to-Bar' },
+    { year:2024, name:'24.3', type:'other',   desc:'For Time (Time cap 30 min)\nRow 3 000/2 500 m\n50 Wall Balls 9/6 kg\n30 Handstand Push-ups\n50 Wall Balls\nRow 3 000/2 500 m' },
+    // ── 2023 ──────────────────────────────────────────────────
+    { year:2023, name:'23.1', type:'amrap',   desc:'AMRAP 14 min\n60 Cal Row\n50 Toes-to-Bar\n40 Wall Balls 9/6 kg\n30 Cleans 61/43 kg\n20 Muscle-ups' },
+    { year:2023, name:'23.2', type:'fortime', desc:'For Time (Time cap 20 min)\n1 Thruster 43/29 kg + 1 Bar MU\n2 + 2 … up to 10+10\nthen back 9+9 … 1+1' },
+    { year:2023, name:'23.3', type:'fortime', desc:'For Time (Time cap 15 min)\n200 DU\n40 Toes-to-Bar\n20 Squat Snatches 61/43 kg\n40 Toes-to-Bar\n200 DU' },
+    // ── 2022 ──────────────────────────────────────────────────
+    { year:2022, name:'22.1', type:'amrap',   desc:'AMRAP 15 min\n3 Wall Walks\n12 DB Snatches 22.5/15 kg\n15 Box Jumps 61/51 cm' },
+    { year:2022, name:'22.2', type:'fortime', desc:'For Time (Time cap 20 min)\n1-2-3-…-10 Ladder\nDeadlifts 102/70 kg + Bar-facing Burpees' },
+    { year:2022, name:'22.3', type:'fortime', desc:'For Time (Time cap 15 min)\n21-15-9\nThrusters 43/29 kg\nChest-to-Bar Pull-ups' },
+    // ── 2021 ──────────────────────────────────────────────────
+    { year:2021, name:'21.1', type:'amrap',   desc:'AMRAP 15 min\n1 Wall Walk + 10 DB Snatches 22.5/15 kg + 15 Box Jumps 61/51 cm\n2 Wall Walks … (+1 wall walk/round)' },
+    { year:2021, name:'21.2', type:'fortime', desc:'For Time (Time cap 20 min)\n21-15-9-9-15-21\nDeadlifts 102/70 kg\nBar-facing Burpees' },
+    { year:2021, name:'21.3', type:'fortime', desc:'For Time (Time cap 15 min)\n Ground-to-OH ladder + Double Unders\n(Complex weight ladder)' },
+    // ── 2020 ──────────────────────────────────────────────────
+    { year:2020, name:'20.1', type:'amrap',   desc:'AMRAP 10 min\n8 Burpee Box Jump Overs 61/51 cm\n10 DB Snatches 22.5/15 kg' },
+    { year:2020, name:'20.2', type:'amrap',   desc:'AMRAP 20 min\n4 DB Front Squats 22.5/15 kg\n6 DB Burpee Deadlifts\n24 DU' },
+    { year:2020, name:'20.3', type:'fortime', desc:'For Time (Time cap 9 min)\n21-15-9\nDeadlifts 102/70 kg\nHandstand Push-ups' },
+    { year:2020, name:'20.4', type:'fortime', desc:'For Time (Time cap 30 min)\n30-20-10\nBox Jumps 61/51 cm\nCleans 61/43 kg\n30-20-10\nHandstand Push-ups\nRing Muscle-ups' },
+    { year:2020, name:'20.5', type:'amrap',   desc:'AMRAP 20 min\n40 cal Row\n30 Squat Cleans 61/43 kg\n20 Handstand Push-ups\n10 Bar Muscle-ups' },
+    // ── 2019 ──────────────────────────────────────────────────
+    { year:2019, name:'19.1', type:'amrap',   desc:'AMRAP 15 min\n19 Wall Balls 9/6 kg\n19 Cal Row' },
+    { year:2019, name:'19.2', type:'other',   desc:'25 min to complete:\n4-8-12-16-20 DB Front Squats 22.5/15 kg + C2B\nthen max weight Bar Squat Snatch' },
+    { year:2019, name:'19.3', type:'fortime', desc:'For Time (Time cap 20 min)\n200 m Farmers Carry 22.5/15 kg\n50 Box Step-ups 61/51 cm\n50 Strict HSPU\n200 m Farmers Carry' },
+    { year:2019, name:'19.4', type:'amrap',   desc:'AMRAP 15 min\n3 HSPU\n3 DB Clean & Jerks 22.5/15 kg\n(add 3 each round)' },
+    { year:2019, name:'19.5', type:'fortime', desc:'For Time (Time cap 20 min)\n33-27-21-15-9\nThrusters 43/29 kg\nChest-to-Bar Pull-ups' },
+    // ── 2018 ──────────────────────────────────────────────────
+    { year:2018, name:'18.1', type:'amrap',   desc:'AMRAP 20 min\n8 Toes-to-Bar\n10 DB Hang Clean & Jerks 22.5/15 kg\n14/12 Cal Row' },
+    { year:2018, name:'18.2', type:'fortime', desc:'For Time (Time cap 12 min)\n1-2-3-4-5-4-3-2-1\nSquat Cleans 65/43 kg\nBar Muscle-ups' },
+    { year:2018, name:'18.3', type:'amrap',   desc:'AMRAP 14 min\n2-4-6-…+2 each round\nChest-to-Bar Pull-ups\nDouble Unders (×5 per round)\nDB Squat Snatches 22.5/15 kg' },
+    { year:2018, name:'18.4', type:'fortime', desc:'For Time (Time cap 9 min per round × 3)\n21 Deadlifts 102/70 kg\n21 HSPU\n18 Deadlifts\n18 HSPU\n15 Deadlifts\n15 HSPU' },
+    { year:2018, name:'18.5', type:'amrap',   desc:'AMRAP 7 min\n3 Thrusters 43/29 kg + 3 C2B Pull-ups\n(add 3 each round)' },
+    // ── 2017 ──────────────────────────────────────────────────
+    { year:2017, name:'17.1', type:'amrap',   desc:'AMRAP 20 min\n10 DU\n3 DB Snatches 22.5/15 kg\n10 DU\n3 Box Jump Overs 61/51 cm' },
+    { year:2017, name:'17.2', type:'fortime', desc:'For Time (Time cap 12 min)\n2 DB Clean & Jerks\n2 Bar Muscle-ups\n(add 2 each round until time cap)' },
+    { year:2017, name:'17.3', type:'other',   desc:'Prior to 8 min cap:\nSnatch weight ladder 55-61-70-79-88-102 kg' },
+    { year:2017, name:'17.4', type:'amrap',   desc:'AMRAP 13 min\n55 Deadlifts 102/70 kg\n55 Wall Balls 9/6 kg\n55 Cal Row\n55 HSPU' },
+    { year:2017, name:'17.5', type:'fortime', desc:'10 Rounds for Time\n9 Thrusters 43/29 kg\n35 Double Unders' },
+    // ── 2016 ──────────────────────────────────────────────────
+    { year:2016, name:'16.1', type:'amrap',   desc:'AMRAP 20 min\n25 ft OH Walking Lunges\n8 Bar Muscle-ups\n25 ft OH Walking Lunges\n8 Box Jump Overs 61/51 cm\n25 ft OH Walking Lunges\n8 DU' },
+    { year:2016, name:'16.2', type:'amrap',   desc:'4 min AMRAP then continue:\n25 Toes-to-Bar + 50 DU + 15 Squat Cleans 54/38 kg\n25 T2B + 50 DU + 13 C2B + 11 Squat Cleans 61/43 kg…' },
+    { year:2016, name:'16.3', type:'amrap',   desc:'AMRAP 7 min\nSnatches: 30×43, 30×52, 30×61, max×70 kg\n(Women: 29/35/43/52 kg)' },
+    { year:2016, name:'16.4', type:'amrap',   desc:'AMRAP 13 min\n55 Deadlifts 102/70 kg\n55 Wall Balls 9/6 kg\n55 Cal Row\n55 HSPU' },
+    { year:2016, name:'16.5', type:'fortime', desc:'21-18-15-12-9-6-3\nThrusters 43/29 kg\nChest-to-Bar Pull-ups' },
+    // ── 2015 ──────────────────────────────────────────────────
+    { year:2015, name:'15.1', type:'amrap',   desc:'AMRAP 9 min\n15 Toes-to-Bar\n10 Deadlifts 55/35 kg\n5 Snatches 55/35 kg' },
+    { year:2015, name:'15.2', type:'amrap',   desc:'Every 3 min:\n2 OHS 43/29 kg + 2 C2B\n4 + 4 … (+2 each round until miss)' },
+    { year:2015, name:'15.3', type:'amrap',   desc:'AMRAP 14 min\n7 Muscle-ups\n50 Pistols\n100 Double Unders' },
+    { year:2015, name:'15.4', type:'amrap',   desc:'AMRAP 8 min\n3 HSPU\n3 Cleans (55→61→70→79→88→102→115 kg)\n(add 3 each round, weight increases)' },
+    { year:2015, name:'15.5', type:'fortime', desc:'27-21-15-9\nRow (cals)\nThrusters 43/29 kg\nChest-to-Bar Pull-ups' },
+    // ── 2014 ──────────────────────────────────────────────────
+    { year:2014, name:'14.1', type:'amrap',   desc:'AMRAP 10 min\n30 Double Unders\n15 Power Snatches 34/24 kg' },
+    { year:2014, name:'14.2', type:'amrap',   desc:'AMRAP 3 min (repeated):\n10 OHS 43/29 kg + 10 C2B\n(continue if rounds completed in time)' },
+    { year:2014, name:'14.3', type:'amrap',   desc:'AMRAP 8 min\nDeadlifts (70-84-93-102-111-120-129 kg)\n+ Box Jumps 61/51 cm between each set' },
+    { year:2014, name:'14.4', type:'amrap',   desc:'AMRAP 14 min\n60 Cal Row\n50 Toes-to-Bar\n40 Wall Balls 9/6 kg\n30 Cleans 61/43 kg\n20 Muscle-ups' },
+    { year:2014, name:'14.5', type:'fortime', desc:'21-18-15-12-9-6-3\nThrusters 43/29 kg\nBar-facing Burpees' },
+    // ── 2013 ──────────────────────────────────────────────────
+    { year:2013, name:'13.1', type:'amrap',   desc:'AMRAP 17 min\n40 Burpees\n30 Snatches 34/24 kg\n30 Burpees\n30 Snatches 52/35 kg\n20 Burpees\n30 Snatches 70/43 kg\n10 Burpees\nmax Snatches 88/52 kg' },
+    { year:2013, name:'13.2', type:'amrap',   desc:'AMRAP 10 min\n5 Shoulder-to-Overhead 52/35 kg\n10 Deadlifts 52/35 kg\n15 Box Jumps 61/51 cm' },
+    { year:2013, name:'13.3', type:'amrap',   desc:'AMRAP 12 min\n150 Wall Balls 9/6 kg\n90 Double Unders\n30 Muscle-ups' },
+    { year:2013, name:'13.4', type:'amrap',   desc:'7 min max reps\nChest-to-Bar Pull-ups' },
+    { year:2013, name:'13.5', type:'amrap',   desc:'AMRAP 4 min\n15 Thrusters 43/29 kg\n15 Chest-to-Bar Pull-ups' },
+    // ── 2012 ──────────────────────────────────────────────────
+    { year:2012, name:'12.1', type:'amrap',   desc:'AMRAP 7 min\nBurpees' },
+    { year:2012, name:'12.2', type:'other',   desc:'10 min to establish 1RM Snatch' },
+    { year:2012, name:'12.3', type:'amrap',   desc:'AMRAP 18 min\n15 Box Jumps 61/51 cm\n12 Push Press 52/35 kg\n9 Toes-to-Bar' },
+    { year:2012, name:'12.4', type:'amrap',   desc:'AMRAP 12 min\n150 Wall Balls 9/6 kg\n90 Double Unders\n30 Muscle-ups' },
+    { year:2012, name:'12.5', type:'amrap',   desc:'AMRAP 7 min\n3 Thrusters 61/43 kg + 3 C2B Pull-ups\n6 + 6 … (+3 each round)' },
+    // ── 2011 ──────────────────────────────────────────────────
+    { year:2011, name:'11.1', type:'amrap',   desc:'AMRAP 10 min\n30 Double Unders\n15 Power Snatches 34/24 kg' },
+    { year:2011, name:'11.2', type:'amrap',   desc:'15 min to establish max weight Deadlift\nthen AMRAP Deadlifts at 70% in remaining time' },
+    { year:2011, name:'11.3', type:'amrap',   desc:'5 min AMRAP\nSquat Clean Thruster (increasing weight)' },
+    { year:2011, name:'11.4', type:'amrap',   desc:'AMRAP 10 min\n60 Bar-facing Burpees\n30 OHS 34/24 kg\n10 Muscle-ups' },
+    { year:2011, name:'11.5', type:'amrap',   desc:'AMRAP 20 min\n5 Power Cleans 70/48 kg\n10 Toes-to-Bar\n15 Wall Balls 9/6 kg' },
+    { year:2011, name:'11.6', type:'amrap',   desc:'AMRAP 7 min\nThrusters 34/24 kg + C2B Pull-ups\n(weight ladder, increasing each round)' },
   ],
 };
 
@@ -5870,7 +5948,8 @@ function renderBenchmarkTab(tab) {
   const wods = BENCHMARK_WODS[tab] || [];
   const typeColor = { amrap:'var(--red)', fortime:'#fbbf24', emom:'#60a5fa', roundsfortime:'#c084fc', other:'#94a3b8' };
   const typeLabel = { amrap:'AMRAP', fortime:'For Time', emom:'EMOM', roundsfortime:'Rounds for Time', other:'Other' };
-  el.innerHTML = wods.map(w => `
+
+  const wodCard = w => `
     <div class="card" style="padding:0.85rem 1rem;margin-bottom:0.65rem;">
       <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.4rem;">
         <div style="font-family:'Bebas Neue';font-size:1.2rem;letter-spacing:0.06em;color:var(--text);flex:1;">${w.name}</div>
@@ -5879,7 +5958,18 @@ function renderBenchmarkTab(tab) {
       <div style="font-size:0.82rem;color:#aaa;line-height:1.5;margin-bottom:0.65rem;white-space:pre-line;">${w.desc}</div>
       <button onclick="logBenchmark('${w.name.replace(/'/g,"\\'")}','${w.type}',${JSON.stringify(w.desc).replace(/'/g,"\\'")})"
         class="btn btn-red" style="font-size:0.72rem;padding:0.3rem 0.75rem;">LOG IT</button>
-    </div>`).join('');
+    </div>`;
+
+  if (tab === 'open') {
+    // Group by year, most recent first
+    const byYear = {};
+    wods.forEach(w => { const y = w.year || '?'; if (!byYear[y]) byYear[y] = []; byYear[y].push(w); });
+    el.innerHTML = Object.keys(byYear).sort((a,b) => b-a).map(year => `
+      <div style="font-family:'Bebas Neue';font-size:1.3rem;letter-spacing:0.1em;color:var(--red);margin:1.25rem 0 0.5rem;padding-bottom:0.3rem;border-bottom:1px solid var(--border);">${year} Open</div>
+      ${byYear[year].map(wodCard).join('')}`).join('');
+  } else {
+    el.innerHTML = wods.map(wodCard).join('');
+  }
 }
 
 function logBenchmark(name, type, desc) {
@@ -6568,7 +6658,7 @@ window.addEventListener('orientationchange', () => {
 </div>
 
 <!-- BADGES MODAL -->
-<div class="modal-overlay" id="badgesModal" style="display:none;" onclick="closeBadgesModal(event)">
+<div class="modal-overlay" id="badgesModal" style="display:none;z-index:300;" onclick="closeBadgesModal(event)">
   <div class="modal" style="max-width:620px;padding:1.25rem;">
     <div class="modal-title" style="margin-bottom:1rem;">
       🏅 MY BADGES
