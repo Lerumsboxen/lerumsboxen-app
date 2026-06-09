@@ -1344,17 +1344,20 @@
   }
 
   if (action === "getLBWLProgram") {
-    var sheet = ss.getSheetByName(sheetName || "2026");
-    if (!sheet) return json({error: "Sheet not found: " + (sheetName || "2026")});
-    var range = sheet.getDataRange();
-    var vals = range.getValues();
-    if (vals.length < 2) return json({program: {}});
-    var cols = data.cols || {};
-    var hdrs = vals[0].map(function(h) { return (h+"").toLowerCase().trim(); });
-    var dateIdx = (cols.date  >= 0) ? cols.date  : (hdrs.indexOf("date")  >= 0 ? hdrs.indexOf("date")  : 1);
-    var lbwlIdx = (cols.lbwl  >= 0) ? cols.lbwl  : (hdrs.indexOf("lbwl")  >= 0 ? hdrs.indexOf("lbwl")  : 2);
-    var dwl2Idx = (cols["2dwl"] >= 0) ? cols["2dwl"] : (hdrs.indexOf("2dwl") >= 0 ? hdrs.indexOf("2dwl") : 3);
-    var richVals = range.getRichTextValues();
+    // lbwl and 2dwl live in SEPARATE TABS of the same spreadsheet.
+    // data.lbwlSheet = tab name for LB WL (default "lbwl")
+    // data.dwl2Sheet = tab name for 2D WL  (default "2dwl")
+    // data.colDate   = 0-based date column index shared by both tabs (default 1 = col B)
+    // data.colLbwl   = 0-based program column in the lbwl tab (default 2 = col C)
+    // data.colDwl2   = 0-based program column in the 2dwl tab (default 2 = col C)
+    var lbwlSheetName = data.lbwlSheet || "lbwl";
+    var dwl2SheetName = data.dwl2Sheet || "2dwl";
+    var colDate = (data.colDate !== undefined && data.colDate >= 0) ? data.colDate : 1;
+    var colLbwl = (data.colLbwl !== undefined && data.colLbwl >= 0) ? data.colLbwl : 2;
+    var colDwl2 = (data.colDwl2 !== undefined && data.colDwl2 >= 0) ? data.colDwl2 : 2;
+    var tz = Session.getScriptTimeZone();
+    var program = {};
+
     function rtHtml(richCell) {
       if (!richCell) return "";
       var text = richCell.getText();
@@ -1376,19 +1379,31 @@
         return html || text;
       } catch(e) { return text; }
     }
-    var tz = Session.getScriptTimeZone();
-    var program = {};
-    vals.slice(1).forEach(function(row, rowIdx) {
-      var d = row[dateIdx];
-      if (!d) return;
-      var date = (d instanceof Date) ? d : new Date(d);
-      if (isNaN(date.getTime())) return;
-      var iso = Utilities.formatDate(date, tz, "yyyy-MM-dd");
-      var richRow = richVals[rowIdx + 1];
-      var lbwl = richRow ? rtHtml(richRow[lbwlIdx]) : (row[lbwlIdx] || "").toString().trim();
-      var dwl2 = richRow ? rtHtml(richRow[dwl2Idx]) : (row[dwl2Idx] || "").toString().trim();
-      if (lbwl || dwl2) program[iso] = {lbwl: lbwl, "2dwl": dwl2};
-    });
+
+    function readTab(tabName, contentCol, fieldName) {
+      var sheet = ss.getSheetByName(tabName);
+      if (!sheet) return; // tab not found — skip silently
+      var range = sheet.getDataRange();
+      var vals = range.getValues();
+      if (vals.length < 2) return;
+      var richVals = range.getRichTextValues();
+      vals.slice(1).forEach(function(row, rowIdx) {
+        var d = row[colDate];
+        if (!d) return;
+        var date = (d instanceof Date) ? d : new Date(d);
+        if (isNaN(date.getTime())) return;
+        var iso = Utilities.formatDate(date, tz, "yyyy-MM-dd");
+        var richRow = richVals[rowIdx + 1];
+        var content = richRow ? rtHtml(richRow[contentCol]) : (row[contentCol] || "").toString().trim();
+        if (content) {
+          if (!program[iso]) program[iso] = {};
+          program[iso][fieldName] = content;
+        }
+      });
+    }
+
+    readTab(lbwlSheetName, colLbwl, "lbwl");
+    readTab(dwl2SheetName, colDwl2, "2dwl");
     return json({program: program});
   }
 
@@ -1814,26 +1829,39 @@ function json(obj) {
         <input type="text" id="lbwlScriptUrl" placeholder="https://script.google.com/macros/s/..." style="font-size:0.75rem;"
           oninput="localStorage.setItem('lerums_lbwl_script_url', this.value.trim())">
       </div>
-      <div class="form-group" style="margin-bottom:0.75rem;">
-        <label>Sheet Tab Name</label>
-        <input type="text" id="lbwlSheetTab" value="2026" placeholder="2026"
-          oninput="localStorage.setItem('lerums_lbwl_sheet', this.value.trim())">
-      </div>
-      <div style="font-size:0.75rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.5rem;">Column letters in LB WL sheet</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;margin-bottom:0.75rem;">
+      <div style="font-size:0.75rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.5rem;">LB Weightlifting tab</div>
+      <div style="display:grid;grid-template-columns:1fr 60px 60px;gap:0.5rem;margin-bottom:0.75rem;">
         <div class="form-group" style="margin:0;">
-          <label style="font-size:0.7rem;">Date</label>
+          <label style="font-size:0.7rem;">Tab Name</label>
+          <input type="text" id="lbwlTabLbwl" placeholder="e.g. lbwl"
+            oninput="localStorage.setItem('lerums_lbwl_tab_lbwl', this.value.trim())">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label style="font-size:0.7rem;">Date col</label>
           <input type="text" id="lbwlColDate" value="B" maxlength="2" style="text-transform:uppercase;"
             oninput="this.value=this.value.toUpperCase();localStorage.setItem('lerums_lbwl_col_date',this.value)">
         </div>
         <div class="form-group" style="margin:0;">
-          <label style="font-size:0.7rem;">LB WL Column</label>
+          <label style="font-size:0.7rem;">Program col</label>
           <input type="text" id="lbwlColLbwl" value="C" maxlength="2" style="text-transform:uppercase;"
             oninput="this.value=this.value.toUpperCase();localStorage.setItem('lerums_lbwl_col_lbwl',this.value)">
         </div>
+      </div>
+      <div style="font-size:0.75rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.5rem;">2-Day Weightlifting tab</div>
+      <div style="display:grid;grid-template-columns:1fr 60px 60px;gap:0.5rem;margin-bottom:0.75rem;">
         <div class="form-group" style="margin:0;">
-          <label style="font-size:0.7rem;">2D WL Column</label>
-          <input type="text" id="lbwlCol2dwl" value="D" maxlength="2" style="text-transform:uppercase;"
+          <label style="font-size:0.7rem;">Tab Name</label>
+          <input type="text" id="lbwlTab2dwl" placeholder="e.g. 2dwl"
+            oninput="localStorage.setItem('lerums_lbwl_tab_2dwl', this.value.trim())">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label style="font-size:0.7rem;">Date col</label>
+          <input type="text" id="lbwlCol2dwlDate" value="B" maxlength="2" style="text-transform:uppercase;"
+            oninput="this.value=this.value.toUpperCase();localStorage.setItem('lerums_lbwl_col_2dwl_date',this.value)">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label style="font-size:0.7rem;">Program col</label>
+          <input type="text" id="lbwlCol2dwl" value="C" maxlength="2" style="text-transform:uppercase;"
             oninput="this.value=this.value.toUpperCase();localStorage.setItem('lerums_lbwl_col_2dwl',this.value)">
         </div>
       </div>
@@ -4158,14 +4186,18 @@ function updateSyncSummary() {
   // Load LB WL settings
   const lbwlUrlEl = document.getElementById('lbwlScriptUrl');
   if (lbwlUrlEl) lbwlUrlEl.value = localStorage.getItem('lerums_lbwl_script_url') || LBWL_SCRIPT_URL_DEFAULT;
-  const lbwlSheetEl = document.getElementById('lbwlSheetTab');
-  if (lbwlSheetEl) lbwlSheetEl.value = localStorage.getItem('lerums_lbwl_sheet') || localStorage.getItem('lb_lerums_program_sheet') || '2026';
-  const lbwlDateEl = document.getElementById('lbwlColDate');
-  if (lbwlDateEl) lbwlDateEl.value = localStorage.getItem('lerums_lbwl_col_date') || 'B';
-  const lbwlLbwlEl = document.getElementById('lbwlColLbwl');
-  if (lbwlLbwlEl) lbwlLbwlEl.value = localStorage.getItem('lerums_lbwl_col_lbwl') || 'C';
+  const lbwlTabLbwlEl = document.getElementById('lbwlTabLbwl');
+  if (lbwlTabLbwlEl) lbwlTabLbwlEl.value = localStorage.getItem('lerums_lbwl_tab_lbwl') || 'lbwl';
+  const lbwlColDateEl = document.getElementById('lbwlColDate');
+  if (lbwlColDateEl) lbwlColDateEl.value = localStorage.getItem('lerums_lbwl_col_date') || 'B';
+  const lbwlColLbwlEl = document.getElementById('lbwlColLbwl');
+  if (lbwlColLbwlEl) lbwlColLbwlEl.value = localStorage.getItem('lerums_lbwl_col_lbwl') || 'C';
+  const lbwlTab2dwlEl = document.getElementById('lbwlTab2dwl');
+  if (lbwlTab2dwlEl) lbwlTab2dwlEl.value = localStorage.getItem('lerums_lbwl_tab_2dwl') || '2dwl';
+  const lbwlCol2dwlDateEl = document.getElementById('lbwlCol2dwlDate');
+  if (lbwlCol2dwlDateEl) lbwlCol2dwlDateEl.value = localStorage.getItem('lerums_lbwl_col_2dwl_date') || 'B';
   const lbwl2dwlEl = document.getElementById('lbwlCol2dwl');
-  if (lbwl2dwlEl) lbwl2dwlEl.value = localStorage.getItem('lerums_lbwl_col_2dwl') || 'D';
+  if (lbwl2dwlEl) lbwl2dwlEl.value = localStorage.getItem('lerums_lbwl_col_2dwl') || 'C';
   const lastLBWL = localStorage.getItem('lb_lerums_lbwl_last_sync');
   const lbwlStatus = document.getElementById('lbwlSyncStatus');
   if (lbwlStatus && lastLBWL) { lbwlStatus.textContent = '✓ Last synced: ' + lastLBWL; lbwlStatus.style.color = 'var(--success)'; }
@@ -5123,13 +5155,12 @@ async function fetchLBWLProgram(silent = false) {
 
   try {
     const data = await xhrPost(lbwlUrl, {
-      action: 'getLBWLProgram',
-      sheet: sheetTab,
-      cols: {
-        date:   colLetterToIndex(localStorage.getItem('lerums_lbwl_col_date')  || 'B'),
-        lbwl:   colLetterToIndex(localStorage.getItem('lerums_lbwl_col_lbwl')  || 'C'),
-        '2dwl': colLetterToIndex(localStorage.getItem('lerums_lbwl_col_2dwl')  || 'D'),
-      }
+      action:     'getLBWLProgram',
+      lbwlSheet:  localStorage.getItem('lerums_lbwl_tab_lbwl')      || 'lbwl',
+      dwl2Sheet:  localStorage.getItem('lerums_lbwl_tab_2dwl')      || '2dwl',
+      colDate:    colLetterToIndex(localStorage.getItem('lerums_lbwl_col_date')      || 'B'),
+      colLbwl:    colLetterToIndex(localStorage.getItem('lerums_lbwl_col_lbwl')      || 'C'),
+      colDwl2:    colLetterToIndex(localStorage.getItem('lerums_lbwl_col_2dwl')      || 'C'),
     });
     if (data.error) throw new Error(data.error);
     if (!data.program) throw new Error('No program data returned');
