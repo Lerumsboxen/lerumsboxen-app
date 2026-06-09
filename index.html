@@ -1344,19 +1344,12 @@
   }
 
   if (action === "getLBWLProgram") {
-    // lbwl and 2dwl live in SEPARATE TABS of the same spreadsheet.
-    // data.lbwlSheet = tab name for LB WL (default "lbwl")
-    // data.dwl2Sheet = tab name for 2D WL  (default "2dwl")
-    // data.colDate   = 0-based date column index shared by both tabs (default 1 = col B)
-    // data.colLbwl   = 0-based program column in the lbwl tab (default 2 = col C)
-    // data.colDwl2   = 0-based program column in the 2dwl tab (default 2 = col C)
+    // Structure: Col A = week (W1-W10), remaining cols = day content (no date column).
+    // lbwl tab:  A=week  B=Day1  C=Day2  D=Day3
+    // 2dwl tab:  A=week  B=Day1  C=Day2
     var lbwlSheetName = data.lbwlSheet || "lbwl";
     var dwl2SheetName = data.dwl2Sheet || "2dwl";
-    var colDate = (data.colDate !== undefined && data.colDate >= 0) ? data.colDate : 1;
-    var colLbwl = (data.colLbwl !== undefined && data.colLbwl >= 0) ? data.colLbwl : 2;
-    var colDwl2 = (data.colDwl2 !== undefined && data.colDwl2 >= 0) ? data.colDwl2 : 2;
-    var tz = Session.getScriptTimeZone();
-    var program = {};
+    var result = {};
 
     function rtHtml(richCell) {
       if (!richCell) return "";
@@ -1380,31 +1373,33 @@
       } catch(e) { return text; }
     }
 
-    function readTab(tabName, contentCol, fieldName) {
+    function readWLTab(tabName, numDays) {
       var sheet = ss.getSheetByName(tabName);
-      if (!sheet) return; // tab not found — skip silently
+      if (!sheet) return null;
       var range = sheet.getDataRange();
       var vals = range.getValues();
-      if (vals.length < 2) return;
+      if (vals.length < 2) return {};
       var richVals = range.getRichTextValues();
+      var weeks = {};
       vals.slice(1).forEach(function(row, rowIdx) {
-        var d = row[colDate];
-        if (!d) return;
-        var date = (d instanceof Date) ? d : new Date(d);
-        if (isNaN(date.getTime())) return;
-        var iso = Utilities.formatDate(date, tz, "yyyy-MM-dd");
+        var week = (row[0] || "").toString().trim();
+        if (!week) return;
         var richRow = richVals[rowIdx + 1];
-        var content = richRow ? rtHtml(richRow[contentCol]) : (row[contentCol] || "").toString().trim();
-        if (content) {
-          if (!program[iso]) program[iso] = {};
-          program[iso][fieldName] = content;
+        var entry = {};
+        for (var d = 0; d < numDays; d++) {
+          var content = richRow ? rtHtml(richRow[d + 1]) : (row[d + 1] || "").toString().trim();
+          if (content) entry["day" + (d + 1)] = content;
         }
+        if (Object.keys(entry).length > 0) weeks[week] = entry;
       });
+      return weeks;
     }
 
-    readTab(lbwlSheetName, colLbwl, "lbwl");
-    readTab(dwl2SheetName, colDwl2, "2dwl");
-    return json({program: program});
+    var lbwlData = readWLTab(lbwlSheetName, 3); // 3 days
+    var dwl2Data = readWLTab(dwl2SheetName, 2); // 2 days
+    if (lbwlData) result.lbwl  = lbwlData;
+    if (dwl2Data) result["2dwl"] = dwl2Data;
+    return json(result);
   }
 
   if (action === "ping") {
@@ -1829,40 +1824,20 @@ function json(obj) {
         <input type="text" id="lbwlScriptUrl" placeholder="https://script.google.com/macros/s/..." style="font-size:0.75rem;"
           oninput="localStorage.setItem('lerums_lbwl_script_url', this.value.trim())">
       </div>
-      <div style="font-size:0.75rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.5rem;">LB Weightlifting tab</div>
-      <div style="display:grid;grid-template-columns:1fr 60px 60px;gap:0.5rem;margin-bottom:0.75rem;">
+      <p style="font-size:0.78rem;color:var(--muted);margin-bottom:0.75rem;line-height:1.5;">
+        Each program lives in its own sheet tab. Structure: <strong style="color:var(--text);">Col A</strong> = week (W1–W10), then one column per training day.
+        LB WL has 3 days (B/C/D), 2D WL has 2 days (B/C).
+      </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.75rem;">
         <div class="form-group" style="margin:0;">
-          <label style="font-size:0.7rem;">Tab Name</label>
+          <label style="font-size:0.7rem;">LB Weightlifting tab name</label>
           <input type="text" id="lbwlTabLbwl" placeholder="e.g. lbwl"
             oninput="localStorage.setItem('lerums_lbwl_tab_lbwl', this.value.trim())">
         </div>
         <div class="form-group" style="margin:0;">
-          <label style="font-size:0.7rem;">Date col</label>
-          <input type="text" id="lbwlColDate" value="B" maxlength="2" style="text-transform:uppercase;"
-            oninput="this.value=this.value.toUpperCase();localStorage.setItem('lerums_lbwl_col_date',this.value)">
-        </div>
-        <div class="form-group" style="margin:0;">
-          <label style="font-size:0.7rem;">Program col</label>
-          <input type="text" id="lbwlColLbwl" value="C" maxlength="2" style="text-transform:uppercase;"
-            oninput="this.value=this.value.toUpperCase();localStorage.setItem('lerums_lbwl_col_lbwl',this.value)">
-        </div>
-      </div>
-      <div style="font-size:0.75rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.5rem;">2-Day Weightlifting tab</div>
-      <div style="display:grid;grid-template-columns:1fr 60px 60px;gap:0.5rem;margin-bottom:0.75rem;">
-        <div class="form-group" style="margin:0;">
-          <label style="font-size:0.7rem;">Tab Name</label>
+          <label style="font-size:0.7rem;">2-Day Weightlifting tab name</label>
           <input type="text" id="lbwlTab2dwl" placeholder="e.g. 2dwl"
             oninput="localStorage.setItem('lerums_lbwl_tab_2dwl', this.value.trim())">
-        </div>
-        <div class="form-group" style="margin:0;">
-          <label style="font-size:0.7rem;">Date col</label>
-          <input type="text" id="lbwlCol2dwlDate" value="B" maxlength="2" style="text-transform:uppercase;"
-            oninput="this.value=this.value.toUpperCase();localStorage.setItem('lerums_lbwl_col_2dwl_date',this.value)">
-        </div>
-        <div class="form-group" style="margin:0;">
-          <label style="font-size:0.7rem;">Program col</label>
-          <input type="text" id="lbwlCol2dwl" value="C" maxlength="2" style="text-transform:uppercase;"
-            oninput="this.value=this.value.toUpperCase();localStorage.setItem('lerums_lbwl_col_2dwl',this.value)">
         </div>
       </div>
       <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
@@ -2275,18 +2250,8 @@ const DASH_SECTIONS = {
         <div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.accessory)}</div>
         <button data-log="accessory" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#475569;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG</button>
       </div>` : ''}
-      ${prog && prog.lbwl && hasProgramAccess('lbwl') ? `
-      <div style="background:var(--card);border:1px solid rgba(251,146,60,0.4);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
-        <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#fb923c;margin-bottom:0.5rem;">🏋️ LB Weightlifting</div>
-        <div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.lbwl)}</div>
-        <button data-log="lbwl" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#c2410c;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG</button>
-      </div>` : ''}
-      ${prog && prog['2dwl'] && hasProgramAccess('2dwl') ? `
-      <div style="background:var(--card);border:1px solid rgba(251,146,60,0.4);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
-        <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#fb923c;margin-bottom:0.5rem;">🏋️ 2-Day Weightlifting</div>
-        <div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog['2dwl'])}</div>
-        <button data-log="2dwl" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#c2410c;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG</button>
-      </div>` : ''}`;
+      ${hasProgramAccess('lbwl') ? buildWLProgramCard('lbwl') : ''}
+      ${hasProgramAccess('2dwl') ? buildWLProgramCard('2dwl') : ''}`;
     }
   },
   prs: {
@@ -2716,6 +2681,69 @@ function updateWod(id) {
   if (saveBtn) { saveBtn.textContent = 'SAVE WOD'; saveBtn.onclick = saveWod; }
 }
 
+// ===== LB WL WEEK/DAY PROGRAM CARDS =====
+function buildWLProgramCard(type) {
+  const prog = state.lbwlProgram;
+  if (!prog) return '';
+  const typeData = type === 'lbwl' ? prog.lbwl : prog['2dwl'];
+  if (!typeData || !Object.keys(typeData).length) return '';
+
+  const title    = type === 'lbwl' ? 'LB Weightlifting' : '2-Day Weightlifting';
+  const numDays  = type === 'lbwl' ? 3 : 2;
+  const weekKey  = 'lerums_wl_week_'  + type;
+  const dayKey   = 'lerums_wl_day_'   + type;
+
+  // Sort weeks numerically (W1, W2 … W10)
+  const weeks = Object.keys(typeData).sort((a, b) => {
+    return (parseInt(a.replace(/\D/g,'')) || 0) - (parseInt(b.replace(/\D/g,'')) || 0);
+  });
+
+  let curWeek = localStorage.getItem(weekKey) || weeks[0];
+  if (!typeData[curWeek]) curWeek = weeks[0];
+  let curDay = parseInt(localStorage.getItem(dayKey) || '1');
+  if (curDay < 1 || curDay > numDays) curDay = 1;
+
+  const weekIdx  = weeks.indexOf(curWeek);
+  const prevWeek = weekIdx > 0 ? weeks[weekIdx - 1] : null;
+  const nextWeek = weekIdx < weeks.length - 1 ? weeks[weekIdx + 1] : null;
+  const content  = (typeData[curWeek] || {})['day' + curDay] || '';
+
+  const navBtn = (label, disabled, onclick) =>
+    `<button onclick="${onclick}" ${disabled ? 'disabled' : ''} style="width:1.7rem;height:1.7rem;border-radius:3px;border:1px solid var(--border);background:var(--card2);color:${disabled?'var(--border)':'var(--text)'};cursor:${disabled?'default':'pointer'};font-size:0.9rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${label}</button>`;
+
+  const dayBtns = Array.from({length: numDays}, (_, i) => i + 1).map(d => {
+    const active = d === curDay;
+    return `<button onclick="setLbwlDay('${type}',${d})" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;padding:0.22rem 0.55rem;border-radius:3px;border:1px solid ${active?'#fb923c':'var(--border)'};background:${active?'rgba(251,146,60,0.15)':'transparent'};color:${active?'#fb923c':'var(--muted)'};cursor:pointer;">Day ${d}</button>`;
+  }).join('');
+
+  return `
+  <div style="background:var(--card);border:1px solid rgba(251,146,60,0.4);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
+    <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#fb923c;margin-bottom:0.6rem;">🏋️ ${title}</div>
+    <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.6rem;flex-wrap:wrap;">
+      ${navBtn('‹', !prevWeek, `setLbwlWeek('${type}','${prevWeek||''}')`)}
+      <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.9rem;letter-spacing:0.1em;color:var(--text);min-width:2.2rem;text-align:center;">${curWeek}</span>
+      ${navBtn('›', !nextWeek, `setLbwlWeek('${type}','${nextWeek||''}')`)}
+      <div style="display:flex;gap:0.3rem;margin-left:0.25rem;">${dayBtns}</div>
+    </div>
+    ${content
+      ? `<div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(content)}</div>
+         <button data-log="${type}" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#c2410c;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG</button>`
+      : `<div style="color:var(--muted);font-size:0.82rem;">${curWeek} Day ${curDay} — no content yet</div>`
+    }
+  </div>`;
+}
+
+function setLbwlWeek(type, week) {
+  if (!week) return;
+  localStorage.setItem('lerums_wl_week_' + type, week);
+  if (currentDashSection === 'programming') selectDashSection('programming');
+}
+
+function setLbwlDay(type, day) {
+  localStorage.setItem('lerums_wl_day_' + type, String(day));
+  if (currentDashSection === 'programming') selectDashSection('programming');
+}
+
 // ===== WOD MODAL =====
 function logFromProgram(type) {
   const today = new Date().toISOString().split('T')[0];
@@ -2810,24 +2838,18 @@ function logFromProgram(type) {
     document.getElementById('strengthModal').style.display = 'flex';
   }
 
-  if (type === 'lbwl') {
-    document.getElementById('wodDate').value = viewDate;
-    document.getElementById('wodName').value = 'LB Weightlifting';
-    document.getElementById('wodDesc').value = stripHtml(prog.lbwl || '');
+  if (type === 'lbwl' || type === '2dwl') {
+    const wlData   = (state.lbwlProgram || {})[type] || {};
+    const week     = localStorage.getItem('lerums_wl_week_' + type) || Object.keys(wlData)[0] || 'W1';
+    const day      = localStorage.getItem('lerums_wl_day_'  + type) || '1';
+    const content  = (wlData[week] || {})['day' + day] || '';
+    const title    = type === 'lbwl' ? 'LB Weightlifting' : '2-Day Weightlifting';
+    document.getElementById('wodDate').value  = viewDate;
+    document.getElementById('wodName').value  = `${title} ${week} Day ${day}`;
+    document.getElementById('wodDesc').value  = stripHtml(content);
     document.getElementById('wodScore').value = '';
-    document.getElementById('wodNotes').value = 'LB Weightlifting';
-    document.getElementById('wodType').value = detectWodType(prog.lbwl || '');
-    openWodModalDisplay();
-    onWodTypeChange(true);
-  }
-
-  if (type === '2dwl') {
-    document.getElementById('wodDate').value = viewDate;
-    document.getElementById('wodName').value = '2-Day Weightlifting';
-    document.getElementById('wodDesc').value = stripHtml(prog['2dwl'] || '');
-    document.getElementById('wodScore').value = '';
-    document.getElementById('wodNotes').value = '2-Day Weightlifting';
-    document.getElementById('wodType').value = detectWodType(prog['2dwl'] || '');
+    document.getElementById('wodNotes').value = `${title} ${week} Day ${day}`;
+    document.getElementById('wodType').value  = detectWodType(content);
     openWodModalDisplay();
     onWodTypeChange(true);
   }
@@ -4188,16 +4210,8 @@ function updateSyncSummary() {
   if (lbwlUrlEl) lbwlUrlEl.value = localStorage.getItem('lerums_lbwl_script_url') || LBWL_SCRIPT_URL_DEFAULT;
   const lbwlTabLbwlEl = document.getElementById('lbwlTabLbwl');
   if (lbwlTabLbwlEl) lbwlTabLbwlEl.value = localStorage.getItem('lerums_lbwl_tab_lbwl') || 'lbwl';
-  const lbwlColDateEl = document.getElementById('lbwlColDate');
-  if (lbwlColDateEl) lbwlColDateEl.value = localStorage.getItem('lerums_lbwl_col_date') || 'B';
-  const lbwlColLbwlEl = document.getElementById('lbwlColLbwl');
-  if (lbwlColLbwlEl) lbwlColLbwlEl.value = localStorage.getItem('lerums_lbwl_col_lbwl') || 'C';
   const lbwlTab2dwlEl = document.getElementById('lbwlTab2dwl');
   if (lbwlTab2dwlEl) lbwlTab2dwlEl.value = localStorage.getItem('lerums_lbwl_tab_2dwl') || '2dwl';
-  const lbwlCol2dwlDateEl = document.getElementById('lbwlCol2dwlDate');
-  if (lbwlCol2dwlDateEl) lbwlCol2dwlDateEl.value = localStorage.getItem('lerums_lbwl_col_2dwl_date') || 'B';
-  const lbwl2dwlEl = document.getElementById('lbwlCol2dwl');
-  if (lbwl2dwlEl) lbwl2dwlEl.value = localStorage.getItem('lerums_lbwl_col_2dwl') || 'C';
   const lastLBWL = localStorage.getItem('lb_lerums_lbwl_last_sync');
   const lbwlStatus = document.getElementById('lbwlSyncStatus');
   if (lbwlStatus && lastLBWL) { lbwlStatus.textContent = '✓ Last synced: ' + lastLBWL; lbwlStatus.style.color = 'var(--success)'; }
@@ -5155,34 +5169,30 @@ async function fetchLBWLProgram(silent = false) {
 
   try {
     const data = await xhrPost(lbwlUrl, {
-      action:     'getLBWLProgram',
-      lbwlSheet:  localStorage.getItem('lerums_lbwl_tab_lbwl')      || 'lbwl',
-      dwl2Sheet:  localStorage.getItem('lerums_lbwl_tab_2dwl')      || '2dwl',
-      colDate:    colLetterToIndex(localStorage.getItem('lerums_lbwl_col_date')      || 'B'),
-      colLbwl:    colLetterToIndex(localStorage.getItem('lerums_lbwl_col_lbwl')      || 'C'),
-      colDwl2:    colLetterToIndex(localStorage.getItem('lerums_lbwl_col_2dwl')      || 'C'),
+      action:    'getLBWLProgram',
+      lbwlSheet: localStorage.getItem('lerums_lbwl_tab_lbwl') || 'lbwl',
+      dwl2Sheet: localStorage.getItem('lerums_lbwl_tab_2dwl') || '2dwl',
     });
     if (data.error) throw new Error(data.error);
-    if (!data.program) throw new Error('No program data returned');
-
-    // Merge only the sections the user has access to
-    const incoming = data.program;
-    Object.entries(incoming).forEach(([date, dayData]) => {
-      if (!state.dailyProgram[date]) state.dailyProgram[date] = {};
-      if (wantsLBWL && dayData.lbwl)    state.dailyProgram[date].lbwl    = dayData.lbwl;
-      if (wants2DWL && dayData['2dwl'])  state.dailyProgram[date]['2dwl'] = dayData['2dwl'];
-    });
-    state.lbwlProgram = incoming;
+    // Response: {lbwl: {W1:{day1,day2,day3}, W2:...}, "2dwl": {W1:{day1,day2}, ...}}
+    // Store only the sections the user has access to
+    if (!state.lbwlProgram) state.lbwlProgram = {};
+    if (wantsLBWL && data.lbwl)    state.lbwlProgram.lbwl    = data.lbwl;
+    if (wants2DWL && data['2dwl'])  state.lbwlProgram['2dwl'] = data['2dwl'];
+    if (!wantsLBWL && !wants2DWL && !data.lbwl && !data['2dwl']) throw new Error('No program data returned');
     save();
 
-    const count = Object.keys(incoming).length;
+    const weekCount = Math.max(
+      wantsLBWL ? Object.keys(data.lbwl  || {}).length : 0,
+      wants2DWL ? Object.keys(data['2dwl'] || {}).length : 0
+    );
     const now = new Date().toLocaleString('en-SE');
     localStorage.setItem('lb_lerums_lbwl_last_sync', now);
     if (statusEl && !silent) {
       const parts = [];
-      if (wantsLBWL) parts.push('LB WL ✓');
-      if (wants2DWL) parts.push('2D WL ✓');
-      statusEl.textContent = `✓ ${parts.join(' · ')} — ${count} days`;
+      if (wantsLBWL && data.lbwl)    parts.push(`LB WL ✓ (${Object.keys(data.lbwl).length} weeks)`);
+      if (wants2DWL && data['2dwl'])  parts.push(`2D WL ✓ (${Object.keys(data['2dwl']).length} weeks)`);
+      statusEl.textContent = `✓ ${parts.join(' · ')}`;
       statusEl.style.color = 'var(--success)';
     }
     if (!silent) showToast('LB WL Programs synced! 🏋️');
