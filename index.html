@@ -2711,9 +2711,17 @@ function buildWLProgramCard(type) {
   const navBtn = (label, disabled, onclick) =>
     `<button onclick="${onclick}" ${disabled ? 'disabled' : ''} style="width:1.7rem;height:1.7rem;border-radius:3px;border:1px solid var(--border);background:var(--card2);color:${disabled?'var(--border)':'var(--text)'};cursor:${disabled?'default':'pointer'};font-size:0.9rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${label}</button>`;
 
+  const doneSessions = _getWLDone(type);
+  const curDone = !!doneSessions[curWeek + '-' + curDay];
+
   const dayBtns = Array.from({length: numDays}, (_, i) => i + 1).map(d => {
-    const active = d === curDay;
-    return `<button onclick="setLbwlDay('${type}',${d})" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;padding:0.22rem 0.55rem;border-radius:3px;border:1px solid ${active?'#fb923c':'var(--border)'};background:${active?'rgba(251,146,60,0.15)':'transparent'};color:${active?'#fb923c':'var(--muted)'};cursor:pointer;">Day ${d}</button>`;
+    const active   = d === curDay;
+    const dayDone  = !!doneSessions[curWeek + '-' + d];
+    const label    = dayDone ? `Day ${d} ✓` : `Day ${d}`;
+    const color    = active ? '#fb923c' : (dayDone ? '#4ade80' : 'var(--muted)');
+    const border   = active ? '#fb923c' : (dayDone ? 'rgba(74,222,128,0.5)' : 'var(--border)');
+    const bg       = active ? 'rgba(251,146,60,0.15)' : (dayDone ? 'rgba(74,222,128,0.08)' : 'transparent');
+    return `<button onclick="setLbwlDay('${type}',${d})" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;padding:0.22rem 0.55rem;border-radius:3px;border:1px solid ${border};background:${bg};color:${color};cursor:pointer;">${label}</button>`;
   }).join('');
 
   return `
@@ -2727,7 +2735,11 @@ function buildWLProgramCard(type) {
     </div>
     ${content
       ? `<div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(content)}</div>
-         <button data-log="${type}" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#c2410c;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG</button>`
+         ${curDone
+           ? `<div style="display:inline-flex;align-items:center;gap:0.35rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#4ade80;padding:0.3rem 0.65rem;border:1px solid rgba(74,222,128,0.4);border-radius:3px;">✓ LOGGED</div>
+              <button data-log="${type}" style="margin-left:0.4rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG AGAIN</button>`
+           : `<button data-log="${type}" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#c2410c;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG</button>`
+         }`
       : `<div style="color:var(--muted);font-size:0.82rem;">${curWeek} Day ${curDay} — no content yet</div>`
     }
   </div>`;
@@ -2757,6 +2769,42 @@ function _refreshWLCard(type) {
   tmp.innerHTML = html;
   const newCard = tmp.firstElementChild;
   if (newCard) el.innerHTML = newCard.innerHTML;
+}
+
+function _wlDoneKey(type) { return 'lerums_wl_done_' + type; }
+function _getWLDone(type) {
+  try { return JSON.parse(localStorage.getItem(_wlDoneKey(type)) || '{}'); } catch(e) { return {}; }
+}
+function _isWLDone(type, week, day) {
+  return !!_getWLDone(type)[week + '-' + day];
+}
+function _markWLDoneAndAdvance(type, week, day) {
+  // Mark this session as done
+  const done = _getWLDone(type);
+  done[week + '-' + day] = true;
+  localStorage.setItem(_wlDoneKey(type), JSON.stringify(done));
+
+  // Advance to next session
+  const numDays = type === 'lbwl' ? 3 : 2;
+  const wlData  = (state.lbwlProgram || {})[type] || {};
+  const weeks   = Object.keys(wlData).sort((a, b) =>
+    (parseInt(a.replace(/\D/g,'')) || 0) - (parseInt(b.replace(/\D/g,'')) || 0));
+  const weekIdx = weeks.indexOf(week);
+
+  let nextWeek = week, nextDay = day;
+  if (day < numDays) {
+    nextDay = day + 1;
+  } else if (weekIdx < weeks.length - 1) {
+    nextWeek = weeks[weekIdx + 1];
+    nextDay  = 1;
+  }
+  // Only advance if there actually is a next session
+  if (nextWeek !== week || nextDay !== day) {
+    localStorage.setItem('lerums_wl_week_' + type, nextWeek);
+    localStorage.setItem('lerums_wl_day_'  + type, String(nextDay));
+  }
+
+  _refreshWLCard(type);
 }
 
 // ===== WOD MODAL =====
@@ -2865,6 +2913,7 @@ function logFromProgram(type) {
     document.getElementById('wodScore').value = '';
     document.getElementById('wodNotes').value = `${title} ${week} Day ${day}`;
     document.getElementById('wodType').value  = detectWodType(content);
+    window._pendingWLLog = { type, week, day: parseInt(day) };
     openWodModalDisplay();
     onWodTypeChange(true);
   }
@@ -2916,6 +2965,7 @@ function closeWodModal(e) {
   if (!e || e.target === document.getElementById('wodModal') || e === undefined) {
     document.getElementById('wodModal').style.display = 'none';
     clearWodForm();
+    window._pendingWLLog = null;
     // Reset save button in case it was in edit mode
     const saveBtn = document.querySelector('#wodModal .btn-red');
     if (saveBtn) { saveBtn.textContent = 'SAVE WOD'; saveBtn.onclick = saveWod; }
@@ -3049,9 +3099,11 @@ function saveWod() {
     partners: selectedPartners.length ? [...selectedPartners] : undefined,
   };
   const share = document.getElementById('wodShare')?.checked;
+  const _wlCtx = window._pendingWLLog || null;
   state.wods.push(wod);
   save(); closeWodModal(); renderWodList(); renderDashboard();
   if (document.getElementById('log-wod-section')) switchLogTab('wod');
+  if (_wlCtx) _markWLDoneAndAdvance(_wlCtx.type, _wlCtx.week, _wlCtx.day);
   showToast('WOD logged! 💪');
   cloudPush('wod', wod);
   if (share) shareWodResult(wod);
@@ -6564,6 +6616,11 @@ async function fetchMembers() {
       // Re-apply visibility and always re-render log so date nav picks up correct admin/preview status
       applyAdminVisibility();
       if (currentDashSection === 'log' || currentDashSection === 'programming') selectDashSection(currentDashSection);
+      // If user now has WL access but program data hasn't been fetched yet, fetch it now.
+      // This handles first-ever load where fetchLBWLProgram ran before the members cache existed.
+      const _lbwlMissing = hasProgramAccess('lbwl') && !Object.keys((state.lbwlProgram || {}).lbwl    || {}).length;
+      const _2dwlMissing = hasProgramAccess('2dwl') && !Object.keys((state.lbwlProgram || {})['2dwl'] || {}).length;
+      if (_lbwlMissing || _2dwlMissing) fetchLBWLProgram(true);
     }
   } catch(e) { /* silent */ }
 }
