@@ -1445,10 +1445,11 @@
     var avatar    = data.avatar    || "💪";
     if (!fullName) return json({status: "ok"});
     var vals = sheet.getDataRange().getValues();
+    // Detect format from header row — new format has "firstName" in col A
+    var isNewFmtSheet = vals[0][0] && vals[0][0].toString().toLowerCase().trim() === "firstname";
     var found = false;
     for (var r = 1; r < vals.length; r++) {
-      // Detect old format (col B = avatar emoji, i.e. not a plain surname)
-      var oldFmt = vals[r][1] && vals[r][1].toString().trim().length <= 3;
+      var oldFmt = !isNewFmtSheet;
       var storedFullName = oldFmt
         ? vals[r][0].toString()
         : (vals[r][0].toString() + (vals[r][1] ? " " + vals[r][1].toString() : "")).trim();
@@ -1489,11 +1490,12 @@
     var sheet = ss.getSheetByName("Members");
     if (!sheet || sheet.getLastRow() < 2) return json({members: []});
     var vals = sheet.getDataRange().getValues();
+    // Detect format from header row — new format has "firstName" in col A
+    var isNewFmt = vals[0][0] && vals[0][0].toString().toLowerCase().trim() === "firstname";
     var members = vals.slice(1).map(function(row) {
-      // Detect old format (col B is avatar/emoji, ≤3 chars) vs new format (col B = surname)
-      var oldFmt = row[1] && row[1].toString().trim().length <= 3;
       var name, avatar, registered, lastSeen, adminFlag, previewFlag, lbwlFlag, dwl2Flag;
-      if (oldFmt) {
+      if (!isNewFmt) {
+        // Old format: fullName | avatar | registered | lastSeen | admin
         name = row[0].toString().trim();
         avatar = row[1]; registered = row[2]; lastSeen = row[3];
         adminFlag = row[4] && row[4].toString().toLowerCase().trim() === "admin";
