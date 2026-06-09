@@ -2717,7 +2717,7 @@ function buildWLProgramCard(type) {
   }).join('');
 
   return `
-  <div style="background:var(--card);border:1px solid rgba(251,146,60,0.4);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
+  <div id="wl-card-${type}" style="background:var(--card);border:1px solid rgba(251,146,60,0.4);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
     <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#fb923c;margin-bottom:0.6rem;">🏋️ ${title}</div>
     <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.6rem;flex-wrap:wrap;">
       ${navBtn('‹', !prevWeek, `setLbwlWeek('${type}','${prevWeek||''}')`)}
@@ -2736,12 +2736,27 @@ function buildWLProgramCard(type) {
 function setLbwlWeek(type, week) {
   if (!week) return;
   localStorage.setItem('lerums_wl_week_' + type, week);
-  if (currentDashSection === 'programming') selectDashSection('programming');
+  _refreshWLCard(type);
 }
 
 function setLbwlDay(type, day) {
   localStorage.setItem('lerums_wl_day_' + type, String(day));
-  if (currentDashSection === 'programming') selectDashSection('programming');
+  _refreshWLCard(type);
+}
+
+function _refreshWLCard(type) {
+  const el = document.getElementById('wl-card-' + type);
+  if (!el) {
+    if (currentDashSection === 'programming') selectDashSection('programming');
+    return;
+  }
+  const html = buildWLProgramCard(type);
+  if (!html) return;
+  // Extract just the inner content of the outer div (everything inside <div id="wl-card-...">)
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  const newCard = tmp.firstElementChild;
+  if (newCard) el.innerHTML = newCard.innerHTML;
 }
 
 // ===== WOD MODAL =====
