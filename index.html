@@ -1343,6 +1343,55 @@
     return json({program: program, colsUsed: {date:dateIdx,strength:strengthIdx,workout:workoutIdx,club:clubIdx,hyrox:hyroxIdx,endurance:endurIdx,oly:olyIdx}});
   }
 
+  if (action === "getLBWLProgram") {
+    var sheet = ss.getSheetByName(sheetName || "2026");
+    if (!sheet) return json({error: "Sheet not found: " + (sheetName || "2026")});
+    var range = sheet.getDataRange();
+    var vals = range.getValues();
+    if (vals.length < 2) return json({program: {}});
+    var cols = data.cols || {};
+    var hdrs = vals[0].map(function(h) { return (h+"").toLowerCase().trim(); });
+    var dateIdx = (cols.date  >= 0) ? cols.date  : (hdrs.indexOf("date")  >= 0 ? hdrs.indexOf("date")  : 1);
+    var lbwlIdx = (cols.lbwl  >= 0) ? cols.lbwl  : (hdrs.indexOf("lbwl")  >= 0 ? hdrs.indexOf("lbwl")  : 2);
+    var dwl2Idx = (cols["2dwl"] >= 0) ? cols["2dwl"] : (hdrs.indexOf("2dwl") >= 0 ? hdrs.indexOf("2dwl") : 3);
+    var richVals = range.getRichTextValues();
+    function rtHtml(richCell) {
+      if (!richCell) return "";
+      var text = richCell.getText();
+      if (!text) return "";
+      try {
+        var runs = richCell.getRuns();
+        if (!runs || runs.length === 0) return text;
+        if (runs.length === 1) {
+          var s = runs[0].getTextStyle();
+          if (s && s.isBold && s.isBold()) return text.split("\n").map(function(l){ return l ? "&lt;b&gt;"+l+"&lt;/b&gt;" : ""; }).join("\n");
+          return text;
+        }
+        var html = "";
+        runs.forEach(function(run) {
+          var t = run.getText(); if (!t) return;
+          var s = run.getTextStyle();
+          html += (s && s.isBold && s.isBold()) ? "&lt;b&gt;"+t+"&lt;/b&gt;" : t;
+        });
+        return html || text;
+      } catch(e) { return text; }
+    }
+    var tz = Session.getScriptTimeZone();
+    var program = {};
+    vals.slice(1).forEach(function(row, rowIdx) {
+      var d = row[dateIdx];
+      if (!d) return;
+      var date = (d instanceof Date) ? d : new Date(d);
+      if (isNaN(date.getTime())) return;
+      var iso = Utilities.formatDate(date, tz, "yyyy-MM-dd");
+      var richRow = richVals[rowIdx + 1];
+      var lbwl = richRow ? rtHtml(richRow[lbwlIdx]) : (row[lbwlIdx] || "").toString().trim();
+      var dwl2 = richRow ? rtHtml(richRow[dwl2Idx]) : (row[dwl2Idx] || "").toString().trim();
+      if (lbwl || dwl2) program[iso] = {lbwl: lbwl, "2dwl": dwl2};
+    });
+    return json({program: program});
+  }
+
   if (action === "ping") {
     return json({status: "ok"});
   }
@@ -1376,9 +1425,9 @@
 
   if (action === "registerMember") {
     var sheet = ss.getSheetByName("Members") || ss.insertSheet("Members");
-    // New format: firstName | surname | avatar | registered | lastSeen | admin
+    // New format: firstName | surname | avatar | registered | lastSeen | admin | preview | lbwl | 2dwl
     if (sheet.getLastRow() === 0) {
-      sheet.appendRow(["firstName","surname","avatar","registered","lastSeen","admin"]);
+      sheet.appendRow(["firstName","surname","avatar","registered","lastSeen","admin","preview","lbwl","2dwl"]);
     }
     var firstName = data.firstName || "";
     var lastName  = data.lastName  || "";
@@ -1433,18 +1482,23 @@
     var members = vals.slice(1).map(function(row) {
       // Detect old format (col B is avatar/emoji, ≤3 chars) vs new format (col B = surname)
       var oldFmt = row[1] && row[1].toString().trim().length <= 3;
-      var name, avatar, registered, lastSeen, adminFlag;
+      var name, avatar, registered, lastSeen, adminFlag, previewFlag, lbwlFlag, dwl2Flag;
       if (oldFmt) {
         name = row[0].toString().trim();
         avatar = row[1]; registered = row[2]; lastSeen = row[3];
         adminFlag = row[4] && row[4].toString().toLowerCase().trim() === "admin";
+        previewFlag = false; lbwlFlag = false; dwl2Flag = false;
       } else {
         var fn = row[0].toString().trim(), ln = row[1].toString().trim();
         name = (fn + (ln ? " " + ln : "")).trim();
         avatar = row[2]; registered = row[3]; lastSeen = row[4];
-        adminFlag = row[5] && row[5].toString().toLowerCase().trim() === "admin";
+        adminFlag   = row[5] && row[5].toString().toLowerCase().trim() === "admin";
+        previewFlag = row[6] && row[6].toString().toLowerCase().trim() === "preview";
+        lbwlFlag    = row[7] && row[7].toString().toLowerCase().trim() === "lbwl";
+        dwl2Flag    = row[8] && row[8].toString().toLowerCase().trim() === "2dwl";
       }
-      return {name: name, avatar: avatar, registered: registered, lastSeen: lastSeen, admin: adminFlag};
+      return {name: name, avatar: avatar, registered: registered, lastSeen: lastSeen,
+              admin: adminFlag, preview: previewFlag, lbwl: lbwlFlag, "2dwl": dwl2Flag};
     }).filter(function(m) { return m.name; });
     return json({members: members});
   }
@@ -1749,6 +1803,47 @@ function json(obj) {
       <div id="programSyncStatus" style="margin-top:0.6rem;font-size:0.8rem;color:var(--muted);font-family:'Barlow Condensed';letter-spacing:0.05em;min-height:1.2em;word-break:break-word;"></div>
     </div>
 
+    <!-- LB WL Programs (membership-gated secondary script) -->
+    <div class="card" style="margin-bottom:1rem;border-color:rgba(251,146,60,0.3);">
+      <div style="font-family:'Bebas Neue';font-size:1.1rem;letter-spacing:0.06em;color:#fb923c;margin-bottom:1rem;">🏋️ LB WEIGHTLIFTING PROGRAMS</div>
+      <p style="font-size:0.82rem;color:var(--muted);margin-bottom:1rem;line-height:1.5;">
+        Separate Apps Script for membership-gated <strong style="color:var(--text);">LB WL</strong> and <strong style="color:var(--text);">2-Day WL</strong> programs. Users only see their sections — access is controlled by the script.
+      </p>
+      <div class="form-group" style="margin-bottom:0.75rem;">
+        <label>LB WL Script URL</label>
+        <input type="text" id="lbwlScriptUrl" placeholder="https://script.google.com/macros/s/..." style="font-size:0.75rem;"
+          oninput="localStorage.setItem('lerums_lbwl_script_url', this.value.trim())">
+      </div>
+      <div class="form-group" style="margin-bottom:0.75rem;">
+        <label>Sheet Tab Name</label>
+        <input type="text" id="lbwlSheetTab" value="2026" placeholder="2026"
+          oninput="localStorage.setItem('lerums_lbwl_sheet', this.value.trim())">
+      </div>
+      <div style="font-size:0.75rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.5rem;">Column letters in LB WL sheet</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;margin-bottom:0.75rem;">
+        <div class="form-group" style="margin:0;">
+          <label style="font-size:0.7rem;">Date</label>
+          <input type="text" id="lbwlColDate" value="B" maxlength="2" style="text-transform:uppercase;"
+            oninput="this.value=this.value.toUpperCase();localStorage.setItem('lerums_lbwl_col_date',this.value)">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label style="font-size:0.7rem;">LB WL Column</label>
+          <input type="text" id="lbwlColLbwl" value="C" maxlength="2" style="text-transform:uppercase;"
+            oninput="this.value=this.value.toUpperCase();localStorage.setItem('lerums_lbwl_col_lbwl',this.value)">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label style="font-size:0.7rem;">2D WL Column</label>
+          <input type="text" id="lbwlCol2dwl" value="D" maxlength="2" style="text-transform:uppercase;"
+            oninput="this.value=this.value.toUpperCase();localStorage.setItem('lerums_lbwl_col_2dwl',this.value)">
+        </div>
+      </div>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+        <button class="btn btn-sm" style="background:#fb923c;color:#000;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:2px;cursor:pointer;" onclick="fetchLBWLProgram()">⟳ SYNC LB WL</button>
+        <button class="btn btn-ghost btn-sm" onclick="state.lbwlProgram={};Object.keys(state.dailyProgram).forEach(d=>{delete state.dailyProgram[d].lbwl;delete state.dailyProgram[d]['2dwl']});save();fetchLBWLProgram();showToast('LB WL cache cleared — re-syncing…')">🗑 Clear & re-sync</button>
+      </div>
+      <div id="lbwlSyncStatus" style="margin-top:0.6rem;font-size:0.8rem;color:var(--muted);font-family:'Barlow Condensed';letter-spacing:0.05em;min-height:1.2em;word-break:break-word;"></div>
+    </div>
+
     <!-- Summary -->
     <div class="card">
       <div style="font-family:'Bebas Neue';font-size:1.1rem;letter-spacing:0.06em;color:var(--red);margin-bottom:1rem;">SYNC SUMMARY</div>
@@ -1942,9 +2037,12 @@ state.customMovements = state.customMovements.map(m =>
   typeof m === 'string' ? {name: m, unit: '', defaultValue: ''} : m
 );
 if (!state.dailyProgram) state.dailyProgram = {};
+if (!state.lbwlProgram) state.lbwlProgram = {};
 
 // ===== HARDCODED WEB APP URL =====
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxVqMRcf3PG9_7LX-INfkg74sszWA--DZ3EvjeUn5apBHFY5QFpCxCNWC5LYBq0eKzdkg/exec';
+// Default LB WL secondary script URL (configurable in admin settings)
+const LBWL_SCRIPT_URL_DEFAULT = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 
 const MOVEMENT_CATEGORIES = [
   { cat: 'Barbell', icon: '🏋️', moves: [
@@ -2069,13 +2167,14 @@ const DASH_SECTIONS = {
       const today = new Date().toISOString().split('T')[0];
       if (!window.programViewDate) window.programViewDate = today;
       const _adminConfirmed = !!localStorage.getItem('lerums_admin_members');
-      if (_adminConfirmed && !isAdmin() && window.programViewDate > today) window.programViewDate = today;
+      const _canSeeFuture = isAdmin() || isPreview();
+      if (_adminConfirmed && !_canSeeFuture && window.programViewDate > today) window.programViewDate = today;
       const viewDate = window.programViewDate;
       const prog = state.dailyProgram[viewDate];
       const isToday = viewDate === today;
       const isFuture = viewDate > today;
       const label = isToday ? 'Today' : formatDate(viewDate);
-      const nextDisabled = (_adminConfirmed && !isAdmin()) ? isToday : false;
+      const nextDisabled = (_adminConfirmed && !_canSeeFuture) ? isToday : false;
 
       const dateNav = `
       <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.85rem;">
@@ -2147,6 +2246,18 @@ const DASH_SECTIONS = {
         <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#94a3b8;margin-bottom:0.5rem;">🔧 Accessory Work</div>
         <div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.accessory)}</div>
         <button data-log="accessory" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#475569;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG</button>
+      </div>` : ''}
+      ${prog && prog.lbwl && hasProgramAccess('lbwl') ? `
+      <div style="background:var(--card);border:1px solid rgba(251,146,60,0.4);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
+        <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#fb923c;margin-bottom:0.5rem;">🏋️ LB Weightlifting</div>
+        <div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.lbwl)}</div>
+        <button data-log="lbwl" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#c2410c;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG</button>
+      </div>` : ''}
+      ${prog && prog['2dwl'] && hasProgramAccess('2dwl') ? `
+      <div style="background:var(--card);border:1px solid rgba(251,146,60,0.4);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
+        <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#fb923c;margin-bottom:0.5rem;">🏋️ 2-Day Weightlifting</div>
+        <div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog['2dwl'])}</div>
+        <button data-log="2dwl" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#c2410c;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG</button>
       </div>` : ''}`;
     }
   },
@@ -2670,6 +2781,28 @@ function logFromProgram(type) {
     addSetRow(); addSetRow(); addSetRow();
     document.getElementById('strengthModal').style.display = 'flex';
   }
+
+  if (type === 'lbwl') {
+    document.getElementById('wodDate').value = viewDate;
+    document.getElementById('wodName').value = 'LB Weightlifting';
+    document.getElementById('wodDesc').value = stripHtml(prog.lbwl || '');
+    document.getElementById('wodScore').value = '';
+    document.getElementById('wodNotes').value = 'LB Weightlifting';
+    document.getElementById('wodType').value = detectWodType(prog.lbwl || '');
+    openWodModalDisplay();
+    onWodTypeChange(true);
+  }
+
+  if (type === '2dwl') {
+    document.getElementById('wodDate').value = viewDate;
+    document.getElementById('wodName').value = '2-Day Weightlifting';
+    document.getElementById('wodDesc').value = stripHtml(prog['2dwl'] || '');
+    document.getElementById('wodScore').value = '';
+    document.getElementById('wodNotes').value = '2-Day Weightlifting';
+    document.getElementById('wodType').value = detectWodType(prog['2dwl'] || '');
+    openWodModalDisplay();
+    onWodTypeChange(true);
+  }
 }
 
 // Event delegation for dynamically injected buttons (e.g. program banner log buttons)
@@ -2686,8 +2819,8 @@ document.addEventListener('click', function(e) {
     if (dir === 'next') cur.setDate(cur.getDate() + 1);
     const y = cur.getFullYear(), m = String(cur.getMonth()+1).padStart(2,'0'), d = String(cur.getDate()).padStart(2,'0');
     const next = `${y}-${m}-${d}`;
-    // Admin can go to future, others are capped at today
-    window.programViewDate = (!isAdmin() && next > today) ? today : next;
+    // Admin + preview members can go to future, others are capped at today
+    window.programViewDate = (!isAdmin() && !isPreview() && next > today) ? today : next;
     if (currentDashSection === 'log' || currentDashSection === 'programming') selectDashSection(currentDashSection);
   }
 
@@ -4022,6 +4155,20 @@ function updateSyncSummary() {
     progStatus.textContent = '✓ Last synced: ' + lastProg;
     progStatus.style.color = 'var(--success)';
   }
+  // Load LB WL settings
+  const lbwlUrlEl = document.getElementById('lbwlScriptUrl');
+  if (lbwlUrlEl) lbwlUrlEl.value = localStorage.getItem('lerums_lbwl_script_url') || LBWL_SCRIPT_URL_DEFAULT;
+  const lbwlSheetEl = document.getElementById('lbwlSheetTab');
+  if (lbwlSheetEl) lbwlSheetEl.value = localStorage.getItem('lerums_lbwl_sheet') || localStorage.getItem('lb_lerums_program_sheet') || '2026';
+  const lbwlDateEl = document.getElementById('lbwlColDate');
+  if (lbwlDateEl) lbwlDateEl.value = localStorage.getItem('lerums_lbwl_col_date') || 'B';
+  const lbwlLbwlEl = document.getElementById('lbwlColLbwl');
+  if (lbwlLbwlEl) lbwlLbwlEl.value = localStorage.getItem('lerums_lbwl_col_lbwl') || 'C';
+  const lbwl2dwlEl = document.getElementById('lbwlCol2dwl');
+  if (lbwl2dwlEl) lbwl2dwlEl.value = localStorage.getItem('lerums_lbwl_col_2dwl') || 'D';
+  const lastLBWL = localStorage.getItem('lb_lerums_lbwl_last_sync');
+  const lbwlStatus = document.getElementById('lbwlSyncStatus');
+  if (lbwlStatus && lastLBWL) { lbwlStatus.textContent = '✓ Last synced: ' + lastLBWL; lbwlStatus.style.color = 'var(--success)'; }
   // Restore custom movements sheet tab name
   const cmTab = document.getElementById('sheetCustomMovements');
   if (cmTab) cmTab.value = localStorage.getItem('lerums_sheet_custom_movements') || 'Movements';
@@ -4939,6 +5086,79 @@ function autoSyncProgramIfEnabled() {
     if (lastDate !== today) {
       fetchDailyProgram(true);
     }
+    // Also auto-sync LB WL programs if a secondary URL is configured
+    const lbwlUrl = localStorage.getItem('lerums_lbwl_script_url') || LBWL_SCRIPT_URL_DEFAULT;
+    if (lbwlUrl) {
+      const lastLBWLSync = localStorage.getItem('lb_lerums_lbwl_last_sync') || '';
+      const lastLBWLDate = lastLBWLSync ? new Date(lastLBWLSync).toDateString() : '';
+      if (lastLBWLDate !== today) {
+        fetchLBWLProgram(true);
+      }
+    }
+  }
+}
+
+async function fetchLBWLProgram(silent = false) {
+  const lbwlUrl = localStorage.getItem('lerums_lbwl_script_url') || LBWL_SCRIPT_URL_DEFAULT;
+  const statusEl = document.getElementById('lbwlSyncStatus');
+  const sheetTab = localStorage.getItem('lerums_lbwl_sheet') || localStorage.getItem('lb_lerums_program_sheet') || '2026';
+
+  // Skip if user has no access to either program (and is not admin)
+  const wantsLBWL = hasProgramAccess('lbwl');
+  const wants2DWL = hasProgramAccess('2dwl');
+  if (!wantsLBWL && !wants2DWL) {
+    // Silently skip — this user has no LB WL access
+    return;
+  }
+
+  if (!lbwlUrl) {
+    if (!silent && statusEl) { statusEl.textContent = '⚠ No LB WL Script URL set'; statusEl.style.color = '#fbbf24'; }
+    return;
+  }
+  if (!profile.name) {
+    if (!silent && statusEl) { statusEl.textContent = '⚠ Log in first'; statusEl.style.color = '#fbbf24'; }
+    return;
+  }
+  if (statusEl && !silent) { statusEl.textContent = 'Syncing LB WL…'; statusEl.style.color = 'var(--muted)'; }
+
+  try {
+    const data = await xhrPost(lbwlUrl, {
+      action: 'getLBWLProgram',
+      sheet: sheetTab,
+      cols: {
+        date:   colLetterToIndex(localStorage.getItem('lerums_lbwl_col_date')  || 'B'),
+        lbwl:   colLetterToIndex(localStorage.getItem('lerums_lbwl_col_lbwl')  || 'C'),
+        '2dwl': colLetterToIndex(localStorage.getItem('lerums_lbwl_col_2dwl')  || 'D'),
+      }
+    });
+    if (data.error) throw new Error(data.error);
+    if (!data.program) throw new Error('No program data returned');
+
+    // Merge only the sections the user has access to
+    const incoming = data.program;
+    Object.entries(incoming).forEach(([date, dayData]) => {
+      if (!state.dailyProgram[date]) state.dailyProgram[date] = {};
+      if (wantsLBWL && dayData.lbwl)    state.dailyProgram[date].lbwl    = dayData.lbwl;
+      if (wants2DWL && dayData['2dwl'])  state.dailyProgram[date]['2dwl'] = dayData['2dwl'];
+    });
+    state.lbwlProgram = incoming;
+    save();
+
+    const count = Object.keys(incoming).length;
+    const now = new Date().toLocaleString('en-SE');
+    localStorage.setItem('lb_lerums_lbwl_last_sync', now);
+    if (statusEl && !silent) {
+      const parts = [];
+      if (wantsLBWL) parts.push('LB WL ✓');
+      if (wants2DWL) parts.push('2D WL ✓');
+      statusEl.textContent = `✓ ${parts.join(' · ')} — ${count} days`;
+      statusEl.style.color = 'var(--success)';
+    }
+    if (!silent) showToast('LB WL Programs synced! 🏋️');
+    if (currentDashSection === 'programming') selectDashSection('programming');
+  } catch(e) {
+    if (statusEl && !silent) { statusEl.textContent = '✗ ' + e.message; statusEl.style.color = 'var(--red)'; }
+    if (!silent) showToast('LB WL sync failed: ' + e.message);
   }
 }
 
@@ -5220,10 +5440,31 @@ function pickGenderedValue(str) {
 
 function isAdmin() {
   if (profile.name === 'Calle Centerlund') return true;
-  // Also check if the member has been granted admin in the Members sheet (col E = "admin")
+  // Also check if the member has been granted admin in the Members sheet (col F = "admin")
   try {
     const adminNames = JSON.parse(localStorage.getItem('lerums_admin_members') || '[]');
     return adminNames.includes(profile.name);
+  } catch(e) { return false; }
+}
+
+// Returns true if the current user can see future programming (admin or col G = "preview")
+function isPreview() {
+  if (isAdmin()) return true;
+  try {
+    const previewNames = JSON.parse(localStorage.getItem('lerums_preview_members') || '[]');
+    return previewNames.includes(profile.name);
+  } catch(e) { return false; }
+}
+
+// Returns true if the current user has access to a gated program section.
+// type = 'lbwl' (col H) or '2dwl' (col I) in the Members sheet.
+// Admin always has access to everything.
+function hasProgramAccess(type) {
+  if (isAdmin()) return true;
+  try {
+    const key = type === 'lbwl' ? 'lerums_lbwl_members' : 'lerums_2dwl_members';
+    const names = JSON.parse(localStorage.getItem(key) || '[]');
+    return names.includes(profile.name);
   } catch(e) { return false; }
 }
 
@@ -6256,7 +6497,15 @@ async function fetchMembers() {
       // Cache admin names for isAdmin() lookup
       const adminNames = data.members.filter(m => m.admin).map(m => m.name);
       localStorage.setItem('lerums_admin_members', JSON.stringify(adminNames));
-      // Re-apply visibility and always re-render log so date nav picks up correct admin status
+      // Cache preview names for isPreview() lookup (col G = "preview")
+      const previewNames = data.members.filter(m => m.preview).map(m => m.name);
+      localStorage.setItem('lerums_preview_members', JSON.stringify(previewNames));
+      // Cache LB WL program access flags (col H = "lbwl", col I = "2dwl")
+      const lbwlNames = data.members.filter(m => m.lbwl).map(m => m.name);
+      localStorage.setItem('lerums_lbwl_members', JSON.stringify(lbwlNames));
+      const dwl2Names = data.members.filter(m => m['2dwl']).map(m => m.name);
+      localStorage.setItem('lerums_2dwl_members', JSON.stringify(dwl2Names));
+      // Re-apply visibility and always re-render log so date nav picks up correct admin/preview status
       applyAdminVisibility();
       if (currentDashSection === 'log' || currentDashSection === 'programming') selectDashSection(currentDashSection);
     }
