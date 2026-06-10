@@ -1118,6 +1118,7 @@
       <div class="section-title" style="margin:0;flex:1;">Log</div>
       <div style="display:flex;gap:0.6rem;">
         <button class="btn btn-outline" onclick="openStrengthModal()" style="border-color:#e0e0e0;color:#e0e0e0;">+ STRENGTH</button>
+        <button class="btn btn-outline" onclick="openCondModal()" style="border-color:#34d399;color:#34d399;">+ CONDITIONING</button>
         <button class="btn btn-red" onclick="openWodModal()">+ WORKOUT</button>
       </div>
     </div>
@@ -1138,9 +1139,10 @@
 
     <!-- Sub-tabs -->
     <div style="display:flex;gap:0;margin-bottom:1.25rem;border-bottom:1px solid var(--border);margin-top:0.75rem;">
-      <button id="lt-all" onclick="switchLogTab('all')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.4rem;background:none;border:none;border-bottom:3px solid var(--text);color:var(--text);cursor:pointer;transition:all 0.2s;">All</button>
-      <button id="lt-strength" onclick="switchLogTab('strength')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.4rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;transition:all 0.2s;">Strength</button>
-      <button id="lt-wod" onclick="switchLogTab('wod')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.4rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;transition:all 0.2s;">Workouts</button>
+      <button id="lt-all" onclick="switchLogTab('all')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.1rem;background:none;border:none;border-bottom:3px solid var(--text);color:var(--text);cursor:pointer;transition:all 0.2s;">All</button>
+      <button id="lt-strength" onclick="switchLogTab('strength')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.1rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;transition:all 0.2s;">Strength</button>
+      <button id="lt-wod" onclick="switchLogTab('wod')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.1rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;transition:all 0.2s;">Workouts</button>
+      <button id="lt-conditioning" onclick="switchLogTab('conditioning')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.1rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;transition:all 0.2s;">Conditioning</button>
     </div>
 
     <!-- All section -->
@@ -1156,6 +1158,11 @@
     <!-- WOD section -->
     <div id="log-wod-section" style="display:none;">
       <div id="wodList"></div>
+    </div>
+
+    <!-- Conditioning section -->
+    <div id="log-conditioning-section" style="display:none;">
+      <div id="condList"></div>
     </div>
   </div>
 
@@ -2048,6 +2055,7 @@ state.customMovements = state.customMovements.map(m =>
 );
 if (!state.dailyProgram) state.dailyProgram = {};
 if (!state.lbwlProgram) state.lbwlProgram = {};
+if (!state.conditioning) state.conditioning = [];
 
 // ===== HARDCODED WEB APP URL =====
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxVqMRcf3PG9_7LX-INfkg74sszWA--DZ3EvjeUn5apBHFY5QFpCxCNWC5LYBq0eKzdkg/exec';
@@ -2152,8 +2160,9 @@ const DASH_SECTIONS = {
       return `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.75rem;">
         <div class="section-title" style="margin:0;flex:1;">Log</div>
-        <div style="display:flex;gap:0.6rem;">
+        <div style="display:flex;gap:0.6rem;flex-wrap:wrap;">
           <button class="btn btn-outline" onclick="openStrengthModal()" style="border-color:#e0e0e0;color:#e0e0e0;">+ STRENGTH</button>
+          <button class="btn btn-outline" onclick="openCondModal()" style="border-color:#34d399;color:#34d399;">+ CONDITIONING</button>
           <button class="btn btn-red" onclick="openWodModal()">+ WORKOUT</button>
         </div>
       </div>
@@ -2164,9 +2173,10 @@ const DASH_SECTIONS = {
         <button class="btn btn-ghost btn-sm" onclick="clearDashDateFilter()" style="font-size:0.75rem;">✕ Clear</button>
       </div>
       <div style="display:flex;gap:0;margin-bottom:1.25rem;border-bottom:1px solid var(--border);">
-        <button id="dlt-all" onclick="switchDashLogTab('all')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.4rem;background:none;border:none;border-bottom:3px solid var(--text);color:var(--text);cursor:pointer;">All</button>
-        <button id="dlt-strength" onclick="switchDashLogTab('strength')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.4rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;">Strength</button>
-        <button id="dlt-wod" onclick="switchDashLogTab('wod')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.4rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;">Workouts</button>
+        <button id="dlt-all"          onclick="switchDashLogTab('all')"          style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.1rem;background:none;border:none;border-bottom:3px solid var(--text);color:var(--text);cursor:pointer;">All</button>
+        <button id="dlt-strength"     onclick="switchDashLogTab('strength')"     style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.1rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;">Strength</button>
+        <button id="dlt-wod"          onclick="switchDashLogTab('wod')"          style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.1rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;">Workouts</button>
+        <button id="dlt-conditioning" onclick="switchDashLogTab('conditioning')" style="font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;font-size:0.85rem;padding:0.65rem 1.1rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;">Conditioning</button>
       </div>
       <div id="dash-log-list"></div>`;
     }
@@ -2412,11 +2422,15 @@ function renderDashLogTab() {
   if (currentDashLogTab === 'all') {
     const wods = state.wods.filter(w => inRange(w.date)).map(w => ({_type:'wod',date:w.date,_data:w}));
     const sessions = state.strength.filter(s => inRange(s.date)).map(s => ({_type:'strength',date:s.date,_data:s}));
-    const all = [...wods,...sessions].sort((a,b)=>b.date.localeCompare(a.date));
-    list.innerHTML = all.length ? all.map(i => i._type==='wod' ? wodCardHTML(i._data,true) : strengthCardHTML(i._data)).join('') : `<div class="empty-state"><div class="empty-icon">📋</div><p>No entries for this period.</p></div>`;
+    const cond = (state.conditioning||[]).filter(s => inRange(s.date)).map(s => ({_type:'conditioning',date:s.date,_data:s}));
+    const all = [...wods,...sessions,...cond].sort((a,b)=>b.date.localeCompare(a.date));
+    list.innerHTML = all.length ? all.map(i => i._type==='wod' ? wodCardHTML(i._data,true) : i._type==='conditioning' ? condCardHTML(i._data) : strengthCardHTML(i._data)).join('') : `<div class="empty-state"><div class="empty-icon">📋</div><p>No entries for this period.</p></div>`;
   } else if (currentDashLogTab === 'wod') {
     const wods = state.wods.filter(w=>inRange(w.date)).sort((a,b)=>b.date.localeCompare(a.date));
     list.innerHTML = wods.length ? wods.map(w=>wodCardHTML(w,true)).join('') : `<div class="empty-state"><div class="empty-icon">🏋️</div><p>No workouts logged yet.</p><button class="btn btn-red" onclick="openWodModal()">LOG YOUR FIRST WOD</button></div>`;
+  } else if (currentDashLogTab === 'conditioning') {
+    const cond = (state.conditioning||[]).filter(s=>inRange(s.date)).sort((a,b)=>b.date.localeCompare(a.date));
+    list.innerHTML = cond.length ? cond.map(s=>condCardHTML(s)).join('') : `<div class="empty-state"><div class="empty-icon">🏃</div><p>No conditioning sessions yet.</p></div>`;
   } else {
     const sessions = state.strength.filter(s=>inRange(s.date)).sort((a,b)=>b.date.localeCompare(a.date));
     list.innerHTML = sessions.length ? sessions.map(s=>strengthCardHTML(s)).join('') : `<div class="empty-state"><div class="empty-icon">🏋️</div><p>No strength sessions.</p></div>`;
@@ -2425,9 +2439,13 @@ function renderDashLogTab() {
 
 function switchDashLogTab(tab) {
   currentDashLogTab = tab;
-  ['all','strength','wod'].forEach(t => {
+  const colors = { all:'var(--text)', strength:'#e0e0e0', wod:'var(--red)', conditioning:'#34d399' };
+  ['all','strength','wod','conditioning'].forEach(t => {
     const b = document.getElementById('dlt-'+t);
-    if (b) { b.style.color = t===tab ? 'var(--text)' : 'var(--muted)'; b.style.borderBottom = t===tab ? '3px solid var(--text)' : '3px solid transparent'; }
+    if (!b) return;
+    const active = t === tab;
+    b.style.color = active ? (colors[t]||'var(--text)') : 'var(--muted)';
+    b.style.borderBottom = active ? `3px solid ${colors[t]||'var(--text)'}` : '3px solid transparent';
   });
   renderDashLogTab();
 }
@@ -4344,25 +4362,29 @@ function clearDateFilter() {
 function renderCurrentLogTab() {
   if (currentLogTab === 'strength') renderStrengthList();
   else if (currentLogTab === 'wod') renderWodList();
+  else if (currentLogTab === 'conditioning') renderCondList();
   else renderAllList();
 }
 
 function switchLogTab(tab) {
   currentLogTab = tab;
-  const wodSec = document.getElementById('log-wod-section');
-  const strSec = document.getElementById('log-strength-section');
-  const allSec = document.getElementById('log-all-section');
-  if (wodSec) wodSec.style.display      = tab === 'wod'      ? 'block' : 'none';
-  if (strSec) strSec.style.display = tab === 'strength' ? 'block' : 'none';
-  if (allSec) allSec.style.display      = tab === 'all'      ? 'block' : 'none';
+  const wodSec  = document.getElementById('log-wod-section');
+  const strSec  = document.getElementById('log-strength-section');
+  const allSec  = document.getElementById('log-all-section');
+  const condSec = document.getElementById('log-conditioning-section');
+  if (wodSec)  wodSec.style.display  = tab === 'wod'          ? 'block' : 'none';
+  if (strSec)  strSec.style.display  = tab === 'strength'     ? 'block' : 'none';
+  if (allSec)  allSec.style.display  = tab === 'all'          ? 'block' : 'none';
+  if (condSec) condSec.style.display = tab === 'conditioning' ? 'block' : 'none';
 
   const strFilters = document.getElementById('log-strength-filters');
   if (strFilters) strFilters.style.display = (tab === 'strength') ? 'flex' : 'none';
 
   const tabs = {
-    strength: { el:'lt-strength', color:'#e0e0e0' },
-    wod:      { el:'lt-wod',      color:'var(--red)' },
-    all:      { el:'lt-all',      color:'var(--text)' },
+    strength:     { el:'lt-strength',     color:'#e0e0e0' },
+    wod:          { el:'lt-wod',          color:'var(--red)' },
+    all:          { el:'lt-all',          color:'var(--text)' },
+    conditioning: { el:'lt-conditioning', color:'#34d399' },
   };
   Object.entries(tabs).forEach(([t, cfg]) => {
     const btn = document.getElementById(cfg.el);
@@ -4383,7 +4405,7 @@ function renderAllList() {
   const el = document.getElementById('allList');
   if (!el) return;
 
-  // Merge wods and strength sessions into one timeline
+  // Merge wods, strength, and conditioning into one timeline
   const wods = state.wods
     .filter(w => inDateRange(w.date))
     .map(w => ({ _type: 'wod', date: w.date, _data: w }));
@@ -4392,7 +4414,11 @@ function renderAllList() {
     .filter(s => inDateRange(s.date))
     .map(s => ({ _type: 'strength', date: s.date, _data: s }));
 
-  const all = [...wods, ...sessions].sort((a, b) => b.date.localeCompare(a.date));
+  const cond = (state.conditioning || [])
+    .filter(s => inDateRange(s.date))
+    .map(s => ({ _type: 'conditioning', date: s.date, _data: s }));
+
+  const all = [...wods, ...sessions, ...cond].sort((a, b) => b.date.localeCompare(a.date));
 
   if (!all.length) {
     el.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><p>No entries for this period.</p></div>`;
@@ -4400,9 +4426,9 @@ function renderAllList() {
   }
 
   el.innerHTML = all.map(item =>
-    item._type === 'wod'
-      ? wodCardHTML(item._data, true)
-      : strengthCardHTML(item._data)
+    item._type === 'wod'         ? wodCardHTML(item._data, true) :
+    item._type === 'conditioning' ? condCardHTML(item._data) :
+    strengthCardHTML(item._data)
   ).join('');
 }
 
@@ -4697,6 +4723,357 @@ function strengthCardHTML(s) {
         <button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();editStrengthSession('${s.id}')">✏️</button>
         <button class="btn btn-ghost btn-sm btn-icon" title="Share on leaderboard" onclick="event.stopPropagation();shareStrengthById('${s.id}')">🌍</button>
         <button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();deleteStrengthSession('${s.id}')">🗑</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ===== CONDITIONING LOG =====
+
+const COND_ACTIVITIES = {
+  run:     { label: 'Running',  icon: '🏃', color: '#34d399' },
+  row:     { label: 'Row Erg',  icon: '🚣', color: '#38bdf8' },
+  ski:     { label: 'Ski Erg',  icon: '⛷️', color: '#a5f3fc' },
+  airbike: { label: 'Air Bike', icon: '💨', color: '#fbbf24' },
+  bikeerg: { label: 'Bike Erg', icon: '🚴', color: '#fb923c' },
+};
+
+// [sec/km, percentile] sorted fast→slow. Based on CrossFit-community benchmarks.
+const COND_BENCHMARKS = {
+  run:     { M: [[180,99],[225,95],[255,90],[285,75],[330,50],[390,25],[450,10],[540,5]],
+             F: [[210,99],[255,95],[285,90],[315,75],[365,50],[425,25],[490,10],[575,5]] },
+  row:     { M: [[170,99],[195,95],[215,90],[240,75],[270,50],[305,25],[345,10],[400,5]],
+             F: [[200,99],[225,95],[250,90],[275,75],[308,50],[345,25],[390,10],[445,5]] },
+  ski:     { M: [[180,99],[205,95],[225,90],[250,75],[280,50],[318,25],[358,10],[415,5]],
+             F: [[210,99],[235,95],[258,90],[285,75],[320,50],[358,25],[400,10],[455,5]] },
+  airbike: { M: [[55,99],[65,95],[75,90],[88,75],[105,50],[128,25],[155,10],[190,5]],
+             F: [[65,99],[76,95],[88,90],[103,75],[122,50],[148,25],[175,10],[212,5]] },
+  bikeerg: { M: [[45,99],[54,95],[63,90],[75,75],[90,50],[110,25],[133,10],[163,5]],
+             F: [[53,99],[63,95],[73,90],[86,75],[104,50],[126,25],[151,10],[184,5]] },
+};
+
+function getCondPercentile(activity, secPerKm) {
+  const gender = (profile.gender || 'male') === 'female' ? 'F' : 'M';
+  const table = (COND_BENCHMARKS[activity] || COND_BENCHMARKS.run)[gender];
+  if (!table || !secPerKm || !isFinite(secPerKm)) return null;
+  if (secPerKm <= table[0][0]) return table[0][1];
+  if (secPerKm >= table[table.length - 1][0]) return table[table.length - 1][1];
+  for (let i = 0; i < table.length - 1; i++) {
+    const [s1, p1] = table[i], [s2, p2] = table[i + 1];
+    if (secPerKm >= s1 && secPerKm <= s2) {
+      return Math.round(p1 + (secPerKm - s1) / (s2 - s1) * (p2 - p1));
+    }
+  }
+  return null;
+}
+
+function _pctColor(pct) {
+  if (pct === null) return '#6b7280';
+  if (pct >= 90) return '#34d399';
+  if (pct >= 75) return '#86efac';
+  if (pct >= 50) return '#fbbf24';
+  if (pct >= 25) return '#fb923c';
+  return '#f87171';
+}
+
+function formatCondTime(secs) {
+  if (!secs || !isFinite(secs)) return '—';
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = Math.round(secs % 60).toString().padStart(2, '0');
+  return h ? `${h}:${String(m).padStart(2,'0')}:${s}` : `${m}:${s}`;
+}
+
+function formatCondPace(secPerKm) {
+  if (!secPerKm || !isFinite(secPerKm)) return '—';
+  const m = Math.floor(secPerKm / 60);
+  const s = Math.round(secPerKm % 60).toString().padStart(2, '0');
+  return `${m}:${s} /km`;
+}
+
+function parseCondTime(str) {
+  if (!str || !str.trim()) return null;
+  const parts = str.trim().split(':').map(p => parseFloat(p) || 0);
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  return parseFloat(str) * 60 || null;
+}
+
+let _condActivity = 'run';
+let _condType = 'distance';
+let _condIntCount = 0;
+
+function openCondModal() {
+  _condActivity = 'run';
+  _condType = 'distance';
+  _condIntCount = 0;
+  document.getElementById('condDate').value = new Date().toISOString().split('T')[0];
+  ['condDist','condTime','condTimeCap','condTimeDist','condNotes'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.getElementById('condIntRows').innerHTML = '';
+  _condUpdateActivityBtns();
+  _condUpdateTypeTabs();
+  _condUpdateFields();
+  updateCondMetrics();
+  document.getElementById('condModal').style.display = 'flex';
+  addCondIntervalRow(); addCondIntervalRow(); addCondIntervalRow();
+}
+
+function closeCondModal(e) {
+  if (!e || e.target === document.getElementById('condModal')) {
+    document.getElementById('condModal').style.display = 'none';
+  }
+}
+
+function setCondActivity(act) {
+  _condActivity = act;
+  _condUpdateActivityBtns();
+  updateCondMetrics();
+}
+
+function setCondType(type) {
+  _condType = type;
+  _condUpdateTypeTabs();
+  _condUpdateFields();
+  updateCondMetrics();
+}
+
+function _condUpdateActivityBtns() {
+  Object.keys(COND_ACTIVITIES).forEach(act => {
+    const btn = document.getElementById('cond-act-' + act);
+    if (!btn) return;
+    const { color } = COND_ACTIVITIES[act];
+    const active = act === _condActivity;
+    btn.style.borderColor = active ? color : 'var(--border)';
+    btn.style.background  = active ? color + '22' : 'transparent';
+    btn.style.color       = active ? color : 'var(--muted)';
+  });
+}
+
+function _condUpdateTypeTabs() {
+  ['distance','intervals','time'].forEach(t => {
+    const btn = document.getElementById('cond-type-' + t);
+    if (!btn) return;
+    const active = t === _condType;
+    btn.style.borderBottom = active ? '3px solid var(--text)' : '3px solid transparent';
+    btn.style.color = active ? 'var(--text)' : 'var(--muted)';
+  });
+}
+
+function _condUpdateFields() {
+  document.getElementById('condDistFields').style.display    = _condType === 'distance'  ? '' : 'none';
+  document.getElementById('condIntFields').style.display     = _condType === 'intervals' ? '' : 'none';
+  document.getElementById('condTimeCapFields').style.display = _condType === 'time'      ? '' : 'none';
+}
+
+function addCondIntervalRow() {
+  _condIntCount++;
+  const n = _condIntCount;
+  const row = document.createElement('div');
+  row.id = 'cint-' + n;
+  row.style.cssText = 'display:grid;grid-template-columns:30px 1fr 1fr 1fr auto;gap:0.35rem;margin-bottom:0.35rem;align-items:center;';
+  row.innerHTML = `
+    <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.78rem;color:var(--muted);text-align:center;">${n}</div>
+    <input type="number" id="ci-d-${n}" placeholder="km" step="0.001" min="0" style="padding:0.38rem 0.5rem;font-size:0.82rem;" oninput="updateCondMetrics()">
+    <input type="text"   id="ci-t-${n}" placeholder="MM:SS" style="padding:0.38rem 0.5rem;font-size:0.82rem;" oninput="updateCondMetrics()">
+    <input type="text"   id="ci-r-${n}" placeholder="Rest" style="padding:0.38rem 0.5rem;font-size:0.82rem;color:var(--muted);" oninput="updateCondMetrics()">
+    <button onclick="removeCondIntervalRow(${n})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;line-height:1;padding:0 0.2rem;">✕</button>`;
+  document.getElementById('condIntRows').appendChild(row);
+}
+
+function removeCondIntervalRow(n) {
+  const el = document.getElementById('cint-' + n);
+  if (el) el.remove();
+  updateCondMetrics();
+}
+
+function _getCondIntervals() {
+  return Array.from(document.querySelectorAll('#condIntRows > div[id^="cint-"]')).map(row => {
+    const n = row.id.replace('cint-', '');
+    return {
+      dist: parseFloat(document.getElementById('ci-d-' + n)?.value) || null,
+      time: parseCondTime(document.getElementById('ci-t-' + n)?.value),
+      rest: parseCondTime(document.getElementById('ci-r-' + n)?.value),
+    };
+  }).filter(r => r.dist || r.time);
+}
+
+function updateCondMetrics() {
+  const el = document.getElementById('condMetrics');
+  if (!el) return;
+  const act = _condActivity;
+  const { color } = COND_ACTIVITIES[act] || COND_ACTIVITIES.run;
+  let totalDist = null, totalSecs = null;
+
+  if (_condType === 'distance') {
+    totalDist = parseFloat(document.getElementById('condDist')?.value) || null;
+    totalSecs = parseCondTime(document.getElementById('condTime')?.value);
+  } else if (_condType === 'time') {
+    totalSecs = parseCondTime(document.getElementById('condTimeCap')?.value);
+    totalDist = parseFloat(document.getElementById('condTimeDist')?.value) || null;
+  } else {
+    const ivs = _getCondIntervals().filter(i => i.dist && i.time);
+    if (ivs.length) {
+      totalDist = ivs.reduce((s, i) => s + i.dist, 0);
+      totalSecs = ivs.reduce((s, i) => s + i.time, 0);
+    }
+  }
+
+  const spkm = (totalDist && totalSecs) ? totalSecs / totalDist : null;
+  const pace  = formatCondPace(spkm);
+  const speed = (totalDist && totalSecs) ? (totalDist / totalSecs * 3600).toFixed(1) + ' km/h' : '—';
+  const per500 = (act === 'row' || act === 'ski') && spkm ? formatCondPace(spkm / 2).replace('/km', '/500m') : null;
+  const pct   = getCondPercentile(act, spkm);
+  const pc    = _pctColor(pct);
+
+  const stat = (label, val, valColor) => `
+    <div>
+      <div style="font-size:0.65rem;color:var(--muted);font-family:'Barlow Condensed';letter-spacing:0.08em;text-transform:uppercase;">${label}</div>
+      <div style="font-family:'Bebas Neue';font-size:1.25rem;color:${valColor || 'var(--text)'};">${val}</div>
+    </div>`;
+
+  el.innerHTML = `
+    <div style="display:flex;gap:1rem;flex-wrap:wrap;background:var(--card2);border-radius:5px;padding:0.6rem 0.75rem;margin-bottom:0.75rem;align-items:center;">
+      ${stat('Pace', pace, color)}
+      ${stat('Speed', speed)}
+      ${per500 ? stat('Split /500m', per500.replace(' /500m','')) : ''}
+      ${pct !== null ? `<div style="margin-left:auto;">${stat('Percentile', pct + '<span style="font-size:0.65em;">th</span>', pc)}</div>` : ''}
+    </div>
+    ${_condType === 'intervals' ? _condIntervalSummary() : ''}`;
+}
+
+function _condIntervalSummary() {
+  const ivs = _getCondIntervals().filter(i => i.dist && i.time);
+  if (ivs.length < 2) return '';
+  const paces = ivs.map(i => i.time / i.dist);
+  const best = Math.min(...paces), worst = Math.max(...paces);
+  const avgPace = formatCondPace(ivs.reduce((s,i)=>s+i.time,0) / ivs.reduce((s,i)=>s+i.dist,0));
+  return `<div style="font-size:0.8rem;color:var(--muted);margin-bottom:0.6rem;">
+    ${ivs.length} intervals · Avg ${avgPace} · Best <span style="color:#34d399;">${formatCondPace(best)}</span> · Worst <span style="color:#f87171;">${formatCondPace(worst)}</span>
+  </div>`;
+}
+
+function saveCondSession() {
+  const date = document.getElementById('condDate').value;
+  if (!date) { showToast('Select a date'); return; }
+  const session = { id: Date.now().toString(), date, activity: _condActivity, sessionType: _condType,
+                    notes: document.getElementById('condNotes').value.trim() };
+
+  if (_condType === 'distance') {
+    const dist = parseFloat(document.getElementById('condDist').value);
+    const secs = parseCondTime(document.getElementById('condTime').value);
+    if (!dist || !secs) { showToast('Enter distance and time'); return; }
+    session.distance = dist; session.durationSecs = secs;
+  } else if (_condType === 'time') {
+    const secs = parseCondTime(document.getElementById('condTimeCap').value);
+    if (!secs) { showToast('Enter duration'); return; }
+    session.durationSecs = secs;
+    const dist = parseFloat(document.getElementById('condTimeDist').value) || null;
+    if (dist) session.distance = dist;
+  } else {
+    const ivs = _getCondIntervals();
+    if (!ivs.length) { showToast('Add at least one interval'); return; }
+    session.intervals = ivs;
+    const withBoth = ivs.filter(i => i.dist && i.time);
+    if (withBoth.length) {
+      session.distance    = parseFloat(withBoth.reduce((s,i)=>s+i.dist,0).toFixed(4));
+      session.durationSecs = withBoth.reduce((s,i)=>s+i.time,0);
+    }
+  }
+
+  state.conditioning.push(session);
+  save();
+  closeCondModal();
+  renderCondList();
+  renderAllList();
+  if (document.getElementById('log-conditioning-section')) switchLogTab('conditioning');
+  showToast('Conditioning logged! 🏃');
+  cloudPush('conditioning', session);
+}
+
+function deleteCondSession(id) {
+  state.conditioning = state.conditioning.filter(s => s.id !== id);
+  save();
+  renderCondList();
+  renderAllList();
+}
+
+function renderCondList() {
+  const el = document.getElementById('condList');
+  if (!el) return;
+  const list = state.conditioning.filter(s => inDateRange(s.date))
+    .sort((a, b) => b.date.localeCompare(a.date));
+  if (!list.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">🏃</div><p>No conditioning sessions yet.</p><button class="btn" style="background:#34d399;color:#000;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:3px;padding:0.5rem 1rem;cursor:pointer;margin-top:0.5rem;" onclick="openCondModal()">LOG YOUR FIRST SESSION</button></div>`;
+    return;
+  }
+  el.innerHTML = list.map(s => condCardHTML(s)).join('');
+}
+
+function condCardHTML(s) {
+  const cfg   = COND_ACTIVITIES[s.activity] || COND_ACTIVITIES.run;
+  const spkm  = (s.distance && s.durationSecs) ? s.durationSecs / s.distance : null;
+  const pace  = formatCondPace(spkm);
+  const speed = spkm ? (s.distance / s.durationSecs * 3600).toFixed(1) + ' km/h' : '—';
+  const per500 = (s.activity === 'row' || s.activity === 'ski') && spkm
+    ? formatCondPace(spkm / 2).replace('/km', '/500m') : null;
+  const pct = getCondPercentile(s.activity, spkm);
+  const pc  = _pctColor(pct);
+
+  const typeLabel = s.sessionType === 'distance' ? (s.distance ? s.distance + ' km' : 'Distance')
+                  : s.sessionType === 'intervals' ? ((s.intervals?.length || 0) + ' intervals')
+                  : formatCondTime(s.durationSecs);
+  const durStr  = s.durationSecs ? formatCondTime(s.durationSecs) : '';
+  const distStr = s.distance ? `${parseFloat(s.distance.toFixed(3))} km` : '';
+
+  const tag = `<span style="background:${cfg.color}22;color:${cfg.color};border:1px solid ${cfg.color}44;flex-shrink:0;font-size:0.65rem;padding:0.1rem 0.4rem;border-radius:3px;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.06em;">${cfg.icon} ${cfg.label.toUpperCase()}</span>`;
+
+  const statBox = (label, val, c) => `<div><div style="font-size:0.65rem;color:var(--muted);font-family:'Barlow Condensed';text-transform:uppercase;letter-spacing:0.06em;">${label}</div><div style="font-family:'Bebas Neue';font-size:1.1rem;color:${c || 'var(--text)'};">${val}</div></div>`;
+
+  const ivRows = s.sessionType === 'intervals' && s.intervals?.length ? `
+    <div style="margin-top:0.5rem;">
+      <div style="font-size:0.65rem;color:var(--muted);font-family:'Barlow Condensed';text-transform:uppercase;margin-bottom:0.3rem;">Intervals</div>
+      <div style="display:flex;gap:0.35rem;flex-wrap:wrap;">
+        ${s.intervals.map((iv, i) => {
+          const ivSpkm = iv.dist && iv.time ? iv.time / iv.dist : null;
+          const ivC = ivSpkm && spkm ? (ivSpkm < spkm * 0.98 ? '#34d399' : ivSpkm > spkm * 1.02 ? '#f87171' : 'var(--text)') : 'var(--text)';
+          return `<div style="background:var(--card);border:1px solid var(--border);border-radius:4px;padding:0.2rem 0.45rem;font-size:0.75rem;">
+            <span style="color:var(--muted);">${i+1}.</span>
+            ${iv.dist ? ' ' + iv.dist + 'km' : ''}
+            ${iv.time ? ` <span style="color:${ivC};">${formatCondTime(iv.time)}</span>` : ''}
+            ${ivSpkm ? ` <span style="color:var(--muted);font-size:0.68rem;">${formatCondPace(ivSpkm).replace(' /km','')}/km</span>` : ''}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>` : '';
+
+  return `<div class="strength-card" onclick="toggleCard(this)">
+    <div class="str-compact">
+      <span class="str-compact-date">${formatDate(s.date)}</span>
+      ${tag}
+      <span class="str-compact-name">${typeLabel}</span>
+      ${pace !== '—' ? `<span class="str-compact-top" style="color:${cfg.color};">${pace}</span>` : ''}
+    </div>
+    <div class="str-detail">
+      <div class="strength-header">
+        <div class="strength-date">${formatDate(s.date)}</div>
+        ${tag}
+        ${pct !== null ? `<span style="font-family:'Bebas Neue';font-size:1.25rem;color:${pc};margin-left:auto;">${pct}<span style="font-size:0.6em;">th</span></span>` : ''}
+      </div>
+      <div class="strength-title">${cfg.icon} ${cfg.label} · ${typeLabel}${distStr && distStr !== typeLabel ? ' · ' + distStr : ''}</div>
+      <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.5rem;">
+        ${durStr  ? statBox('Time',      durStr,  '') : ''}
+        ${distStr ? statBox('Distance',  distStr, '') : ''}
+        ${pace !== '—' ? statBox('Pace', pace,   cfg.color) : ''}
+        ${speed !== '—' ? statBox('Speed', speed, '') : ''}
+        ${per500 ? statBox('Split /500m', per500.replace(' /500m',''), '') : ''}
+        ${pct !== null ? statBox('Percentile', pct + 'th', pc) : ''}
+      </div>
+      ${ivRows}
+      ${s.notes ? `<div style="font-size:0.8rem;color:#777;margin-top:0.6rem;">💬 ${s.notes}</div>` : ''}
+      <div class="strength-actions">
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();deleteCondSession('${s.id}')">🗑</button>
       </div>
     </div>
   </div>`;
@@ -7084,6 +7461,92 @@ window.addEventListener('orientationchange', () => {
   }, 300);
 });
 </script>
+
+<!-- CONDITIONING MODAL -->
+<div class="modal-overlay" id="condModal" style="display:none;" onclick="closeCondModal(event)">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-title">LOG CONDITIONING <button class="close-btn" onclick="closeCondModal()">✕</button></div>
+
+    <!-- Date + session type -->
+    <div style="display:flex;gap:0.75rem;margin-bottom:0.85rem;flex-wrap:wrap;align-items:flex-end;">
+      <div class="form-group" style="margin:0;flex:0 0 auto;">
+        <label>Date</label>
+        <input type="date" id="condDate" style="max-width:148px;">
+      </div>
+      <div class="form-group" style="margin:0;flex:1;">
+        <label>Type</label>
+        <div style="display:flex;gap:0;border-bottom:1px solid var(--border);">
+          <button id="cond-type-distance"  onclick="setCondType('distance')"  style="font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.08em;text-transform:uppercase;font-size:0.82rem;padding:0.45rem 0.9rem;background:none;border:none;border-bottom:3px solid var(--text);color:var(--text);cursor:pointer;">Distance</button>
+          <button id="cond-type-intervals" onclick="setCondType('intervals')" style="font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.08em;text-transform:uppercase;font-size:0.82rem;padding:0.45rem 0.9rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;">Intervals</button>
+          <button id="cond-type-time"      onclick="setCondType('time')"      style="font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.08em;text-transform:uppercase;font-size:0.82rem;padding:0.45rem 0.9rem;background:none;border:none;border-bottom:3px solid transparent;color:var(--muted);cursor:pointer;">Time cap</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Activity selector -->
+    <div style="display:flex;gap:0.45rem;margin-bottom:0.85rem;flex-wrap:wrap;">
+      <button id="cond-act-run"     onclick="setCondActivity('run')"     style="font-family:'Barlow Condensed';font-weight:700;font-size:0.78rem;letter-spacing:0.07em;text-transform:uppercase;padding:0.35rem 0.7rem;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;">🏃 Running</button>
+      <button id="cond-act-row"     onclick="setCondActivity('row')"     style="font-family:'Barlow Condensed';font-weight:700;font-size:0.78rem;letter-spacing:0.07em;text-transform:uppercase;padding:0.35rem 0.7rem;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;">🚣 Row Erg</button>
+      <button id="cond-act-ski"     onclick="setCondActivity('ski')"     style="font-family:'Barlow Condensed';font-weight:700;font-size:0.78rem;letter-spacing:0.07em;text-transform:uppercase;padding:0.35rem 0.7rem;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;">⛷️ Ski Erg</button>
+      <button id="cond-act-airbike" onclick="setCondActivity('airbike')" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.78rem;letter-spacing:0.07em;text-transform:uppercase;padding:0.35rem 0.7rem;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;">💨 Air Bike</button>
+      <button id="cond-act-bikeerg" onclick="setCondActivity('bikeerg')" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.78rem;letter-spacing:0.07em;text-transform:uppercase;padding:0.35rem 0.7rem;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;">🚴 Bike Erg</button>
+    </div>
+
+    <!-- Distance fields -->
+    <div id="condDistFields">
+      <div class="form-row cols-2" style="margin-bottom:0.75rem;">
+        <div class="form-group" style="margin:0;">
+          <label>Distance (km)</label>
+          <input type="number" id="condDist" placeholder="e.g. 2.0" step="0.001" min="0.01" oninput="updateCondMetrics()">
+          <small style="color:var(--muted);font-size:0.7rem;">500m = 0.5 · 1000m = 1 · 2000m = 2</small>
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label>Time (MM:SS)</label>
+          <input type="text" id="condTime" placeholder="e.g. 07:30" oninput="updateCondMetrics()">
+        </div>
+      </div>
+    </div>
+
+    <!-- Intervals fields -->
+    <div id="condIntFields" style="display:none;">
+      <div style="display:grid;grid-template-columns:30px 1fr 1fr 1fr auto;gap:0.35rem;margin-bottom:0.3rem;">
+        <div></div>
+        <label style="margin:0;font-size:0.75rem;">Dist (km)</label>
+        <label style="margin:0;font-size:0.75rem;">Time (MM:SS)</label>
+        <label style="margin:0;font-size:0.75rem;">Rest</label>
+        <div></div>
+      </div>
+      <div id="condIntRows"></div>
+      <button class="btn btn-ghost btn-sm" onclick="addCondIntervalRow()" style="margin-top:0.4rem;">+ ADD INTERVAL</button>
+    </div>
+
+    <!-- Time cap fields -->
+    <div id="condTimeCapFields" style="display:none;">
+      <div class="form-row cols-2" style="margin-bottom:0.75rem;">
+        <div class="form-group" style="margin:0;">
+          <label>Duration (MM:SS)</label>
+          <input type="text" id="condTimeCap" placeholder="e.g. 20:00" oninput="updateCondMetrics()">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label>Distance covered (km)</label>
+          <input type="number" id="condTimeDist" placeholder="optional" step="0.001" min="0" oninput="updateCondMetrics()">
+        </div>
+      </div>
+    </div>
+
+    <!-- Live metrics -->
+    <div id="condMetrics"></div>
+
+    <div class="form-group">
+      <label>Notes</label>
+      <textarea id="condNotes" rows="2" placeholder="Felt good, steady pace…" style="resize:vertical;"></textarea>
+    </div>
+    <div style="display:flex;gap:0.75rem;justify-content:flex-end;margin-top:1rem;">
+      <button class="btn btn-ghost" onclick="closeCondModal()">Cancel</button>
+      <button class="btn btn-red" onclick="saveCondSession()">SAVE SESSION</button>
+    </div>
+  </div>
+</div>
 
 <!-- STRENGTH MODAL -->
 <div class="modal-overlay" id="strengthModal" style="display:none;" onclick="closeStrengthModal(event)">
