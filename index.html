@@ -1530,9 +1530,30 @@
         dwl2Flag    = row[8] && row[8].toString().toLowerCase().trim() === "2dwl";
       }
       return {name: name, avatar: avatar, registered: registered, lastSeen: lastSeen,
-              admin: adminFlag, preview: previewFlag, lbwl: lbwlFlag, "2dwl": dwl2Flag};
+              var progRef = oldFmt ? "" : (row[9] ? row[9].toString().trim() : "");
+        admin: adminFlag, preview: previewFlag, lbwl: lbwlFlag, "2dwl": dwl2Flag, programRef: progRef};
     }).filter(function(m) { return m.name; });
     return json({members: members});
+  }
+
+  if (action === "getIndividualProgram") {
+    var tabName = (data.tab || "").toString().trim();
+    if (!tabName) return json({error: "No tab name"});
+    var ipSheet = ss.getSheetByName(tabName);
+    if (!ipSheet) return json({error: "Tab not found: " + tabName});
+    var ipVals = ipSheet.getDataRange().getValues();
+    var ipRows = [];
+    for (var i = 1; i &lt; ipVals.length; i++) {
+      var r = ipVals[i];
+      var week = r[0] ? r[0].toString().trim() : "";
+      var day  = r[1] ? r[1].toString().trim() : "";
+      if (!week || !day) continue;
+      ipRows.push({ week: week, day: day,
+        strength: r[2] ? r[2].toString().trim() : "",
+        wod:      r[3] ? r[3].toString().trim() : "",
+        notes:    r[4] ? r[4].toString().trim() : "" });
+    }
+    return json({rows: ipRows});
   }
 
   if (action === "debugCell") {
@@ -2064,6 +2085,7 @@ state.customMovements = state.customMovements.map(m =>
 if (!state.dailyProgram) state.dailyProgram = {};
 if (!state.lbwlProgram) state.lbwlProgram = {};
 if (!state.conditioning) state.conditioning = [];
+if (!state.individualProgram) state.individualProgram = [];
 
 // ===== HARDCODED WEB APP URL =====
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxVqMRcf3PG9_7LX-INfkg74sszWA--DZ3EvjeUn5apBHFY5QFpCxCNWC5LYBq0eKzdkg/exec';
@@ -2217,7 +2239,7 @@ const DASH_SECTIONS = {
       return `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.75rem;">
         <div class="section-title" style="margin:0;flex:1;">Programming</div>
-        <button class="btn btn-ghost btn-sm" onclick="Promise.all([fetchDailyProgram(),fetchMembers(),fetchLBWLProgram()]).then(()=>selectDashSection('programming'))" style="font-size:0.75rem;">⟳ Sync</button>
+        <button class="btn btn-ghost btn-sm" onclick="Promise.all([fetchDailyProgram(),fetchMembers(),fetchLBWLProgram(),fetchIndividualProgram()]).then(()=>selectDashSection('programming'))" style="font-size:0.75rem;">⟳ Sync</button>
       </div>
       ${dateNav}
       ${hasWod ? `
@@ -2278,7 +2300,26 @@ const DASH_SECTIONS = {
         <button data-log="accessory" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#475569;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG</button>
       </div>` : ''}
       ${hasProgramAccess('lbwl') ? buildWLProgramCard('lbwl') : ''}
-      ${hasProgramAccess('2dwl') ? buildWLProgramCard('2dwl') : ''}`;
+      ${hasProgramAccess('2dwl') ? buildWLProgramCard('2dwl') : ''}
+      ${localStorage.getItem('lerums_ip_ref') && (state.individualProgram||[]).length ? buildIndividualProgramCard(state.individualProgram) : ''}
+      ${isAdmin() && typeof membersCache !== 'undefined' && membersCache && membersCache.some(m => m.programRef) ? (() => {
+        const withProgs = membersCache.filter(m => m.programRef);
+        return '<div style="background:var(--card);border:1px solid rgba(167,139,250,0.25);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">'
+          + '<div style="font-family:\'Bebas Neue\';font-size:1rem;letter-spacing:0.08em;color:#a78bfa;margin-bottom:0.6rem;">📋 Individual Programs</div>'
+          + withProgs.map(m => {
+              const sid = m.name.replace(/[^a-zA-Z0-9]/g,'-');
+              return '<div style="border-bottom:1px solid var(--border);padding:0.5rem 0;">'
+                + '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;">'
+                + '<span style="font-family:\'Barlow Condensed\';font-weight:700;font-size:0.85rem;color:var(--text);">' + m.name + '</span>'
+                + '<div style="display:flex;align-items:center;gap:0.5rem;">'
+                + '<span style="font-size:0.7rem;color:var(--muted);">' + m.programRef + '</span>'
+                + '<button onclick="toggleIPAdminExpand(\'' + m.name + '\',\'' + m.programRef + '\')" id="ip-admin-btn-' + sid + '" style="font-family:\'Barlow Condensed\';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:transparent;color:#a78bfa;border:1px solid rgba(167,139,250,0.4);border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">▸ View</button>'
+                + '</div></div>'
+                + '<div id="ip-admin-content-' + sid + '" style="display:none;margin-top:0.5rem;"></div>'
+                + '</div>';
+            }).join('')
+          + '</div>';
+      })() : ''}`;
     }
   },
   prs: {
@@ -2780,6 +2821,107 @@ function buildWLProgramCard(type) {
   </div>`;
 }
 
+function buildIndividualProgramCard(programRows, adminName) {
+  if (!programRows || !programRows.length) return '';
+  const isAdminView = !!adminName;
+  const weeks = [...new Set(programRows.map(r => r.week))]
+    .sort((a,b) => (parseInt(a.replace(/\D/g,''))||0)-(parseInt(b.replace(/\D/g,''))||0));
+  let curWeek = isAdminView ? weeks[0] : (localStorage.getItem('lerums_ip_week') || weeks[0]);
+  if (!weeks.includes(curWeek)) curWeek = weeks[0];
+  const daysInWeek = [...new Set(programRows.filter(r => r.week === curWeek).map(r => String(r.day)))]
+    .sort((a,b) => parseInt(a)-parseInt(b));
+  let curDay = isAdminView ? daysInWeek[0] : (localStorage.getItem('lerums_ip_day') || daysInWeek[0]);
+  if (!daysInWeek.includes(String(curDay))) curDay = daysInWeek[0];
+  curDay = String(curDay);
+  const weekIdx = weeks.indexOf(curWeek);
+  const prevWeek = !isAdminView && weekIdx > 0 ? weeks[weekIdx-1] : null;
+  const nextWeek = !isAdminView && weekIdx < weeks.length-1 ? weeks[weekIdx+1] : null;
+  const done = isAdminView ? {} : _getIPDone();
+  const navBtn = (label, disabled, onclick) =>
+    `<button onclick="${onclick}" ${disabled?'disabled':''} style="width:1.7rem;height:1.7rem;border-radius:3px;border:1px solid var(--border);background:var(--card2);color:${disabled?'var(--border)':'var(--text)'};cursor:${disabled?'default':'pointer'};font-size:0.9rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${label}</button>`;
+  const dayBtns = daysInWeek.map(d => {
+    const active = d === curDay;
+    const row = programRows.find(r => r.week === curWeek && String(r.day) === d);
+    let dayDone = false;
+    if (!isAdminView && row) {
+      const parts = parseStrengthParts(row.strength);
+      const wod = parseWodSection(row.wod);
+      const strAllDone = !parts.length || parts.every(p => done[curWeek+'-'+d+'-str-'+p.key]);
+      const wodDone = !wod || !!done[curWeek+'-'+d+'-wod'];
+      dayDone = strAllDone && wodDone && (parts.length > 0 || !!wod);
+    }
+    const label = dayDone ? `Day ${d} ✓` : `Day ${d}`;
+    const color  = active ? '#a78bfa' : (dayDone ? '#4ade80' : 'var(--muted)');
+    const border = active ? '#a78bfa' : (dayDone ? 'rgba(74,222,128,0.5)' : 'var(--border)');
+    const bg     = active ? 'rgba(167,139,250,0.15)' : (dayDone ? 'rgba(74,222,128,0.08)' : 'transparent');
+    const oc = isAdminView ? '' : `onclick="setIPDay('${d}')"`;
+    return `<button ${oc} style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;padding:0.22rem 0.55rem;border-radius:3px;border:1px solid ${border};background:${bg};color:${color};cursor:pointer;">${label}</button>`;
+  }).join('');
+  const currentRow = programRows.find(r => r.week === curWeek && String(r.day) === curDay);
+  let contentHtml = '';
+  if (currentRow) {
+    const parts = parseStrengthParts(currentRow.strength);
+    const wodSection = parseWodSection(currentRow.wod);
+    if (parts.length > 0) {
+      contentHtml += `<div style="margin-bottom:0.75rem;"><div class="program-section-label">💪 Strength</div>`;
+      parts.forEach((part, pi) => {
+        const partDoneKey = curWeek+'-'+curDay+'-str-'+part.key;
+        const partDone = !!done[partDoneKey];
+        contentHtml += `<div style="${pi>0?'margin-top:0.6rem;padding-top:0.6rem;border-top:1px solid var(--border);':''}">`;
+        if (part.label) contentHtml += `<div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#a78bfa;margin-bottom:0.2rem;">${part.label}</div>`;
+        contentHtml += `<div class="program-section-text" style="margin-bottom:0.35rem;">${enrichProgramText(part.content)}</div>`;
+        if (!isAdminView) {
+          if (partDone) {
+            contentHtml += `<div style="display:inline-flex;align-items:center;gap:0.35rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#4ade80;padding:0.3rem 0.65rem;border:1px solid rgba(74,222,128,0.4);border-radius:3px;">✓ LOGGED</div>
+              <button onclick="logFromIPProgram('str-${part.key}')" style="margin-left:0.4rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG AGAIN</button>`;
+          } else {
+            contentHtml += `<button onclick="logFromIPProgram('str-${part.key}')" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#e0e0e0;color:#000;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG</button>`;
+          }
+        }
+        contentHtml += `</div>`;
+      });
+      contentHtml += `</div>`;
+    }
+    if (wodSection) {
+      if (parts.length > 0) contentHtml += `<div style="border-top:1px solid var(--border);margin:0.75rem 0;"></div>`;
+      const wodDoneKey = curWeek+'-'+curDay+'-wod';
+      const wodDone = !!done[wodDoneKey];
+      const isWorkout = wodSection.type === 'workout';
+      const sectionLabel = isWorkout ? '🏋️ Workout' : '🏃 Conditioning';
+      const btnBg  = isWorkout ? 'var(--red)' : '#059669';
+      const btnTxt = isWorkout ? '+ LOG WORKOUT' : '+ LOG CONDITIONING';
+      contentHtml += `<div><div class="program-section-label">${sectionLabel}</div>
+        <div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(wodSection.content)}</div>`;
+      if (!isAdminView) {
+        if (wodDone) {
+          contentHtml += `<div style="display:inline-flex;align-items:center;gap:0.35rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#4ade80;padding:0.3rem 0.65rem;border:1px solid rgba(74,222,128,0.4);border-radius:3px;">✓ LOGGED</div>
+            <button onclick="logFromIPProgram('wod')" style="margin-left:0.4rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG AGAIN</button>`;
+        } else {
+          contentHtml += `<button onclick="logFromIPProgram('wod')" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:${btnBg};color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">${btnTxt}</button>`;
+        }
+      }
+      contentHtml += `</div>`;
+    }
+    if (currentRow.notes) {
+      contentHtml += `<div style="border-top:1px solid var(--border);margin-top:0.75rem;padding-top:0.5rem;font-size:0.78rem;color:var(--muted);font-style:italic;">${enrichProgramText(currentRow.notes)}</div>`;
+    }
+  } else {
+    contentHtml = `<div style="color:var(--muted);font-size:0.82rem;">${curWeek} Day ${curDay} — no content</div>`;
+  }
+  const cardId = isAdminView ? 'ip-admin-card-'+adminName.replace(/[^a-zA-Z0-9]/g,'-') : 'ip-card-user';
+  return `
+  <div id="${cardId}" style="background:var(--card);border:1px solid rgba(167,139,250,0.4);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
+    <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#a78bfa;margin-bottom:0.6rem;">📋 ${isAdminView ? adminName : 'Your Program'}</div>
+    <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.6rem;flex-wrap:wrap;">
+      ${!isAdminView ? navBtn('‹', !prevWeek, `setIPWeek('${prevWeek||''}')`) : ''}
+      <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.9rem;letter-spacing:0.1em;color:var(--text);min-width:2.2rem;text-align:center;">${curWeek}</span>
+      ${!isAdminView ? navBtn('›', !nextWeek, `setIPWeek('${nextWeek||''}')`) : ''}
+      <div style="display:flex;gap:0.3rem;margin-left:0.25rem;flex-wrap:wrap;">${dayBtns}</div>
+    </div>
+    ${contentHtml}
+  </div>`;
+}
+
 function setLbwlWeek(type, week) {
   if (!week) return;
   localStorage.setItem('lerums_wl_week_' + type, week);
@@ -2804,6 +2946,59 @@ function _refreshWLCard(type) {
   tmp.innerHTML = html;
   const newCard = tmp.firstElementChild;
   if (newCard) el.innerHTML = newCard.innerHTML;
+}
+
+function setIPWeek(week) {
+  if (!week) return;
+  localStorage.setItem('lerums_ip_week', week);
+  const rows = state.individualProgram || [];
+  const days = [...new Set(rows.filter(r => r.week === week).map(r => String(r.day)))].sort((a,b)=>parseInt(a)-parseInt(b));
+  if (days.length) localStorage.setItem('lerums_ip_day', days[0]);
+  _refreshIPCard();
+}
+function setIPDay(day) { localStorage.setItem('lerums_ip_day', String(day)); _refreshIPCard(); }
+function _refreshIPCard() {
+  const el = document.getElementById('ip-card-user');
+  if (!el) { if (currentDashSection === 'programming') selectDashSection('programming'); return; }
+  const html = buildIndividualProgramCard(state.individualProgram || []);
+  if (!html) return;
+  const tmp = document.createElement('div'); tmp.innerHTML = html;
+  const newCard = tmp.firstElementChild;
+  if (newCard) el.innerHTML = newCard.innerHTML;
+}
+function logFromIPProgram(partKey) {
+  const rows = state.individualProgram || [];
+  if (!rows.length) return;
+  const weeks = [...new Set(rows.map(r => r.week))].sort((a,b)=>(parseInt(a.replace(/\D/g,''))||0)-(parseInt(b.replace(/\D/g,''))||0));
+  const week = localStorage.getItem('lerums_ip_week') || weeks[0];
+  const day  = localStorage.getItem('lerums_ip_day')  || '1';
+  const row  = rows.find(r => r.week === week && String(r.day) === String(day));
+  if (!row) return;
+  window._pendingIPLog = { week, day, partKey };
+  if (partKey === 'wod') {
+    const wod = parseWodSection(row.wod);
+    if (!wod) { window._pendingIPLog = null; return; }
+    if (wod.type === 'conditioning') {
+      openCondModal();
+    } else {
+      openWodModal();
+      const firstLine = (wod.content || '').split('\n')[0].trim();
+      if (firstLine) { const el = document.getElementById('wodName'); if (el && !el.value) el.value = firstLine; }
+    }
+  } else {
+    openStrengthModal();
+    const key = partKey.replace(/^str-/,'');
+    const parts = parseStrengthParts(row.strength);
+    const part = parts.find(p => p.key === key) || parts[0];
+    if (part) {
+      const noteEl = document.getElementById('strNotes');
+      if (noteEl && !noteEl.value) noteEl.value = part.content;
+      const firstLine = part.content.split('\n')[0].trim();
+      const guessed = (typeof MOVEMENTS !== 'undefined' ? MOVEMENTS : []).find(m => firstLine.toLowerCase().includes(m.toLowerCase())) || '';
+      const exEl = document.getElementById('strExercise');
+      if (exEl && !exEl.value && guessed) exEl.value = guessed;
+    }
+  }
 }
 
 function _wlDoneKey(type) { return 'lerums_wl_done_' + type; }
@@ -2840,6 +3035,85 @@ function _markWLDoneAndAdvance(type, week, day) {
   }
 
   _refreshWLCard(type);
+}
+
+function parseStrengthParts(text) {
+  if (!text) return [];
+  const t = text.trim();
+  if (/Part\s+[A-Z]/i.test(t)) {
+    const segments = t.split(/(?=Part\s+[A-Z][\s:])/i).filter(s => s.trim());
+    if (segments.length > 1) {
+      return segments.map(seg => {
+        const m = seg.trim().match(/^(Part\s+[A-Z])[:\s]*([\s\S]*)/i);
+        if (m) return { label: m[1].trim(), content: m[2].trim(), key: m[1].trim().replace(/\s+/g,'').toUpperCase() };
+        return { label: null, content: seg.trim(), key: 'single' };
+      }).filter(p => p.content);
+    }
+  }
+  return [{ label: null, content: t, key: 'single' }];
+}
+function parseWodSection(text) {
+  if (!text) return null;
+  const wm = text.match(/^Workout:\s*([\s\S]*)/i);
+  if (wm) return { type: 'workout', content: wm[1].trim() };
+  const cm = text.match(/^Conditioning:\s*([\s\S]*)/i);
+  if (cm) return { type: 'conditioning', content: cm[1].trim() };
+  if (text.trim()) return { type: 'workout', content: text.trim() };
+  return null;
+}
+function _getIPDone() { try { return JSON.parse(localStorage.getItem('lerums_ip_done') || '{}'); } catch(e) { return {}; } }
+function _markIPDoneAndAdvance(week, day, partKey) {
+  const done = _getIPDone();
+  done[week+'-'+day+'-'+partKey] = true;
+  localStorage.setItem('lerums_ip_done', JSON.stringify(done));
+  const rows = state.individualProgram || [];
+  const row = rows.find(r => r.week === week && String(r.day) === String(day));
+  if (row) {
+    const parts = parseStrengthParts(row.strength);
+    const wod = parseWodSection(row.wod);
+    const newDone = _getIPDone();
+    const strAllDone = !parts.length || parts.every(p => newDone[week+'-'+day+'-str-'+p.key]);
+    const wodDone = !wod || !!newDone[week+'-'+day+'-wod'];
+    if (strAllDone && wodDone && (parts.length > 0 || !!wod)) {
+      const allEntries = [...new Set(rows.map(r => r.week+'|'+r.day))].sort((a,b) => {
+        const [aw,ad] = a.split('|'), [bw,bd] = b.split('|');
+        const wi = (parseInt(aw.replace(/\D/g,''))||0)-(parseInt(bw.replace(/\D/g,''))||0);
+        return wi !== 0 ? wi : parseInt(ad)-parseInt(bd);
+      });
+      const curIdx = allEntries.indexOf(week+'|'+day);
+      if (curIdx >= 0 && curIdx < allEntries.length-1) {
+        const [nw,nd] = allEntries[curIdx+1].split('|');
+        localStorage.setItem('lerums_ip_week', nw);
+        localStorage.setItem('lerums_ip_day', nd);
+      }
+    }
+  }
+  _refreshIPCard();
+}
+
+window._ipAdminCache = window._ipAdminCache || {};
+async function toggleIPAdminExpand(name, ref) {
+  const safeId = name.replace(/[^a-zA-Z0-9]/g,'-');
+  const contentEl = document.getElementById('ip-admin-content-'+safeId);
+  const btnEl = document.getElementById('ip-admin-btn-'+safeId);
+  if (!contentEl) return;
+  if (contentEl.style.display !== 'none') {
+    contentEl.style.display = 'none';
+    if (btnEl) btnEl.textContent = '▸ View';
+    return;
+  }
+  contentEl.style.display = 'block';
+  if (btnEl) btnEl.textContent = '▾ Hide';
+  if (window._ipAdminCache[ref]) { contentEl.innerHTML = buildIndividualProgramCard(window._ipAdminCache[ref], name); return; }
+  contentEl.innerHTML = '<div style="color:var(--muted);font-size:0.82rem;padding:0.5rem 0;">Loading…</div>';
+  try {
+    const data = await xhrPost(APPS_SCRIPT_URL, { action: 'getIndividualProgram', tab: ref });
+    if (data.error) throw new Error(data.error);
+    window._ipAdminCache[ref] = data.rows || [];
+    contentEl.innerHTML = buildIndividualProgramCard(window._ipAdminCache[ref], name);
+  } catch(e) {
+    contentEl.innerHTML = `<div style="color:var(--red);font-size:0.82rem;">${e.message}</div>`;
+  }
 }
 
 // ===== WOD MODAL =====
@@ -3001,6 +3275,7 @@ function closeWodModal(e) {
     document.getElementById('wodModal').style.display = 'none';
     clearWodForm();
     window._pendingWLLog = null;
+    window._pendingIPLog = null;
     // Reset save button in case it was in edit mode
     const saveBtn = document.querySelector('#wodModal .btn-red');
     if (saveBtn) { saveBtn.textContent = 'SAVE WOD'; saveBtn.onclick = saveWod; }
@@ -3135,10 +3410,12 @@ function saveWod() {
   };
   const share = document.getElementById('wodShare')?.checked;
   const _wlCtx = window._pendingWLLog || null;
+  const _ipCtx = window._pendingIPLog || null;
   state.wods.push(wod);
   save(); closeWodModal(); renderWodList(); renderDashboard();
   if (document.getElementById('log-wod-section')) switchLogTab('wod');
   if (_wlCtx) _markWLDoneAndAdvance(_wlCtx.type, _wlCtx.week, _wlCtx.day);
+  if (_ipCtx) _markIPDoneAndAdvance(_ipCtx.week, _ipCtx.day, _ipCtx.partKey);
   showToast('WOD logged! 💪');
   cloudPush('wod', wod);
   if (share) shareWodResult(wod);
@@ -4465,6 +4742,7 @@ function openStrengthModal() {
 function closeStrengthModal(e) {
   if (!e || e.target === document.getElementById('strengthModal') || e === undefined) {
     document.getElementById('strengthModal').style.display = 'none';
+    window._pendingIPLog = null;
     // Reset save button in case it was in edit mode
     const saveBtn = document.querySelector('#strengthModal .btn-red');
     if (saveBtn) { saveBtn.textContent = 'SAVE SESSION'; saveBtn.onclick = saveStrengthSession; }
@@ -4537,9 +4815,11 @@ function saveStrengthSession() {
     notes: document.getElementById('strNotes').value.trim(),
   };
   const share = document.getElementById('strShare')?.checked;
+  const _ipCtxStr = window._pendingIPLog || null;
   state.strength.push(session);
   save();
   closeStrengthModal();
+
   renderStrengthList();
   updateStrengthFilter();
   renderDashboard();
@@ -4547,6 +4827,7 @@ function saveStrengthSession() {
   showToast('Strength session logged! 💪');
   cloudPush('strength', session);
   if (share) shareStrengthResult(session);
+  if (_ipCtxStr) _markIPDoneAndAdvance(_ipCtxStr.week, _ipCtxStr.day, _ipCtxStr.partKey);
 
   // Auto-PR: check if any set is a new best for this exercise
   checkAndAutoSavePR(session);
@@ -4833,6 +5114,7 @@ function openCondModal() {
 function closeCondModal(e) {
   if (!e || e.target === document.getElementById('condModal')) {
     document.getElementById('condModal').style.display = 'none';
+    window._pendingIPLog = null;
   }
 }
 
@@ -4992,6 +5274,7 @@ function saveCondSession() {
     }
   }
 
+  const _ipCtxCond = window._pendingIPLog || null;
   state.conditioning.push(session);
   save();
   closeCondModal();
@@ -5000,6 +5283,7 @@ function saveCondSession() {
   if (document.getElementById('log-conditioning-section')) switchLogTab('conditioning');
   showToast('Conditioning logged! 🏃');
   cloudPush('conditioning', session);
+  if (_ipCtxCond) _markIPDoneAndAdvance(_ipCtxCond.week, _ipCtxCond.day, _ipCtxCond.partKey);
 }
 
 function deleteCondSession(id) {
@@ -5475,6 +5759,21 @@ async function diagProgramSync() {
     if (currentDashSection === 'log' || currentDashSection === 'programming') selectDashSection(currentDashSection);
   } catch(e) {
     if (statusEl) { statusEl.textContent = '✗ ' + e.message; statusEl.style.color = 'var(--red)'; }
+  }
+}
+
+async function fetchIndividualProgram(silent = false) {
+  const ref = localStorage.getItem('lerums_ip_ref');
+  if (!ref) return;
+  try {
+    const data = await xhrPost(APPS_SCRIPT_URL, { action: 'getIndividualProgram', tab: ref });
+    if (data.error) throw new Error(data.error);
+    state.individualProgram = data.rows || [];
+    save();
+    if (!silent) showToast('Individual program synced! 📋');
+    if (currentDashSection === 'programming') selectDashSection('programming');
+  } catch(e) {
+    if (!silent) showToast('Individual program sync failed: ' + e.message);
   }
 }
 
@@ -7015,6 +7314,17 @@ async function fetchMembers() {
       const _lbwlMissing = hasProgramAccess('lbwl') && !Object.keys((state.lbwlProgram || {}).lbwl    || {}).length;
       const _2dwlMissing = hasProgramAccess('2dwl') && !Object.keys((state.lbwlProgram || {})['2dwl'] || {}).length;
       if (_lbwlMissing || _2dwlMissing) fetchLBWLProgram(true);
+      // Cache individual program reference for current user
+      if (profile && profile.name) {
+        const myMember = data.members.find(m => m.name === profile.name);
+        const myRef = myMember ? (myMember.programRef || '') : '';
+        if (myRef) {
+          localStorage.setItem('lerums_ip_ref', myRef);
+          if (!state.individualProgram || !state.individualProgram.length) fetchIndividualProgram(true);
+        } else {
+          localStorage.removeItem('lerums_ip_ref');
+        }
+      }
     }
   } catch(e) { /* silent */ }
 }
