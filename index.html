@@ -660,10 +660,16 @@
   /* DIVIDER */
   .divider { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
 
+  .log-action-btns { display: flex; gap: 0.6rem; }
   @media (max-width: 600px) {
     .timer-display { font-size: 4rem; }
     .form-row.cols-3 { grid-template-columns: 1fr 1fr; }
     main { padding: 1.25rem 1rem; }
+    .log-action-btns { flex-direction: column; align-items: center; }
+    .log-action-top-row { display: flex; gap: 0.6rem; }
+  }
+  @media (min-width: 601px) {
+    .log-action-top-row { display: contents; }
   }
 
   /* HOME GRID */
@@ -1116,9 +1122,11 @@
     <!-- Header row -->
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:0.75rem;">
       <div class="section-title" style="margin:0;flex:1;">Log</div>
-      <div style="display:flex;gap:0.6rem;">
-        <button class="btn btn-outline" onclick="openStrengthModal()" style="border-color:#e0e0e0;color:#e0e0e0;">+ STRENGTH</button>
-        <button class="btn btn-outline" onclick="openCondModal()" style="border-color:#34d399;color:#34d399;">+ CONDITIONING</button>
+      <div class="log-action-btns">
+        <div class="log-action-top-row">
+          <button class="btn btn-outline" onclick="openStrengthModal()" style="border-color:#e0e0e0;color:#e0e0e0;">+ STRENGTH</button>
+          <button class="btn btn-outline" onclick="openCondModal()" style="border-color:#34d399;color:#34d399;">+ CONDITIONING</button>
+        </div>
         <button class="btn btn-red" onclick="openWodModal()">+ WORKOUT</button>
       </div>
     </div>
@@ -2160,9 +2168,11 @@ const DASH_SECTIONS = {
       return `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.75rem;">
         <div class="section-title" style="margin:0;flex:1;">Log</div>
-        <div style="display:flex;gap:0.6rem;flex-wrap:wrap;">
-          <button class="btn btn-outline" onclick="openStrengthModal()" style="border-color:#e0e0e0;color:#e0e0e0;">+ STRENGTH</button>
-          <button class="btn btn-outline" onclick="openCondModal()" style="border-color:#34d399;color:#34d399;">+ CONDITIONING</button>
+        <div class="log-action-btns">
+          <div class="log-action-top-row">
+            <button class="btn btn-outline" onclick="openStrengthModal()" style="border-color:#e0e0e0;color:#e0e0e0;">+ STRENGTH</button>
+            <button class="btn btn-outline" onclick="openCondModal()" style="border-color:#34d399;color:#34d399;">+ CONDITIONING</button>
+          </div>
           <button class="btn btn-red" onclick="openWodModal()">+ WORKOUT</button>
         </div>
       </div>
