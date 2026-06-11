@@ -1549,9 +1549,10 @@
       var day  = r[1] ? r[1].toString().trim() : "";
       if (!week || !day) continue;
       ipRows.push({ week: week, day: day,
-        strength: r[2] ? r[2].toString().trim() : "",
-        wod:      r[3] ? r[3].toString().trim() : "",
-        notes:    r[4] ? r[4].toString().trim() : "" });
+        strength:  r[2] ? r[2].toString().trim() : "",
+        wod:       r[3] ? r[3].toString().trim() : "",
+        accessory: r[4] ? r[4].toString().trim() : "",
+        notes:     r[5] ? r[5].toString().trim() : "" });
     }
     return json({rows: ipRows});
   }
@@ -2848,7 +2849,8 @@ function buildIndividualProgramCard(programRows, adminName) {
       const wod = parseWodSection(row.wod);
       const strAllDone = !parts.length || parts.every(p => done[curWeek+'-'+d+'-str-'+p.key]);
       const wodDone = !wod || !!done[curWeek+'-'+d+'-wod'];
-      dayDone = strAllDone && wodDone && (parts.length > 0 || !!wod);
+      const accDone = !row.accessory || !!done[curWeek+'-'+d+'-accessory'];
+      dayDone = strAllDone && wodDone && accDone && (parts.length > 0 || !!wod || !!row.accessory);
     }
     const label = dayDone ? `Day ${d} ✓` : `Day ${d}`;
     const color  = active ? '#a78bfa' : (dayDone ? '#4ade80' : 'var(--muted)');
@@ -2898,6 +2900,22 @@ function buildIndividualProgramCard(programRows, adminName) {
             <button onclick="logFromIPProgram('wod')" style="margin-left:0.4rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG AGAIN</button>`;
         } else {
           contentHtml += `<button onclick="logFromIPProgram('wod')" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:${btnBg};color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">${btnTxt}</button>`;
+        }
+      }
+      contentHtml += `</div>`;
+    }
+    if (currentRow.accessory) {
+      const accDoneKey = curWeek+'-'+curDay+'-accessory';
+      const accDone = !!done[accDoneKey];
+      contentHtml += `<div style="border-top:1px solid var(--border);margin:0.75rem 0;"></div>
+        <div><div class="program-section-label">🔧 Accessory Work</div>
+        <div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(currentRow.accessory)}</div>`;
+      if (!isAdminView) {
+        if (accDone) {
+          contentHtml += `<div style="display:inline-flex;align-items:center;gap:0.35rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#4ade80;padding:0.3rem 0.65rem;border:1px solid rgba(74,222,128,0.4);border-radius:3px;">✓ LOGGED</div>
+            <button onclick="logFromIPProgram('accessory')" style="margin-left:0.4rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG AGAIN</button>`;
+        } else {
+          contentHtml += `<button onclick="logFromIPProgram('accessory')" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#475569;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG ACCESSORY</button>`;
         }
       }
       contentHtml += `</div>`;
@@ -2985,6 +3003,14 @@ function logFromIPProgram(partKey) {
       const firstLine = (wod.content || '').split('\n')[0].trim();
       if (firstLine) { const el = document.getElementById('wodName'); if (el && !el.value) el.value = firstLine; }
     }
+  } else if (partKey === 'accessory') {
+    openStrengthModal();
+    const noteEl = document.getElementById('strNotes');
+    if (noteEl && !noteEl.value) noteEl.value = row.accessory;
+    const firstLine = (row.accessory || '').split('\n')[0].trim();
+    const guessed = (typeof MOVEMENTS !== 'undefined' ? MOVEMENTS : []).find(m => firstLine.toLowerCase().includes(m.toLowerCase())) || '';
+    const exEl = document.getElementById('strExercise');
+    if (exEl && !exEl.value && guessed) exEl.value = guessed;
   } else {
     openStrengthModal();
     const key = partKey.replace(/^str-/,'');
@@ -3074,7 +3100,8 @@ function _markIPDoneAndAdvance(week, day, partKey) {
     const newDone = _getIPDone();
     const strAllDone = !parts.length || parts.every(p => newDone[week+'-'+day+'-str-'+p.key]);
     const wodDone = !wod || !!newDone[week+'-'+day+'-wod'];
-    if (strAllDone && wodDone && (parts.length > 0 || !!wod)) {
+    const accDone = !row.accessory || !!newDone[week+'-'+day+'-accessory'];
+    if (strAllDone && wodDone && accDone && (parts.length > 0 || !!wod || !!row.accessory)) {
       const allEntries = [...new Set(rows.map(r => r.week+'|'+r.day))].sort((a,b) => {
         const [aw,ad] = a.split('|'), [bw,bd] = b.split('|');
         const wi = (parseInt(aw.replace(/\D/g,''))||0)-(parseInt(bw.replace(/\D/g,''))||0);
