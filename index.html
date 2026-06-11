@@ -2360,7 +2360,7 @@ const DASH_SECTIONS = {
       </div>` : ''}
       ${hasProgramAccess('lbwl') ? buildWLProgramCard('lbwl') : ''}
       ${hasProgramAccess('2dwl') ? buildWLProgramCard('2dwl') : ''}
-      ${localStorage.getItem('lerums_ip_ref') && (state.individualProgram||[]).length ? buildIndividualProgramCard(state.individualProgram) : ''}
+      ${(state.individualProgram||[]).length ? buildIndividualProgramCard(state.individualProgram) : ''}
       ${isAdmin() && typeof membersCache !== 'undefined' && membersCache && membersCache.some(m => m.programRef) ? (() => {
         const withProgs = membersCache.filter(m => m.programRef);
         return '<div style="background:var(--card);border:1px solid rgba(167,139,250,0.25);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">'
@@ -7425,6 +7425,10 @@ async function fetchMembers() {
           if (!state.individualProgram || !state.individualProgram.length) fetchIndividualProgram(true);
         } else {
           localStorage.removeItem('lerums_ip_ref');
+          if ((state.individualProgram || []).length) {
+            state.individualProgram = [];
+            save();
+          }
         }
       }
     }
