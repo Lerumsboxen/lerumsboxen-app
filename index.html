@@ -1317,17 +1317,27 @@
         if (runs.length === 1) {
           var style = runs[0].getTextStyle();
           var bold = style && style.isBold && style.isBold();
-          if (bold) return text.split("\n").map(function(l){ return l ? "&lt;b&gt;"+l+"&lt;/b&gt;" : ""; }).join("\n");
-          return text;
+          var italic = style && style.isItalic && style.isItalic();
+          return text.split("\n").map(function(l) {
+            if (!l) return "";
+            if (bold && italic) return "&lt;b&gt;&lt;i&gt;" + l + "&lt;/i&gt;&lt;/b&gt;";
+            if (bold) return "&lt;b&gt;" + l + "&lt;/b&gt;";
+            if (italic) return "&lt;i&gt;" + l + "&lt;/i&gt;";
+            return l;
+          }).join("\n");
         }
-        // Multiple runs — render each with its own bold state
+        // Multiple runs — render each with its own bold/italic state
         var html = "";
         runs.forEach(function(run) {
           var t = run.getText();
           if (!t) return;
           var style = run.getTextStyle();
           var bold = style && style.isBold && style.isBold();
-          html += bold ? "&lt;b&gt;" + t + "&lt;/b&gt;" : t;
+          var italic = style && style.isItalic && style.isItalic();
+          if (bold && italic) html += "&lt;b&gt;&lt;i&gt;" + t + "&lt;/i&gt;&lt;/b&gt;";
+          else if (bold) html += "&lt;b&gt;" + t + "&lt;/b&gt;";
+          else if (italic) html += "&lt;i&gt;" + t + "&lt;/i&gt;";
+          else html += t;
         });
         return html || text;
       } catch(e) {
@@ -1375,14 +1385,26 @@
         if (!runs || runs.length === 0) return text;
         if (runs.length === 1) {
           var s = runs[0].getTextStyle();
-          if (s && s.isBold && s.isBold()) return text.split("\n").map(function(l){ return l ? "&lt;b&gt;"+l+"&lt;/b&gt;" : ""; }).join("\n");
-          return text;
+          var bold = s && s.isBold && s.isBold();
+          var italic = s && s.isItalic && s.isItalic();
+          return text.split("\n").map(function(l) {
+            if (!l) return "";
+            if (bold && italic) return "&lt;b&gt;&lt;i&gt;" + l + "&lt;/i&gt;&lt;/b&gt;";
+            if (bold) return "&lt;b&gt;" + l + "&lt;/b&gt;";
+            if (italic) return "&lt;i&gt;" + l + "&lt;/i&gt;";
+            return l;
+          }).join("\n");
         }
         var html = "";
         runs.forEach(function(run) {
           var t = run.getText(); if (!t) return;
           var s = run.getTextStyle();
-          html += (s && s.isBold && s.isBold()) ? "&lt;b&gt;"+t+"&lt;/b&gt;" : t;
+          var bold = s && s.isBold && s.isBold();
+          var italic = s && s.isItalic && s.isItalic();
+          if (bold && italic) html += "&lt;b&gt;&lt;i&gt;" + t + "&lt;/i&gt;&lt;/b&gt;";
+          else if (bold) html += "&lt;b&gt;" + t + "&lt;/b&gt;";
+          else if (italic) html += "&lt;i&gt;" + t + "&lt;/i&gt;";
+          else html += t;
         });
         return html || text;
       } catch(e) { return text; }
@@ -1541,18 +1563,54 @@
     if (!tabName) return json({error: "No tab name"});
     var ipSheet = ss.getSheetByName(tabName);
     if (!ipSheet) return json({error: "Tab not found: " + tabName});
-    var ipVals = ipSheet.getDataRange().getValues();
+    var ipRange = ipSheet.getDataRange();
+    var ipVals = ipRange.getValues();
+    var ipRich = ipRange.getRichTextValues();
+    function ipRtHtml(richCell) {
+      if (!richCell) return "";
+      var text = richCell.getText();
+      if (!text) return "";
+      try {
+        var runs = richCell.getRuns();
+        if (!runs || runs.length === 0) return text;
+        if (runs.length === 1) {
+          var s = runs[0].getTextStyle();
+          var bold = s && s.isBold && s.isBold();
+          var italic = s && s.isItalic && s.isItalic();
+          return text.split("\n").map(function(l) {
+            if (!l) return "";
+            if (bold &amp;&amp; italic) return "&lt;b&gt;&lt;i&gt;" + l + "&lt;/i&gt;&lt;/b&gt;";
+            if (bold) return "&lt;b&gt;" + l + "&lt;/b&gt;";
+            if (italic) return "&lt;i&gt;" + l + "&lt;/i&gt;";
+            return l;
+          }).join("\n");
+        }
+        var html = "";
+        runs.forEach(function(run) {
+          var t = run.getText(); if (!t) return;
+          var s = run.getTextStyle();
+          var bold = s && s.isBold && s.isBold();
+          var italic = s && s.isItalic && s.isItalic();
+          if (bold &amp;&amp; italic) html += "&lt;b&gt;&lt;i&gt;" + t + "&lt;/i&gt;&lt;/b&gt;";
+          else if (bold) html += "&lt;b&gt;" + t + "&lt;/b&gt;";
+          else if (italic) html += "&lt;i&gt;" + t + "&lt;/i&gt;";
+          else html += t;
+        });
+        return html || text;
+      } catch(e) { return text; }
+    }
     var ipRows = [];
     for (var i = 1; i &lt; ipVals.length; i++) {
       var r = ipVals[i];
+      var rr = ipRich[i];
       var week = r[0] ? r[0].toString().trim() : "";
       var day  = r[1] ? r[1].toString().trim() : "";
       if (!week || !day) continue;
       ipRows.push({ week: week, day: day,
-        strength:  r[2] ? r[2].toString().trim() : "",
-        wod:       r[3] ? r[3].toString().trim() : "",
-        accessory: r[4] ? r[4].toString().trim() : "",
-        notes:     r[5] ? r[5].toString().trim() : "" });
+        strength:  rr ? ipRtHtml(rr[2]) : (r[2] ? r[2].toString().trim() : ""),
+        wod:       rr ? ipRtHtml(rr[3]) : (r[3] ? r[3].toString().trim() : ""),
+        accessory: rr ? ipRtHtml(rr[4]) : (r[4] ? r[4].toString().trim() : ""),
+        notes:     rr ? ipRtHtml(rr[5]) : (r[5] ? r[5].toString().trim() : "") });
     }
     return json({rows: ipRows});
   }
@@ -2825,21 +2883,24 @@ function buildWLProgramCard(type) {
 function buildIndividualProgramCard(programRows, adminName) {
   if (!programRows || !programRows.length) return '';
   const isAdminView = !!adminName;
+  const adminState = isAdminView ? ((window._ipAdminState || {})[adminName] || {}) : {};
   const weeks = [...new Set(programRows.map(r => r.week))]
     .sort((a,b) => (parseInt(a.replace(/\D/g,''))||0)-(parseInt(b.replace(/\D/g,''))||0));
-  let curWeek = isAdminView ? weeks[0] : (localStorage.getItem('lerums_ip_week') || weeks[0]);
+  let curWeek = isAdminView ? (adminState.week || weeks[0]) : (localStorage.getItem('lerums_ip_week') || weeks[0]);
   if (!weeks.includes(curWeek)) curWeek = weeks[0];
   const daysInWeek = [...new Set(programRows.filter(r => r.week === curWeek).map(r => String(r.day)))]
     .sort((a,b) => parseInt(a)-parseInt(b));
-  let curDay = isAdminView ? daysInWeek[0] : (localStorage.getItem('lerums_ip_day') || daysInWeek[0]);
+  let curDay = isAdminView ? (adminState.day || daysInWeek[0]) : (localStorage.getItem('lerums_ip_day') || daysInWeek[0]);
   if (!daysInWeek.includes(String(curDay))) curDay = daysInWeek[0];
   curDay = String(curDay);
   const weekIdx = weeks.indexOf(curWeek);
-  const prevWeek = !isAdminView && weekIdx > 0 ? weeks[weekIdx-1] : null;
-  const nextWeek = !isAdminView && weekIdx < weeks.length-1 ? weeks[weekIdx+1] : null;
+  const prevWeek = weekIdx > 0 ? weeks[weekIdx-1] : null;
+  const nextWeek = weekIdx < weeks.length-1 ? weeks[weekIdx+1] : null;
   const done = isAdminView ? {} : _getIPDone();
   const navBtn = (label, disabled, onclick) =>
     `<button onclick="${onclick}" ${disabled?'disabled':''} style="width:1.7rem;height:1.7rem;border-radius:3px;border:1px solid var(--border);background:var(--card2);color:${disabled?'var(--border)':'var(--text)'};cursor:${disabled?'default':'pointer'};font-size:0.9rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${label}</button>`;
+  const prevWeekFn = isAdminView ? `setIPAdminNav('${adminName}','${prevWeek||''}',null)` : `setIPWeek('${prevWeek||''}')`;
+  const nextWeekFn = isAdminView ? `setIPAdminNav('${adminName}','${nextWeek||''}',null)` : `setIPWeek('${nextWeek||''}')`;
   const dayBtns = daysInWeek.map(d => {
     const active = d === curDay;
     const row = programRows.find(r => r.week === curWeek && String(r.day) === d);
@@ -2856,7 +2917,7 @@ function buildIndividualProgramCard(programRows, adminName) {
     const color  = active ? '#a78bfa' : (dayDone ? '#4ade80' : 'var(--muted)');
     const border = active ? '#a78bfa' : (dayDone ? 'rgba(74,222,128,0.5)' : 'var(--border)');
     const bg     = active ? 'rgba(167,139,250,0.15)' : (dayDone ? 'rgba(74,222,128,0.08)' : 'transparent');
-    const oc = isAdminView ? '' : `onclick="setIPDay('${d}')"`;
+    const oc = isAdminView ? `onclick="setIPAdminNav('${adminName}',null,'${d}')"` : `onclick="setIPDay('${d}')"`;
     return `<button ${oc} style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;padding:0.22rem 0.55rem;border-radius:3px;border:1px solid ${border};background:${bg};color:${color};cursor:pointer;">${label}</button>`;
   }).join('');
   const currentRow = programRows.find(r => r.week === curWeek && String(r.day) === curDay);
@@ -2931,9 +2992,9 @@ function buildIndividualProgramCard(programRows, adminName) {
   <div id="${cardId}" style="background:var(--card);border:1px solid rgba(167,139,250,0.4);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
     <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#a78bfa;margin-bottom:0.6rem;">📋 ${isAdminView ? adminName : 'Your Program'}</div>
     <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.6rem;flex-wrap:wrap;">
-      ${!isAdminView ? navBtn('‹', !prevWeek, `setIPWeek('${prevWeek||''}')`) : ''}
+      ${navBtn('‹', !prevWeek, prevWeekFn)}
       <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.9rem;letter-spacing:0.1em;color:var(--text);min-width:2.2rem;text-align:center;">${curWeek}</span>
-      ${!isAdminView ? navBtn('›', !nextWeek, `setIPWeek('${nextWeek||''}')`) : ''}
+      ${navBtn('›', !nextWeek, nextWeekFn)}
       <div style="display:flex;gap:0.3rem;margin-left:0.25rem;flex-wrap:wrap;">${dayBtns}</div>
     </div>
     ${contentHtml}
@@ -3119,6 +3180,21 @@ function _markIPDoneAndAdvance(week, day, partKey) {
 }
 
 window._ipAdminCache = window._ipAdminCache || {};
+window._ipAdminState = window._ipAdminState || {};
+
+function setIPAdminNav(name, week, day) {
+  if (!window._ipAdminState[name]) window._ipAdminState[name] = {};
+  if (week) { window._ipAdminState[name].week = week; window._ipAdminState[name].day = null; }
+  if (day)  { window._ipAdminState[name].day  = String(day); }
+  const safeId = name.replace(/[^a-zA-Z0-9]/g, '-');
+  const contentEl = document.getElementById('ip-admin-content-' + safeId);
+  const member = typeof membersCache !== 'undefined' && membersCache ? membersCache.find(m => m.name === name) : null;
+  const ref = member ? member.programRef : null;
+  if (contentEl && ref && window._ipAdminCache[ref]) {
+    contentEl.innerHTML = buildIndividualProgramCard(window._ipAdminCache[ref], name);
+  }
+}
+
 async function toggleIPAdminExpand(name, ref) {
   const safeId = name.replace(/[^a-zA-Z0-9]/g,'-');
   const contentEl = document.getElementById('ip-admin-content-'+safeId);
@@ -5469,9 +5545,8 @@ function stripHtml(text) {
 // Split a workout text at an "Accessory Work" heading into {workout, accessory}
 function splitWorkoutText(text) {
   if (!text) return { workout: '', accessory: '' };
-  const clean = stripHtml(text);
   const re = /\n?\s*accessory\s+work\s*:?\s*\n?/i;
-  const parts = clean.split(re);
+  const parts = text.split(re);
   return {
     workout:   parts[0].trim(),
     accessory: parts.length > 1 ? parts.slice(1).join('\n').trim() : ''
