@@ -1529,9 +1529,9 @@
         lbwlFlag    = row[7] && row[7].toString().toLowerCase().trim() === "lbwl";
         dwl2Flag    = row[8] && row[8].toString().toLowerCase().trim() === "2dwl";
       }
+      var progRef = oldFmt ? "" : (row[9] ? row[9].toString().trim() : "");
       return {name: name, avatar: avatar, registered: registered, lastSeen: lastSeen,
-              var progRef = oldFmt ? "" : (row[9] ? row[9].toString().trim() : "");
-        admin: adminFlag, preview: previewFlag, lbwl: lbwlFlag, "2dwl": dwl2Flag, programRef: progRef};
+              admin: adminFlag, preview: previewFlag, lbwl: lbwlFlag, "2dwl": dwl2Flag, programRef: progRef};
     }).filter(function(m) { return m.name; });
     return json({members: members});
   }
