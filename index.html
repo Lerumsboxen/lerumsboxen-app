@@ -6267,24 +6267,11 @@ async function fetchDailyProgram(silent = false) {
 }
 
 function autoSyncProgramIfEnabled() {
-  if (true) { // Always auto-sync for all users
-    const lastSync = localStorage.getItem('lb_lerums_program_last_sync') || '';
-    const today = new Date().toDateString();
-    const lastDate = lastSync ? new Date(lastSync).toDateString() : '';
-    // Only auto-sync once per day
-    if (lastDate !== today) {
-      fetchDailyProgram(true);
-    }
-    // Also auto-sync LB WL programs if a secondary URL is configured
-    const lbwlUrl = localStorage.getItem('lerums_lbwl_script_url') || LBWL_SCRIPT_URL_DEFAULT;
-    if (lbwlUrl) {
-      const lastLBWLSync = localStorage.getItem('lb_lerums_lbwl_last_sync') || '';
-      const lastLBWLDate = lastLBWLSync ? new Date(lastLBWLSync).toDateString() : '';
-      if (lastLBWLDate !== today) {
-        fetchLBWLProgram(true);
-      }
-    }
-  }
+  // Always sync all programs on startup — daily program, WL programs, individual program
+  fetchDailyProgram(true);
+  fetchLBWLProgram(true);
+  // Individual program: sync after fetchMembers has had time to set lerums_ip_ref
+  setTimeout(() => fetchIndividualProgram(true), 6000);
 }
 
 async function fetchLBWLProgram(silent = false) {
@@ -7706,10 +7693,6 @@ async function fetchMembers() {
           if (!state.individualProgram || !state.individualProgram.length) fetchIndividualProgram(true);
         } else {
           localStorage.removeItem('lerums_ip_ref');
-          if ((state.individualProgram || []).length) {
-            state.individualProgram = [];
-            save();
-          }
         }
       }
     }
@@ -8098,13 +8081,6 @@ if (!profile.name) {
   setTimeout(() => fetchMembers(), 4000);
   setTimeout(() => fetchAnthropicKey(), 5500);
   setTimeout(() => checkNewChallenges(), 5000);
-  // Non-admins: auto-sync program silently on first login
-  if (!isAdmin()) {
-    const lastSync = localStorage.getItem('lb_lerums_program_last_sync');
-    if (!lastSync) {
-      setTimeout(() => fetchDailyProgram(true), 2000);
-    }
-  }
 }
 
 // ===== WAKE LOCK + LANDSCAPE FULLSCREEN =====
