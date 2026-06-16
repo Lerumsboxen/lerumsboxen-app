@@ -6267,11 +6267,10 @@ async function fetchDailyProgram(silent = false) {
 }
 
 function autoSyncProgramIfEnabled() {
-  // Always sync all programs on startup — daily program, WL programs, individual program
+  // Always sync on startup — daily class program + WL programs
+  // Individual program is synced inside fetchMembers once the programRef is confirmed
   fetchDailyProgram(true);
   fetchLBWLProgram(true);
-  // Individual program: sync after fetchMembers has had time to set lerums_ip_ref
-  setTimeout(() => fetchIndividualProgram(true), 6000);
 }
 
 async function fetchLBWLProgram(silent = false) {
@@ -7690,7 +7689,7 @@ async function fetchMembers() {
         const myRef = myMember ? (myMember.programRef || '') : '';
         if (myRef) {
           localStorage.setItem('lerums_ip_ref', myRef);
-          if (!state.individualProgram || !state.individualProgram.length) fetchIndividualProgram(true);
+          fetchIndividualProgram(true); // always re-sync on startup
         } else {
           localStorage.removeItem('lerums_ip_ref');
         }
@@ -8072,6 +8071,11 @@ document.getElementById('tm-stopwatch').classList.add('btn-red');
 document.getElementById('configStopwatch').style.display = 'block';
 document.getElementById('headerHomeBtn')?.classList.add('on-home');
 updateHeaderProfile();
+// Clear any stale Apps Script proxy error from before the browser-direct API change
+const _oldAdvErr = localStorage.getItem('lerums_training_advice_err') || '';
+if (_oldAdvErr.includes('UrlFetchApp') || _oldAdvErr.includes('ANTHROPIC_API_KEY')) {
+  localStorage.removeItem('lerums_training_advice_err');
+}
 autoSyncProgramIfEnabled();
 if (!profile.name) {
   setTimeout(() => { showToast('👋 Welcome! Tap your avatar to set up your profile.'); }, 1000);
