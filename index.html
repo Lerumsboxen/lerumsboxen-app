@@ -1615,32 +1615,26 @@
     return json({rows: ipRows});
   }
 
-  if (action === "getTrainingAdvice") {
-    var apiKey = PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY');
-    if (!apiKey) return json({error: "ANTHROPIC_API_KEY not set in Apps Script &gt; Project settings &gt; Script properties"});
-    var prompt = (data.prompt || "").toString();
-    if (!prompt) return json({error: "No prompt provided"});
-    try {
-      var resp = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
-        method: 'post',
-        headers: {
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-          'content-type': 'application/json'
-        },
-        payload: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 600,
-          messages: [{role: 'user', content: prompt}]
-        }),
-        muteHttpExceptions: true
-      });
-      var result = JSON.parse(resp.getContentText());
-      if (result.error) return json({error: result.error.message || 'Claude API error'});
-      return json({advice: result.content[0].text});
-    } catch(e) {
-      return json({error: e.toString()});
+  if (action === "saveAnthropicKey") {
+    var keyVal = (data.key || "").toString().trim();
+    var cfg = ss.getSheetByName("Config") || ss.insertSheet("Config");
+    var cfgVals = cfg.getDataRange().getValues();
+    var found = false;
+    for (var ci = 0; ci &lt; cfgVals.length; ci++) {
+      if (cfgVals[ci][0] === "anthropic_key") { cfg.getRange(ci+1,2).setValue(keyVal); found = true; break; }
     }
+    if (!found) cfg.appendRow(["anthropic_key", keyVal]);
+    return json({status: "ok"});
+  }
+
+  if (action === "getAnthropicKey") {
+    var cfg = ss.getSheetByName("Config");
+    if (!cfg) return json({key: ""});
+    var cfgVals = cfg.getDataRange().getValues();
+    for (var ci = 0; ci &lt; cfgVals.length; ci++) {
+      if (cfgVals[ci][0] === "anthropic_key") return json({key: cfgVals[ci][1] ? cfgVals[ci][1].toString().trim() : ""});
+    }
+    return json({key: ""});
   }
 
   if (action === "debugCell") {
@@ -1885,23 +1879,20 @@ function json(obj) {
       </div>
     </div>
 
-    <!-- Training Advisor AI Key -->
-    <div class="card" style="margin-bottom:1rem;border-color:rgba(167,139,250,0.35);">
-      <div style="font-family:'Bebas Neue';font-size:1.1rem;letter-spacing:0.06em;color:#a78bfa;margin-bottom:0.75rem;">🤖 TRAINING ADVISOR (AI)</div>
+    <!-- Training Advisor AI Key (admin only) -->
+    ${isAdmin() ? `<div class="card" style="margin-bottom:1rem;border-color:rgba(167,139,250,0.35);">
+      <div style="font-family:'Bebas Neue';font-size:1.1rem;letter-spacing:0.06em;color:#a78bfa;margin-bottom:0.75rem;">🤖 TRAINING ADVISOR (AI) — ADMIN</div>
       <p style="font-size:0.82rem;color:var(--muted);margin-bottom:0.75rem;line-height:1.5;">
-        Recommends what to focus on in your next free session based on recent training load, feeling scores, and upcoming program. Uses Claude Haiku — ~$0.001 per recommendation.
-      </p>
-      <p style="font-size:0.82rem;color:var(--muted);margin-bottom:0.75rem;line-height:1.5;">
-        Get a free API key at <strong style="color:var(--text);">console.anthropic.com</strong> → API Keys → Create Key.
+        Set the Anthropic API key once here and it will be available to all members automatically. Uses Claude Haiku — ~$0.001 per recommendation.
+        <br>Get a key at <strong style="color:var(--text);">console.anthropic.com</strong> → API Keys → Create Key, then add credits under Plans &amp; Billing.
       </p>
       <div class="form-group" style="margin-bottom:0.75rem;">
         <label>Anthropic API Key</label>
-        <input type="password" id="anthropicApiKey" placeholder="sk-ant-..." autocomplete="off"
-          oninput="localStorage.setItem('lerums_anthropic_key', this.value.trim())"
-          style="font-family:monospace;font-size:0.82rem;">
+        <input type="password" id="anthropicApiKey" placeholder="sk-ant-..." autocomplete="off" style="font-family:monospace;font-size:0.82rem;">
       </div>
-      <div id="anthropicKeyStatus" style="font-size:0.78rem;color:var(--muted);"></div>
-    </div>
+      <button class="btn btn-sm" onclick="saveAnthropicKey()" style="background:#a78bfa;color:#000;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:2px;cursor:pointer;">💾 Save Key for All Users</button>
+      <div id="anthropicKeyStatus" style="margin-top:0.5rem;font-size:0.78rem;color:var(--muted);"></div>
+    </div>` : ''}
 
     <!-- Daily Program Sync -->
     <div class="card" style="margin-bottom:1rem;border-color:rgba(251,191,36,0.3);">
@@ -6131,6 +6122,29 @@ Analyze recovery needs based on muscle groups trained recently and session feeli
   }
 }
 
+async function fetchAnthropicKey() {
+  try {
+    const data = await xhrPost(APPS_SCRIPT_URL, { action: 'getAnthropicKey' });
+    if (data.key) localStorage.setItem('lerums_anthropic_key', data.key);
+  } catch(e) { /* silent */ }
+}
+
+async function saveAnthropicKey() {
+  const keyEl = document.getElementById('anthropicApiKey');
+  const statusEl = document.getElementById('anthropicKeyStatus');
+  const key = keyEl ? keyEl.value.trim() : '';
+  if (!key) { if (statusEl) { statusEl.textContent = 'Enter a key first'; statusEl.style.color = '#f87171'; } return; }
+  if (statusEl) { statusEl.textContent = 'Saving…'; statusEl.style.color = 'var(--muted)'; }
+  try {
+    const data = await xhrPost(APPS_SCRIPT_URL, { action: 'saveAnthropicKey', key });
+    if (data.error) throw new Error(data.error);
+    localStorage.setItem('lerums_anthropic_key', key);
+    if (statusEl) { statusEl.textContent = '✓ Saved — all users will get it on next sync'; statusEl.style.color = 'var(--success)'; }
+  } catch(e) {
+    if (statusEl) { statusEl.textContent = 'Error: ' + e.message; statusEl.style.color = '#f87171'; }
+  }
+}
+
 async function fetchIndividualProgram(silent = false) {
   const ref = localStorage.getItem('lerums_ip_ref');
   if (!ref) return;
@@ -8082,6 +8096,7 @@ if (!profile.name) {
   setTimeout(() => autoCloudSync(), 1500);
   setTimeout(() => registerMember(), 3000);
   setTimeout(() => fetchMembers(), 4000);
+  setTimeout(() => fetchAnthropicKey(), 5500);
   setTimeout(() => checkNewChallenges(), 5000);
   // Non-admins: auto-sync program silently on first login
   if (!isAdmin()) {
