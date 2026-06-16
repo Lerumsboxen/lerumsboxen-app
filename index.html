@@ -1889,14 +1889,18 @@ function json(obj) {
     <div class="card" style="margin-bottom:1rem;border-color:rgba(167,139,250,0.35);">
       <div style="font-family:'Bebas Neue';font-size:1.1rem;letter-spacing:0.06em;color:#a78bfa;margin-bottom:0.75rem;">🤖 TRAINING ADVISOR (AI)</div>
       <p style="font-size:0.82rem;color:var(--muted);margin-bottom:0.75rem;line-height:1.5;">
-        The Training Advisor uses Claude AI to recommend what to focus on in your next free session, based on your recent training load, feeling scores, and upcoming program.
+        Recommends what to focus on in your next free session based on recent training load, feeling scores, and upcoming program. Uses Claude Haiku — ~$0.001 per recommendation.
       </p>
-      <p style="font-size:0.82rem;color:var(--muted);margin-bottom:0;line-height:1.5;">
-        To enable it, add your <strong style="color:var(--text);">Anthropic API key</strong> to your Apps Script:
-        <br>1. Open your Apps Script → <strong>Project settings → Script properties</strong>
-        <br>2. Add a property: <code style="background:rgba(255,255,255,0.08);padding:0.1rem 0.3rem;border-radius:3px;font-size:0.8rem;">ANTHROPIC_API_KEY</code> = your key
-        <br>3. Get a free key at <strong>console.anthropic.com</strong> — the advisor uses claude-haiku (very cheap: ~$0.001 per recommendation).
+      <p style="font-size:0.82rem;color:var(--muted);margin-bottom:0.75rem;line-height:1.5;">
+        Get a free API key at <strong style="color:var(--text);">console.anthropic.com</strong> → API Keys → Create Key.
       </p>
+      <div class="form-group" style="margin-bottom:0.75rem;">
+        <label>Anthropic API Key</label>
+        <input type="password" id="anthropicApiKey" placeholder="sk-ant-..." autocomplete="off"
+          oninput="localStorage.setItem('lerums_anthropic_key', this.value.trim())"
+          style="font-family:monospace;font-size:0.82rem;">
+      </div>
+      <div id="anthropicKeyStatus" style="font-size:0.78rem;color:var(--muted);"></div>
     </div>
 
     <!-- Daily Program Sync -->
@@ -4772,6 +4776,17 @@ function updateSyncSummary() {
   // Restore custom movements sheet tab name
   const cmTab = document.getElementById('sheetCustomMovements');
   if (cmTab) cmTab.value = localStorage.getItem('lerums_sheet_custom_movements') || 'Movements';
+  // Restore Anthropic API key
+  const akEl = document.getElementById('anthropicApiKey');
+  if (akEl) {
+    const ak = localStorage.getItem('lerums_anthropic_key') || '';
+    akEl.value = ak;
+    const akStatus = document.getElementById('anthropicKeyStatus');
+    if (akStatus) {
+      if (ak) { akStatus.textContent = '✓ Key saved'; akStatus.style.color = 'var(--success)'; }
+      else { akStatus.textContent = 'No key set — Training Advisor will not work'; akStatus.style.color = '#fbbf24'; }
+    }
+  }
   // Show already-synced custom movements
   renderCustomMovementsList();
   const cmCount = (state.customMovements || []).length;
@@ -6036,7 +6051,10 @@ function buildTrainingAdvisorCard() {
   return `<div style="background:var(--card);border:1px solid rgba(167,139,250,0.35);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
     <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#a78bfa;margin-bottom:0.6rem;">🤖 Training Advisor</div>
     ${recentRows ? `<div style="margin-bottom:0.6rem;">${recentRows}</div>` : `<div style="font-size:0.75rem;color:var(--muted);margin-bottom:0.6rem;">No sessions logged in the last 7 days.</div>`}
-    <button onclick="requestTrainingAdvice()" id="advisor-btn" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:rgba(167,139,250,0.12);color:#a78bfa;border:1px solid rgba(167,139,250,0.4);border-radius:3px;padding:0.35rem 0.8rem;cursor:pointer;">⚡ Get Recommendation</button>
+    ${localStorage.getItem('lerums_anthropic_key')
+      ? `<button onclick="requestTrainingAdvice()" id="advisor-btn" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:rgba(167,139,250,0.12);color:#a78bfa;border:1px solid rgba(167,139,250,0.4);border-radius:3px;padding:0.35rem 0.8rem;cursor:pointer;">⚡ Get Recommendation</button>`
+      : `<div style="font-size:0.75rem;color:#fbbf24;">Add your Anthropic API key in <button onclick="selectPage('sync')" style="background:none;border:none;color:#fbbf24;text-decoration:underline;cursor:pointer;font-size:0.75rem;padding:0;">Sync settings</button> to enable recommendations.</div>`
+    }
     <span id="advisor-status" style="font-size:0.75rem;color:var(--muted);margin-left:0.5rem;"></span>
     ${adviceErr ? `<div style="font-size:0.72rem;color:#f87171;margin-top:0.3rem;">${adviceErr}</div>` : ''}
     ${adviceBlock}
@@ -6088,9 +6106,21 @@ TODAY: ${today}
 
 Analyze recovery needs based on muscle groups trained recently and session feeling scores (1=terrible, 5=amazing). Consider what's coming in the program so they arrive fresh for those sessions. Recommend specific muscle groups, energy systems, and movement patterns to prioritize — or if rest/recovery work is best. Be direct and specific, 3-5 sentences. No generic disclaimers.`;
 
-    const data = await xhrPost(APPS_SCRIPT_URL, { action: 'getTrainingAdvice', prompt });
-    if (data.error) throw new Error(data.error);
-    localStorage.setItem('lerums_training_advice', data.advice);
+    const apiKey = localStorage.getItem('lerums_anthropic_key') || '';
+    if (!apiKey) throw new Error('No API key — add your Anthropic key in Sync settings');
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 600, messages: [{ role: 'user', content: prompt }] })
+    });
+    const result = await resp.json();
+    if (result.error) throw new Error(result.error.message || 'API error');
+    localStorage.setItem('lerums_training_advice', result.content[0].text);
     localStorage.setItem('lerums_training_advice_time', Date.now().toString());
     if (currentDashSection === 'programming') selectDashSection('programming');
   } catch(e) {
