@@ -1615,6 +1615,34 @@
     return json({rows: ipRows});
   }
 
+  if (action === "getTrainingAdvice") {
+    var apiKey = PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY');
+    if (!apiKey) return json({error: "ANTHROPIC_API_KEY not set in Apps Script &gt; Project settings &gt; Script properties"});
+    var prompt = (data.prompt || "").toString();
+    if (!prompt) return json({error: "No prompt provided"});
+    try {
+      var resp = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+        method: 'post',
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json'
+        },
+        payload: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 600,
+          messages: [{role: 'user', content: prompt}]
+        }),
+        muteHttpExceptions: true
+      });
+      var result = JSON.parse(resp.getContentText());
+      if (result.error) return json({error: result.error.message || 'Claude API error'});
+      return json({advice: result.content[0].text});
+    } catch(e) {
+      return json({error: e.toString()});
+    }
+  }
+
   if (action === "debugCell") {
     var sheet = ss.getSheetByName(sheetName || "2026");
     if (!sheet) return json({error: "Sheet not found"});
@@ -1857,6 +1885,20 @@ function json(obj) {
       </div>
     </div>
 
+    <!-- Training Advisor AI Key -->
+    <div class="card" style="margin-bottom:1rem;border-color:rgba(167,139,250,0.35);">
+      <div style="font-family:'Bebas Neue';font-size:1.1rem;letter-spacing:0.06em;color:#a78bfa;margin-bottom:0.75rem;">🤖 TRAINING ADVISOR (AI)</div>
+      <p style="font-size:0.82rem;color:var(--muted);margin-bottom:0.75rem;line-height:1.5;">
+        The Training Advisor uses Claude AI to recommend what to focus on in your next free session, based on your recent training load, feeling scores, and upcoming program.
+      </p>
+      <p style="font-size:0.82rem;color:var(--muted);margin-bottom:0;line-height:1.5;">
+        To enable it, add your <strong style="color:var(--text);">Anthropic API key</strong> to your Apps Script:
+        <br>1. Open your Apps Script → <strong>Project settings → Script properties</strong>
+        <br>2. Add a property: <code style="background:rgba(255,255,255,0.08);padding:0.1rem 0.3rem;border-radius:3px;font-size:0.8rem;">ANTHROPIC_API_KEY</code> = your key
+        <br>3. Get a free key at <strong>console.anthropic.com</strong> — the advisor uses claude-haiku (very cheap: ~$0.001 per recommendation).
+      </p>
+    </div>
+
     <!-- Daily Program Sync -->
     <div class="card" style="margin-bottom:1rem;border-color:rgba(251,191,36,0.3);">
       <div style="font-family:'Bebas Neue';font-size:1.1rem;letter-spacing:0.06em;color:#fbbf24;margin-bottom:1rem;">📅 DAILY PROGRAM</div>
@@ -2064,6 +2106,16 @@ function json(obj) {
     <div class="share-toggle">
       <input type="checkbox" id="wodShare">
       <label for="wodShare">🌍 Share result on box leaderboard</label>
+    </div>
+    <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border);">
+      <div style="font-family:'Barlow Condensed';font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:0.4rem;">How did it feel? <span style="opacity:0.5;">(optional)</span></div>
+      <div style="display:flex;gap:0.4rem;">
+        <button type="button" id="wod-feel-1" onclick="selectFeeling('wod',1)" style="flex:1;padding:0.35rem 0;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:0.7rem;color:var(--muted);text-align:center;line-height:1.3;"><div>😫</div><div>1</div></button>
+        <button type="button" id="wod-feel-2" onclick="selectFeeling('wod',2)" style="flex:1;padding:0.35rem 0;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:0.7rem;color:var(--muted);text-align:center;line-height:1.3;"><div>😕</div><div>2</div></button>
+        <button type="button" id="wod-feel-3" onclick="selectFeeling('wod',3)" style="flex:1;padding:0.35rem 0;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:0.7rem;color:var(--muted);text-align:center;line-height:1.3;"><div>😐</div><div>3</div></button>
+        <button type="button" id="wod-feel-4" onclick="selectFeeling('wod',4)" style="flex:1;padding:0.35rem 0;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:0.7rem;color:var(--muted);text-align:center;line-height:1.3;"><div>😊</div><div>4</div></button>
+        <button type="button" id="wod-feel-5" onclick="selectFeeling('wod',5)" style="flex:1;padding:0.35rem 0;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:0.7rem;color:var(--muted);text-align:center;line-height:1.3;"><div>🔥</div><div>5</div></button>
+      </div>
     </div>
     <div style="display:flex;gap:0.75rem;justify-content:flex-end;margin-top:1rem;">
       <button class="btn btn-ghost" onclick="closeWodModal()">Cancel</button>
@@ -2361,6 +2413,7 @@ const DASH_SECTIONS = {
       ${hasProgramAccess('lbwl') ? buildWLProgramCard('lbwl') : ''}
       ${hasProgramAccess('2dwl') ? buildWLProgramCard('2dwl') : ''}
       ${(state.individualProgram||[]).length ? buildIndividualProgramCard(state.individualProgram) : ''}
+      ${buildTrainingAdvisorCard()}
       ${isAdmin() && typeof membersCache !== 'undefined' && membersCache && membersCache.some(m => m.programRef) ? (() => {
         const withProgs = membersCache.filter(m => m.programRef);
         return '<div style="background:var(--card);border:1px solid rgba(167,139,250,0.25);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">'
@@ -3379,6 +3432,7 @@ function closeWodModal(e) {
     clearWodForm();
     window._pendingWLLog = null;
     window._pendingIPLog = null;
+    _wodFeeling = null;
     // Reset save button in case it was in edit mode
     const saveBtn = document.querySelector('#wodModal .btn-red');
     if (saveBtn) { saveBtn.textContent = 'SAVE WOD'; saveBtn.onclick = saveWod; }
@@ -3394,6 +3448,23 @@ function clearWodForm() {
 }
 // Partner selection state
 let selectedPartners = [];
+
+// Session feeling (1-5 Likert) — reset each time a modal closes
+let _wodFeeling = null, _strFeeling = null, _condFeeling = null;
+
+function selectFeeling(type, val) {
+  if (type === 'wod') _wodFeeling = val;
+  else if (type === 'str') _strFeeling = val;
+  else if (type === 'cond') _condFeeling = val;
+  for (let i = 1; i <= 5; i++) {
+    const btn = document.getElementById(`${type}-feel-${i}`);
+    if (!btn) continue;
+    const active = i === val;
+    btn.style.background = active ? 'rgba(239,68,68,0.18)' : 'transparent';
+    btn.style.borderColor = active ? '#ef4444' : 'var(--border)';
+    btn.style.color = active ? '#ef4444' : 'var(--muted)';
+  }
+}
 
 function filterPartnerDropdown() {
   const input = document.getElementById('wodPartner');
@@ -3510,6 +3581,7 @@ function saveWod() {
     rx: document.getElementById('wodRx').value,
     notes: document.getElementById('wodNotes').value.trim(),
     partners: selectedPartners.length ? [...selectedPartners] : undefined,
+    feeling: _wodFeeling || undefined,
   };
   const share = document.getElementById('wodShare')?.checked;
   const _wlCtx = window._pendingWLLog || null;
@@ -4846,6 +4918,7 @@ function closeStrengthModal(e) {
   if (!e || e.target === document.getElementById('strengthModal') || e === undefined) {
     document.getElementById('strengthModal').style.display = 'none';
     window._pendingIPLog = null;
+    _strFeeling = null;
     // Reset save button in case it was in edit mode
     const saveBtn = document.querySelector('#strengthModal .btn-red');
     if (saveBtn) { saveBtn.textContent = 'SAVE SESSION'; saveBtn.onclick = saveStrengthSession; }
@@ -4916,6 +4989,7 @@ function saveStrengthSession() {
     exercise,
     sets,
     notes: document.getElementById('strNotes').value.trim(),
+    feeling: _strFeeling || undefined,
   };
   const share = document.getElementById('strShare')?.checked;
   const _ipCtxStr = window._pendingIPLog || null;
@@ -5218,6 +5292,7 @@ function closeCondModal(e) {
   if (!e || e.target === document.getElementById('condModal')) {
     document.getElementById('condModal').style.display = 'none';
     window._pendingIPLog = null;
+    _condFeeling = null;
   }
 }
 
@@ -5353,7 +5428,8 @@ function saveCondSession() {
   const date = document.getElementById('condDate').value;
   if (!date) { showToast('Select a date'); return; }
   const session = { id: Date.now().toString(), date, activity: _condActivity, sessionType: _condType,
-                    notes: document.getElementById('condNotes').value.trim() };
+                    notes: document.getElementById('condNotes').value.trim(),
+                    feeling: _condFeeling || undefined };
 
   if (_condType === 'distance') {
     const dist = parseFloat(document.getElementById('condDist').value);
@@ -5861,6 +5937,167 @@ async function diagProgramSync() {
     if (currentDashSection === 'log' || currentDashSection === 'programming') selectDashSection(currentDashSection);
   } catch(e) {
     if (statusEl) { statusEl.textContent = '✗ ' + e.message; statusEl.style.color = 'var(--red)'; }
+  }
+}
+
+// ===== TRAINING ADVISOR =====
+
+function inferMuscleGroups(text) {
+  if (!text) return [];
+  const t = stripHtml(text).toLowerCase();
+  const groups = [];
+  if (/squat|lunge|leg press|step.?up|goblet|front squat|back squat|pistol|bulgarian/.test(t)) groups.push('Quads');
+  if (/deadlift|rdl|hip.?hinge|hip thrust|glute|hamstring|good morning|romanian/.test(t)) groups.push('Posterior Chain');
+  if (/press|push.?up|dip|bench|pec|chest|overhead|jerk/.test(t)) groups.push('Push');
+  if (/row|pull.?up|chin.?up|lat|pulldown|ring row/.test(t)) groups.push('Pull');
+  if (/clean|snatch|thruster|hang|muscle.?up/.test(t)) groups.push('Olympic');
+  if (/run|bike|ski|swim|rower|erg|cardio|burpee|double.?under|jump rope|assault/.test(t)) groups.push('Cardio');
+  if (/plank|sit.?up|toes.?to.?bar|ttb|v.?up|ghd|hollow|core|ab/.test(t)) groups.push('Core');
+  return groups;
+}
+
+function getUpcomingProgramming() {
+  const today = new Date().toISOString().split('T')[0];
+  const lines = [];
+
+  // Daily class program (next 7 days)
+  if (state.program) {
+    Object.entries(state.program)
+      .filter(([d]) => d >= today)
+      .sort(([a],[b]) => a.localeCompare(b))
+      .slice(0, 5)
+      .forEach(([date, prog]) => {
+        const parts = [];
+        if (prog.strength) parts.push('Strength: ' + stripHtml(prog.strength).replace(/\n/g,' ').slice(0, 120));
+        if (prog.workout) parts.push('WOD: ' + stripHtml(prog.workout).replace(/\n/g,' ').slice(0, 120));
+        if (parts.length) lines.push(`Class ${date}: ${parts.join(' | ')}`);
+      });
+  }
+
+  // Individual program (next 3 programmed sessions)
+  if ((state.individualProgram||[]).length) {
+    const ipWeek = localStorage.getItem('lerums_ip_week') || '';
+    const ipDay  = localStorage.getItem('lerums_ip_day')  || '';
+    const curW = parseInt((ipWeek||'').replace(/\D/g,''))||0;
+    const curD = parseInt(ipDay)||0;
+    const nextRows = state.individualProgram.filter(r => {
+      const wNum = parseInt((r.week||'').replace(/\D/g,''))||0;
+      const dNum = parseInt(r.day)||0;
+      return wNum > curW || (wNum === curW && dNum >= curD);
+    }).slice(0, 3);
+    nextRows.forEach(r => {
+      const parts = [];
+      if (r.strength) parts.push('Strength: ' + stripHtml(r.strength).replace(/\n/g,' ').slice(0, 120));
+      if (r.wod)      parts.push('WOD: '      + stripHtml(r.wod).replace(/\n/g,' ').slice(0, 120));
+      if (r.accessory) parts.push('Accessory: ' + stripHtml(r.accessory).replace(/\n/g,' ').slice(0, 80));
+      if (parts.length) lines.push(`Individual ${r.week} Day ${r.day}: ${parts.join(' | ')}`);
+    });
+  }
+
+  return lines.join('\n');
+}
+
+function buildTrainingAdvisorCard() {
+  const advice     = localStorage.getItem('lerums_training_advice');
+  const adviceTime = localStorage.getItem('lerums_training_advice_time');
+  const adviceErr  = localStorage.getItem('lerums_training_advice_err');
+
+  // Recent 7-day muscle group summary
+  const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const byDay = {};
+  const feelByDay = {};
+  [...(state.wods||[]), ...(state.strength||[]), ...(state.conditioning||[])]
+    .filter(s => s.date >= cutoff)
+    .forEach(s => {
+      const day = s.date;
+      if (!byDay[day]) byDay[day] = new Set();
+      const text = s.exercise || (s.desc || '') + ' ' + (s.name || '') + ' ' + (s.activity || '');
+      inferMuscleGroups(text).forEach(g => byDay[day].add(g));
+      if (s.feeling) feelByDay[day] = (feelByDay[day] || []).concat(s.feeling);
+    });
+
+  const feelEmoji = [null,'😫','😕','😐','😊','🔥'];
+  const recentRows = Object.entries(byDay)
+    .sort(([a],[b]) => b.localeCompare(a))
+    .map(([date, groups]) => {
+      const dow = new Date(date + 'T00:00:00').toLocaleDateString('en-SE', {weekday:'short', day:'numeric', month:'short'});
+      const feels = feelByDay[date];
+      const avgFeel = feels ? Math.round(feels.reduce((a,b)=>a+b,0)/feels.length) : null;
+      const feelTag = avgFeel ? ` <span style="color:var(--muted);">${feelEmoji[avgFeel]}</span>` : '';
+      return `<div style="display:flex;align-items:baseline;gap:0.4rem;font-size:0.75rem;margin-bottom:0.2rem;"><span style="color:var(--muted);min-width:6rem;">${dow}</span><span style="color:var(--text);">${[...groups].join(', ')||'Training'}${feelTag}</span></div>`;
+    }).join('');
+
+  const adviceBlock = advice
+    ? `<div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border);">
+        <div style="font-size:0.82rem;color:var(--text);line-height:1.55;white-space:pre-wrap;">${advice}</div>
+        ${adviceTime ? `<div style="font-size:0.68rem;color:var(--muted);margin-top:0.4rem;">Generated ${new Date(parseInt(adviceTime)).toLocaleString('en-SE',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>` : ''}
+      </div>` : '';
+
+  return `<div style="background:var(--card);border:1px solid rgba(167,139,250,0.35);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
+    <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#a78bfa;margin-bottom:0.6rem;">🤖 Training Advisor</div>
+    ${recentRows ? `<div style="margin-bottom:0.6rem;">${recentRows}</div>` : `<div style="font-size:0.75rem;color:var(--muted);margin-bottom:0.6rem;">No sessions logged in the last 7 days.</div>`}
+    <button onclick="requestTrainingAdvice()" id="advisor-btn" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:rgba(167,139,250,0.12);color:#a78bfa;border:1px solid rgba(167,139,250,0.4);border-radius:3px;padding:0.35rem 0.8rem;cursor:pointer;">⚡ Get Recommendation</button>
+    <span id="advisor-status" style="font-size:0.75rem;color:var(--muted);margin-left:0.5rem;"></span>
+    ${adviceErr ? `<div style="font-size:0.72rem;color:#f87171;margin-top:0.3rem;">${adviceErr}</div>` : ''}
+    ${adviceBlock}
+  </div>`;
+}
+
+async function requestTrainingAdvice() {
+  const btn = document.getElementById('advisor-btn');
+  const statusEl = document.getElementById('advisor-status');
+  if (btn) btn.disabled = true;
+  if (statusEl) { statusEl.textContent = 'Analyzing…'; }
+  localStorage.removeItem('lerums_training_advice_err');
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const cutoff = new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const feelEmoji = [null,'😫','😕','😐','😊','🔥'];
+
+    const allSessions = [
+      ...(state.wods||[]).filter(w => w.date >= cutoff).map(w => ({
+        date: w.date, label: `WOD "${w.name||''}" [${w.type||''}]`,
+        score: w.score||'', muscles: inferMuscleGroups((w.desc||'')+(w.name||'')), feeling: w.feeling||null
+      })),
+      ...(state.strength||[]).filter(s => s.date >= cutoff).map(s => {
+        const top = (s.sets||[]).reduce((b,x)=>(x.weight||0)>(b.weight||0)?x:b, {});
+        return { date: s.date, label: `Strength "${s.exercise}"`, score: top.weight ? `${top.weight}kg×${top.reps||1}${top.rpe?' RPE'+top.rpe:''}` : '', muscles: inferMuscleGroups(s.exercise), feeling: s.feeling||null };
+      }),
+      ...(state.conditioning||[]).filter(c => c.date >= cutoff).map(c => ({
+        date: c.date, label: `Conditioning [${c.activity||''}]`,
+        score: c.distance ? `${c.distance}km` : '', muscles: inferMuscleGroups(c.activity||''), feeling: c.feeling||null
+      }))
+    ].sort((a,b) => b.date.localeCompare(a.date));
+
+    const sessionLines = allSessions.map(s =>
+      `${s.date}: ${s.label}${s.score ? ' · '+s.score : ''}${s.muscles.length ? ' ['+s.muscles.join(', ')+']' : ''}${s.feeling ? ' · Feel '+feelEmoji[s.feeling]+' '+s.feeling+'/5' : ''}`
+    ).join('\n');
+
+    const upcoming = getUpcomingProgramming();
+    const userName = (typeof profile !== 'undefined' && profile?.firstName) || 'Athlete';
+
+    const prompt = `You are a strength and conditioning coach for a CrossFit athlete. Give a short, specific recommendation for what ${userName} should focus on in their NEXT FREE TRAINING SESSION (outside of scheduled class).
+
+RECENT TRAINING (last 21 days, newest first):
+${sessionLines || 'No recent sessions logged.'}
+
+UPCOMING PROGRAMMED SESSIONS:
+${upcoming || 'No upcoming program data.'}
+
+TODAY: ${today}
+
+Analyze recovery needs based on muscle groups trained recently and session feeling scores (1=terrible, 5=amazing). Consider what's coming in the program so they arrive fresh for those sessions. Recommend specific muscle groups, energy systems, and movement patterns to prioritize — or if rest/recovery work is best. Be direct and specific, 3-5 sentences. No generic disclaimers.`;
+
+    const data = await xhrPost(APPS_SCRIPT_URL, { action: 'getTrainingAdvice', prompt });
+    if (data.error) throw new Error(data.error);
+    localStorage.setItem('lerums_training_advice', data.advice);
+    localStorage.setItem('lerums_training_advice_time', Date.now().toString());
+    if (currentDashSection === 'programming') selectDashSection('programming');
+  } catch(e) {
+    localStorage.setItem('lerums_training_advice_err', 'Error: ' + e.message);
+    if (btn) btn.disabled = false;
+    if (statusEl) statusEl.textContent = '';
+    if (currentDashSection === 'programming') selectDashSection('programming');
   }
 }
 
@@ -7967,6 +8204,16 @@ window.addEventListener('orientationchange', () => {
       <label>Notes</label>
       <textarea id="condNotes" rows="2" placeholder="Felt good, steady pace…" style="resize:vertical;"></textarea>
     </div>
+    <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border);">
+      <div style="font-family:'Barlow Condensed';font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:0.4rem;">How did it feel? <span style="opacity:0.5;">(optional)</span></div>
+      <div style="display:flex;gap:0.4rem;">
+        <button type="button" id="cond-feel-1" onclick="selectFeeling('cond',1)" style="flex:1;padding:0.35rem 0;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:0.7rem;color:var(--muted);text-align:center;line-height:1.3;"><div>😫</div><div>1</div></button>
+        <button type="button" id="cond-feel-2" onclick="selectFeeling('cond',2)" style="flex:1;padding:0.35rem 0;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:0.7rem;color:var(--muted);text-align:center;line-height:1.3;"><div>😕</div><div>2</div></button>
+        <button type="button" id="cond-feel-3" onclick="selectFeeling('cond',3)" style="flex:1;padding:0.35rem 0;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:0.7rem;color:var(--muted);text-align:center;line-height:1.3;"><div>😐</div><div>3</div></button>
+        <button type="button" id="cond-feel-4" onclick="selectFeeling('cond',4)" style="flex:1;padding:0.35rem 0;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:0.7rem;color:var(--muted);text-align:center;line-height:1.3;"><div>😊</div><div>4</div></button>
+        <button type="button" id="cond-feel-5" onclick="selectFeeling('cond',5)" style="flex:1;padding:0.35rem 0;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:0.7rem;color:var(--muted);text-align:center;line-height:1.3;"><div>🔥</div><div>5</div></button>
+      </div>
+    </div>
     <div style="display:flex;gap:0.75rem;justify-content:flex-end;margin-top:1rem;">
       <button class="btn btn-ghost" onclick="closeCondModal()">Cancel</button>
       <button class="btn btn-red" onclick="saveCondSession()">SAVE SESSION</button>
@@ -8014,6 +8261,16 @@ window.addEventListener('orientationchange', () => {
     <div class="share-toggle">
       <input type="checkbox" id="strShare">
       <label for="strShare">🌍 Share top set on box leaderboard</label>
+    </div>
+    <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border);">
+      <div style="font-family:'Barlow Condensed';font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:0.4rem;">How did it feel? <span style="opacity:0.5;">(optional)</span></div>
+      <div style="display:flex;gap:0.4rem;">
+        <button type="button" id="str-feel-1" onclick="selectFeeling('str',1)" style="flex:1;padding:0.35rem 0;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:0.7rem;color:var(--muted);text-align:center;line-height:1.3;"><div>😫</div><div>1</div></button>
+        <button type="button" id="str-feel-2" onclick="selectFeeling('str',2)" style="flex:1;padding:0.35rem 0;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:0.7rem;color:var(--muted);text-align:center;line-height:1.3;"><div>😕</div><div>2</div></button>
+        <button type="button" id="str-feel-3" onclick="selectFeeling('str',3)" style="flex:1;padding:0.35rem 0;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:0.7rem;color:var(--muted);text-align:center;line-height:1.3;"><div>😐</div><div>3</div></button>
+        <button type="button" id="str-feel-4" onclick="selectFeeling('str',4)" style="flex:1;padding:0.35rem 0;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:0.7rem;color:var(--muted);text-align:center;line-height:1.3;"><div>😊</div><div>4</div></button>
+        <button type="button" id="str-feel-5" onclick="selectFeeling('str',5)" style="flex:1;padding:0.35rem 0;background:transparent;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:0.7rem;color:var(--muted);text-align:center;line-height:1.3;"><div>🔥</div><div>5</div></button>
+      </div>
     </div>
     <div style="display:flex;gap:0.75rem;justify-content:flex-end;margin-top:1rem;">
       <button class="btn btn-ghost" onclick="closeStrengthModal()">Cancel</button>
