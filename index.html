@@ -2345,7 +2345,7 @@ const DASH_SECTIONS = {
       return `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.75rem;">
         <div class="section-title" style="margin:0;flex:1;">Programming</div>
-        <button class="btn btn-ghost btn-sm" onclick="Promise.all([fetchDailyProgram(),fetchMembers(),fetchLBWLProgram(),fetchIndividualProgram()]).then(()=>selectDashSection('programming'))" style="font-size:0.75rem;">⟳ Sync</button>
+        <button class="btn btn-ghost btn-sm" onclick="Promise.all([fetchDailyProgram(),fetchMembers(),fetchLBWLProgram(),fetchIndividualProgram(),fetchAnthropicKey()]).then(()=>selectDashSection('programming'))" style="font-size:0.75rem;">⟳ Sync</button>
       </div>
       ${dateNav}
       ${hasWod ? `
@@ -6042,10 +6042,7 @@ function buildTrainingAdvisorCard() {
   return `<div style="background:var(--card);border:1px solid rgba(167,139,250,0.35);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
     <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#a78bfa;margin-bottom:0.6rem;">🤖 Training Advisor</div>
     ${recentRows ? `<div style="margin-bottom:0.6rem;">${recentRows}</div>` : `<div style="font-size:0.75rem;color:var(--muted);margin-bottom:0.6rem;">No sessions logged in the last 7 days.</div>`}
-    ${localStorage.getItem('lerums_anthropic_key')
-      ? `<button onclick="requestTrainingAdvice()" id="advisor-btn" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:rgba(167,139,250,0.12);color:#a78bfa;border:1px solid rgba(167,139,250,0.4);border-radius:3px;padding:0.35rem 0.8rem;cursor:pointer;">⚡ Get Recommendation</button>`
-      : `<div style="font-size:0.75rem;color:#fbbf24;">Add your Anthropic API key in <button onclick="selectPage('sync')" style="background:none;border:none;color:#fbbf24;text-decoration:underline;cursor:pointer;font-size:0.75rem;padding:0;">Sync settings</button> to enable recommendations.</div>`
-    }
+    <button onclick="requestTrainingAdvice()" id="advisor-btn" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:rgba(167,139,250,0.12);color:#a78bfa;border:1px solid rgba(167,139,250,0.4);border-radius:3px;padding:0.35rem 0.8rem;cursor:pointer;">⚡ Get Recommendation</button>
     <span id="advisor-status" style="font-size:0.75rem;color:var(--muted);margin-left:0.5rem;"></span>
     ${adviceErr ? `<div style="font-size:0.72rem;color:#f87171;margin-top:0.3rem;">${adviceErr}</div>` : ''}
     ${adviceBlock}
@@ -6098,7 +6095,13 @@ TODAY: ${today}
 Analyze recovery needs based on muscle groups trained recently and session feeling scores (1=terrible, 5=amazing). Consider what's coming in the program so they arrive fresh for those sessions. Recommend specific muscle groups, energy systems, and movement patterns to prioritize — or if rest/recovery work is best. Be direct and specific, 3-5 sentences. No generic disclaimers.`;
 
     const apiKey = localStorage.getItem('lerums_anthropic_key') || '';
-    if (!apiKey) throw new Error('No API key — add your Anthropic key in Sync settings');
+    if (!apiKey) {
+      if (btn) btn.disabled = false;
+      if (statusEl) { statusEl.textContent = 'Fetching key…'; }
+      await fetchAnthropicKey();
+      const retryKey = localStorage.getItem('lerums_anthropic_key') || '';
+      if (!retryKey) throw new Error('No API key configured — admin must save it in Sync settings');
+    }
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -6125,7 +6128,10 @@ Analyze recovery needs based on muscle groups trained recently and session feeli
 async function fetchAnthropicKey() {
   try {
     const data = await xhrPost(APPS_SCRIPT_URL, { action: 'getAnthropicKey' });
-    if (data.key) localStorage.setItem('lerums_anthropic_key', data.key);
+    if (data.key) {
+      localStorage.setItem('lerums_anthropic_key', data.key);
+      if (currentDashSection === 'programming') selectDashSection('programming');
+    }
   } catch(e) { /* silent */ }
 }
 
@@ -7693,7 +7699,7 @@ async function fetchMembers() {
         } else {
           localStorage.removeItem('lerums_ip_ref');
         }
-      }
+      fetchAnthropicKey(); // always refresh key for all users
     }
   } catch(e) { /* silent */ }
 }
@@ -8083,7 +8089,6 @@ if (!profile.name) {
   setTimeout(() => autoCloudSync(), 1500);
   setTimeout(() => registerMember(), 3000);
   setTimeout(() => fetchMembers(), 4000);
-  setTimeout(() => fetchAnthropicKey(), 5500);
   setTimeout(() => checkNewChallenges(), 5000);
 }
 
