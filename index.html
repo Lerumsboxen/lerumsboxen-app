@@ -1746,7 +1746,7 @@
     var sheet = ss.getSheetByName(tabName);
     if (!sheet) return json({wods:[],strength:[],prs:[]});
     var vals = sheet.getDataRange().getValues();
-    var wods=[],strength=[],prs=[];
+    var wods=[],strength=[],prs=[],conditioning=[];
     for (var r = 1; r < vals.length; r++) {
       if (vals[r][3]=="1") continue;
       try {
@@ -1755,9 +1755,10 @@
         if (type==="wod") wods.push(item);
         else if (type==="strength") strength.push(item);
         else if (type==="pr") prs.push(item);
+        else if (type==="conditioning") conditioning.push(item);
       } catch(e) {}
     }
-    return json({wods:wods,strength:strength,prs:prs});
+    return json({wods:wods,strength:strength,prs:prs,conditioning:conditioning});
   }
 
   if (action === "getCustomMovements") {
@@ -2898,17 +2899,50 @@ function buildWLProgramCard(type) {
     `<button onclick="${onclick}" ${disabled ? 'disabled' : ''} style="width:1.7rem;height:1.7rem;border-radius:3px;border:1px solid var(--border);background:var(--card2);color:${disabled?'var(--border)':'var(--text)'};cursor:${disabled?'default':'pointer'};font-size:0.9rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${label}</button>`;
 
   const doneSessions = _getWLDone(type);
-  const curDone = !!doneSessions[curWeek + '-' + curDay];
+  const plainContent = content ? stripHtml(content) : '';
+  const wlParts = content ? parseStrengthParts(plainContent) : [];
+  const allPartsDone = _isWLDayAllDone(type, curWeek, curDay, wlParts);
 
   const dayBtns = Array.from({length: numDays}, (_, i) => i + 1).map(d => {
-    const active   = d === curDay;
-    const dayDone  = !!doneSessions[curWeek + '-' + d];
-    const label    = dayDone ? `Day ${d} ✓` : `Day ${d}`;
-    const color    = active ? '#fb923c' : (dayDone ? '#4ade80' : 'var(--muted)');
-    const border   = active ? '#fb923c' : (dayDone ? 'rgba(74,222,128,0.5)' : 'var(--border)');
-    const bg       = active ? 'rgba(251,146,60,0.15)' : (dayDone ? 'rgba(74,222,128,0.08)' : 'transparent');
+    const active    = d === curDay;
+    const dayContent = (typeData[curWeek] || {})['day' + d] || '';
+    const dParts    = dayContent ? parseStrengthParts(stripHtml(dayContent)) : [];
+    const dayDone   = _isWLDayAllDone(type, curWeek, d, dParts);
+    const label     = dayDone ? `Day ${d} ✓` : `Day ${d}`;
+    const color     = active ? '#fb923c' : (dayDone ? '#4ade80' : 'var(--muted)');
+    const border    = active ? '#fb923c' : (dayDone ? 'rgba(74,222,128,0.5)' : 'var(--border)');
+    const bg        = active ? 'rgba(251,146,60,0.15)' : (dayDone ? 'rgba(74,222,128,0.08)' : 'transparent');
     return `<button onclick="setLbwlDay('${type}',${d})" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;padding:0.22rem 0.55rem;border-radius:3px;border:1px solid ${border};background:${bg};color:${color};cursor:pointer;">${label}</button>`;
   }).join('');
+
+  let partsHtml = '';
+  if (content) {
+    if (wlParts.length > 1) {
+      wlParts.forEach((part, pi) => {
+        const partDone = _isWLPartDone(type, curWeek, curDay, part.key);
+        partsHtml += `<div style="${pi > 0 ? 'margin-top:0.6rem;padding-top:0.6rem;border-top:1px solid var(--border);' : ''}">`;
+        if (part.label) partsHtml += `<div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#fb923c;margin-bottom:0.2rem;">${part.label}</div>`;
+        partsHtml += `<div class="program-section-text" style="margin-bottom:0.35rem;">${enrichProgramText(part.content)}</div>`;
+        if (partDone) {
+          partsHtml += `<div style="display:inline-flex;align-items:center;gap:0.35rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#4ade80;padding:0.3rem 0.65rem;border:1px solid rgba(74,222,128,0.4);border-radius:3px;">✓ LOGGED</div>
+            <button onclick="logFromWLPart('${type}','${curWeek}',${curDay},'${part.key}')" style="margin-left:0.4rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG AGAIN</button>`;
+        } else {
+          partsHtml += `<button onclick="logFromWLPart('${type}','${curWeek}',${curDay},'${part.key}')" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#c2410c;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG</button>`;
+        }
+        partsHtml += `</div>`;
+      });
+    } else {
+      // Single block — show full content then one LOG button
+      partsHtml = `<div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(content)}</div>`;
+      const singleKey = wlParts.length ? wlParts[0].key : 'session';
+      if (allPartsDone) {
+        partsHtml += `<div style="display:inline-flex;align-items:center;gap:0.35rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#4ade80;padding:0.3rem 0.65rem;border:1px solid rgba(74,222,128,0.4);border-radius:3px;">✓ LOGGED</div>
+          <button onclick="logFromWLPart('${type}','${curWeek}',${curDay},'${singleKey}')" style="margin-left:0.4rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG AGAIN</button>`;
+      } else {
+        partsHtml += `<button onclick="logFromWLPart('${type}','${curWeek}',${curDay},'${singleKey}')" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#c2410c;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG</button>`;
+      }
+    }
+  }
 
   return `
   <div id="wl-card-${type}" style="background:var(--card);border:1px solid rgba(251,146,60,0.4);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
@@ -2919,15 +2953,7 @@ function buildWLProgramCard(type) {
       ${navBtn('›', !nextWeek, `setLbwlWeek('${type}','${nextWeek||''}')`)}
       <div style="display:flex;gap:0.3rem;margin-left:0.25rem;">${dayBtns}</div>
     </div>
-    ${content
-      ? `<div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(content)}</div>
-         ${curDone
-           ? `<div style="display:inline-flex;align-items:center;gap:0.35rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#4ade80;padding:0.3rem 0.65rem;border:1px solid rgba(74,222,128,0.4);border-radius:3px;">✓ LOGGED</div>
-              <button data-log="${type}" style="margin-left:0.4rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG AGAIN</button>`
-           : `<button data-log="${type}" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#c2410c;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG</button>`
-         }`
-      : `<div style="color:var(--muted);font-size:0.82rem;">${curWeek} Day ${curDay} — no content yet</div>`
-    }
+    ${content ? partsHtml : `<div style="color:var(--muted);font-size:0.82rem;">${curWeek} Day ${curDay} — no content yet</div>`}
   </div>`;
 }
 
@@ -3155,14 +3181,27 @@ function _wlDoneKey(type) { return 'lerums_wl_done_' + type; }
 function _getWLDone(type) {
   try { return JSON.parse(localStorage.getItem(_wlDoneKey(type)) || '{}'); } catch(e) { return {}; }
 }
-function _isWLDone(type, week, day) {
-  return !!_getWLDone(type)[week + '-' + day];
-}
-function _markWLDoneAndAdvance(type, week, day) {
-  // Mark this session as done
+function _isWLPartDone(type, week, day, partKey) {
   const done = _getWLDone(type);
-  done[week + '-' + day] = true;
+  return !!done[week + '-' + day + '-' + partKey] || !!done[week + '-' + day]; // legacy compat
+}
+function _isWLDayAllDone(type, week, day, parts) {
+  const done = _getWLDone(type);
+  if (done[week + '-' + day]) return true; // legacy: whole-day key
+  if (!parts || !parts.length) return false;
+  return parts.every(p => done[week + '-' + day + '-' + p.key]);
+}
+function _markWLDoneAndAdvance(type, week, day, partKey, allParts) {
+  // Mark this part as done
+  const done = _getWLDone(type);
+  done[week + '-' + day + '-' + (partKey || 'session')] = true;
   localStorage.setItem(_wlDoneKey(type), JSON.stringify(done));
+
+  // Only advance to next session when ALL parts of this day are done
+  const allDone = !allParts || !allParts.length || allParts.length <= 1
+    ? true
+    : allParts.every(p => done[week + '-' + day + '-' + p.key]);
+  if (!allDone) { _refreshWLCard(type); return; }
 
   // Advance to next session
   const numDays = type === 'lbwl' ? 3 : 2;
@@ -3178,7 +3217,6 @@ function _markWLDoneAndAdvance(type, week, day) {
     nextWeek = weeks[weekIdx + 1];
     nextDay  = 1;
   }
-  // Only advance if there actually is a next session
   if (nextWeek !== week || nextDay !== day) {
     localStorage.setItem('lerums_wl_week_' + type, nextWeek);
     localStorage.setItem('lerums_wl_day_'  + type, String(nextDay));
@@ -3288,7 +3326,7 @@ async function toggleIPAdminExpand(name, ref) {
   contentEl.style.display = 'block';
   if (btnEl) btnEl.textContent = '▾ Hide';
   if (window._ipAdminCache[ref]) {
-    contentEl.innerHTML = buildIndividualProgramCard(window._ipAdminCache[ref], name) + _buildAdminLogsSection(name, safeId);
+    contentEl.innerHTML = buildIndividualProgramCard(window._ipAdminCache[ref], name) + _buildAdminLogsSection(name, safeId, ref);
     return;
   }
   contentEl.innerHTML = '<div style="color:var(--muted);font-size:0.82rem;padding:0.5rem 0;">Loading…</div>';
@@ -3296,15 +3334,15 @@ async function toggleIPAdminExpand(name, ref) {
     const data = await xhrPost(APPS_SCRIPT_URL, { action: 'getIndividualProgram', tab: ref });
     if (data.error) throw new Error(data.error);
     window._ipAdminCache[ref] = data.rows || [];
-    contentEl.innerHTML = buildIndividualProgramCard(window._ipAdminCache[ref], name) + _buildAdminLogsSection(name, safeId);
+    contentEl.innerHTML = buildIndividualProgramCard(window._ipAdminCache[ref], name) + _buildAdminLogsSection(name, safeId, ref);
   } catch(e) {
     contentEl.innerHTML = `<div style="color:var(--red);font-size:0.82rem;">${e.message}</div>`;
   }
 }
 
-function _buildAdminLogsSection(name, safeId) {
+function _buildAdminLogsSection(name, safeId, ref) {
   return `<div style="margin-top:0.5rem;">
-    <button onclick="toggleAdminMemberLogs('${name}','${safeId}')" id="ip-logs-btn-${safeId}"
+    <button onclick="toggleAdminMemberLogs('${name}','${safeId}','${ref}')" id="ip-logs-btn-${safeId}"
       style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:transparent;color:#60a5fa;border:1px solid rgba(96,165,250,0.4);border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;width:100%;">
       ▸ Show Logged Sessions
     </button>
@@ -3312,7 +3350,7 @@ function _buildAdminLogsSection(name, safeId) {
   </div>`;
 }
 
-async function toggleAdminMemberLogs(name, safeId) {
+async function toggleAdminMemberLogs(name, safeId, ref) {
   const contentEl = document.getElementById('ip-logs-content-'+safeId);
   const btnEl = document.getElementById('ip-logs-btn-'+safeId);
   if (!contentEl) return;
@@ -3323,8 +3361,9 @@ async function toggleAdminMemberLogs(name, safeId) {
   }
   contentEl.style.display = 'block';
   if (btnEl) btnEl.textContent = '▾ Hide Logged Sessions';
+  const programRows = (ref && window._ipAdminCache[ref]) || [];
   if (window._ipAdminLogs && window._ipAdminLogs[name]) {
-    contentEl.innerHTML = _renderAdminMemberLogs(window._ipAdminLogs[name]);
+    contentEl.innerHTML = _renderAdminMemberLogs(window._ipAdminLogs[name], programRows);
     return;
   }
   contentEl.innerHTML = '<div style="color:var(--muted);font-size:0.82rem;padding:0.4rem 0;">Loading sessions…</div>';
@@ -3332,36 +3371,134 @@ async function toggleAdminMemberLogs(name, safeId) {
     const data = await xhrPost(APPS_SCRIPT_URL, { action: 'cloudPull', memberName: name });
     if (!window._ipAdminLogs) window._ipAdminLogs = {};
     window._ipAdminLogs[name] = data;
-    contentEl.innerHTML = _renderAdminMemberLogs(data);
+    contentEl.innerHTML = _renderAdminMemberLogs(data, programRows);
   } catch(e) {
     contentEl.innerHTML = `<div style="color:var(--red);font-size:0.82rem;">Could not load sessions: ${e.message}</div>`;
   }
 }
 
-function _renderAdminMemberLogs(data) {
-  const wods = (data.wods || []).filter(w => !w.deleted).sort((a,b) => (b.date||'').localeCompare(a.date||''));
-  const strength = (data.strength || []).filter(s => !s.deleted).sort((a,b) => (b.date||'').localeCompare(a.date||''));
-  if (!wods.length && !strength.length) return '<div style="color:var(--muted);font-size:0.82rem;padding:0.4rem 0;">No logged sessions yet.</div>';
-  let html = '<div style="font-family:\'Barlow Condensed\';font-weight:700;font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;color:#60a5fa;margin-bottom:0.4rem;">Logged Sessions</div>';
-  const all = [
-    ...wods.map(w => ({ date: w.date, html: `<div style="padding:0.35rem 0;border-bottom:1px solid var(--border);font-size:0.8rem;">
-      <span style="color:var(--muted);font-size:0.72rem;">${formatDate(w.date)}</span>
-      <span class="tag ${w.type||'fortime'}" style="margin:0 0.4rem;font-size:0.65rem;">${(w.type||'wod').toUpperCase()}</span>
-      <strong>${w.name||'WOD'}</strong>
-      ${w.score ? `<span style="color:var(--muted);margin-left:0.4rem;">⏱ ${w.score} · ${(w.rx||'rx').toUpperCase()}</span>` : ''}
-      ${w.feeling ? `<span style="margin-left:0.4rem;">${['','😫','😕','😐','😊','🔥'][w.feeling]||''} ${w.feeling}/5</span>` : ''}
-      ${w.notes ? `<div style="color:var(--muted);font-size:0.75rem;margin-top:0.15rem;">💬 ${w.notes}</div>` : ''}
-    </div>` })),
-    ...strength.map(s => ({ date: s.date, html: `<div style="padding:0.35rem 0;border-bottom:1px solid var(--border);font-size:0.8rem;">
-      <span style="color:var(--muted);font-size:0.72rem;">${formatDate(s.date)}</span>
-      <span style="background:rgba(167,139,250,0.12);color:#a78bfa;border:1px solid rgba(167,139,250,0.3);border-radius:2px;padding:0.1rem 0.35rem;font-size:0.65rem;margin:0 0.4rem;">STRENGTH</span>
-      <strong>${s.exercise||'Strength'}</strong>
-      ${s.sets ? `<span style="color:var(--muted);margin-left:0.4rem;">${s.sets}×${s.reps} @ ${s.weight}${s.unit||'kg'}</span>` : ''}
-      ${s.feeling ? `<span style="margin-left:0.4rem;">${['','😫','😕','😐','😊','🔥'][s.feeling]||''} ${s.feeling}/5</span>` : ''}
-      ${s.notes ? `<div style="color:var(--muted);font-size:0.75rem;margin-top:0.15rem;">💬 ${s.notes}</div>` : ''}
-    </div>` }))
-  ].sort((a,b) => (b.date||'').localeCompare(a.date||''));
-  html += all.map(e => e.html).join('');
+function _fmtSessionLine(s, type) {
+  const feelEmoji = ['','😫','😕','😐','😊','🔥'];
+  if (type === 'wod') {
+    const typeLabels = { amrap:'AMRAP', fortime:'For Time', emom:'EMOM', roundsfortime:'Rounds for Time', other:'Other' };
+    const typeColors = { amrap:'var(--red)', fortime:'#fbbf24', emom:'#60a5fa', roundsfortime:'#c084fc', other:'#94a3b8' };
+    const tc = typeColors[s.type] || '#94a3b8';
+    return `<div style="padding:0.3rem 0;font-size:0.8rem;">
+      <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;">
+        <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.65rem;color:${tc};border:1px solid ${tc};border-radius:2px;padding:0.1rem 0.35rem;">${typeLabels[s.type]||'WOD'}</span>
+        <strong style="font-size:0.82rem;">${s.name||'WOD'}</strong>
+        ${s.score ? `<span style="color:#4ade80;font-weight:700;">⏱ ${s.score}</span><span style="color:var(--muted);font-size:0.72rem;">${(s.rx||'rx').toUpperCase()}</span>` : ''}
+        ${s.feeling ? `<span>${feelEmoji[s.feeling]||''}</span>` : ''}
+      </div>
+      ${s.desc ? `<div style="color:var(--muted);font-size:0.75rem;margin-top:0.1rem;white-space:pre-wrap;">${stripHtml(s.desc).substring(0,120)}${stripHtml(s.desc).length>120?'…':''}</div>` : ''}
+      ${s.notes ? `<div style="color:var(--muted);font-size:0.72rem;margin-top:0.1rem;">💬 ${s.notes}</div>` : ''}
+    </div>`;
+  }
+  if (type === 'strength') {
+    const topSet = (s.sets||[]).filter(x=>x.weight!=null).sort((a,b)=>b.weight-a.weight)[0];
+    const setsStr = (s.sets||[]).map((st,i)=>`${st.weight!=null?st.weight+'kg':'—'}×${st.reps||'?'}${st.rpe?` @${st.rpe}`:''}`).join('  ');
+    return `<div style="padding:0.3rem 0;font-size:0.8rem;">
+      <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;">
+        <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.65rem;color:#a78bfa;border:1px solid rgba(167,139,250,0.4);border-radius:2px;padding:0.1rem 0.35rem;">STR</span>
+        <strong style="font-size:0.82rem;">${s.exercise||'Strength'}</strong>
+        ${topSet ? `<span style="color:#4ade80;font-weight:700;">${topSet.weight}kg × ${topSet.reps||'?'}</span>` : ''}
+        ${s.feeling ? `<span>${feelEmoji[s.feeling]||''}</span>` : ''}
+      </div>
+      ${setsStr ? `<div style="color:var(--muted);font-size:0.72rem;margin-top:0.1rem;font-family:'Barlow Condensed';">${setsStr}</div>` : ''}
+      ${s.notes ? `<div style="color:var(--muted);font-size:0.72rem;margin-top:0.1rem;">💬 ${s.notes}</div>` : ''}
+    </div>`;
+  }
+  if (type === 'conditioning') {
+    const actLabels = { run:'🏃 Run', row:'🚣 Row', ski:'⛷️ Ski', airbike:'💨 Air Bike', bikeerg:'🚴 Bike Erg' };
+    const distStr = s.distance ? `${s.distance} km` : '';
+    const timeStr = s.durationSecs ? `${Math.floor(s.durationSecs/60)}:${String(s.durationSecs%60).padStart(2,'0')}` : '';
+    return `<div style="padding:0.3rem 0;font-size:0.8rem;">
+      <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;">
+        <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.65rem;color:#34d399;border:1px solid rgba(52,211,153,0.4);border-radius:2px;padding:0.1rem 0.35rem;">COND</span>
+        <strong style="font-size:0.82rem;">${actLabels[s.activity]||s.activity||'Conditioning'}</strong>
+        ${distStr ? `<span style="color:#4ade80;font-weight:700;">${distStr}</span>` : ''}
+        ${timeStr ? `<span style="color:var(--muted);">⏱ ${timeStr}</span>` : ''}
+        ${s.feeling ? `<span>${feelEmoji[s.feeling]||''}</span>` : ''}
+      </div>
+      ${s.notes ? `<div style="color:var(--muted);font-size:0.72rem;margin-top:0.1rem;">💬 ${s.notes}</div>` : ''}
+    </div>`;
+  }
+  return '';
+}
+
+function _renderAdminMemberLogs(data, programRows) {
+  const wods        = (data.wods        || []).filter(w => !w.deleted);
+  const strength    = (data.strength    || []).filter(s => !s.deleted);
+  const conditioning = (data.conditioning || []).filter(c => !c.deleted);
+  const allSessions = [
+    ...wods.map(s => ({ ...s, _type: 'wod' })),
+    ...strength.map(s => ({ ...s, _type: 'strength' })),
+    ...conditioning.map(s => ({ ...s, _type: 'conditioning' })),
+  ];
+
+  // Group sessions by ipWeek+ipDay (if tagged) or into 'unlinked'
+  const byDay = {}; // key: "W1|1"
+  const unlinked = [];
+  allSessions.forEach(s => {
+    if (s.ipWeek && s.ipDay) {
+      const k = s.ipWeek + '|' + s.ipDay;
+      if (!byDay[k]) byDay[k] = [];
+      byDay[k].push(s);
+    } else {
+      unlinked.push(s);
+    }
+  });
+
+  if (!allSessions.length) return '<div style="color:var(--muted);font-size:0.82rem;padding:0.4rem 0;">No logged sessions yet.</div>';
+
+  let html = '<div style="font-family:\'Barlow Condensed\';font-weight:700;font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;color:#60a5fa;margin-bottom:0.5rem;">Logged Sessions</div>';
+
+  if (programRows && programRows.length) {
+    // Show per program day
+    const days = [...new Set(programRows.map(r => r.week + '|' + r.day))]
+      .sort((a,b) => {
+        const [aw,ad] = a.split('|'), [bw,bd] = b.split('|');
+        const wi = (parseInt(aw.replace(/\D/g,''))||0) - (parseInt(bw.replace(/\D/g,''))||0);
+        return wi !== 0 ? wi : parseInt(ad) - parseInt(bd);
+      });
+
+    days.forEach(key => {
+      const [week, day] = key.split('|');
+      const sessions = byDay[key] || [];
+      const logged = sessions.length > 0;
+      const dotColor = logged ? '#4ade80' : 'var(--muted)';
+      const dotBg    = logged ? 'rgba(74,222,128,0.12)' : 'transparent';
+      const dotBorder = logged ? 'rgba(74,222,128,0.5)' : 'var(--border)';
+      const statusIcon = logged ? '✓' : '○';
+      const toggleId = 'alog-' + key.replace(/[^a-zA-Z0-9]/g,'-') + '-' + Math.random().toString(36).slice(2,6);
+      html += `<div style="border-bottom:1px solid var(--border);padding:0.3rem 0;">
+        <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.alog-arrow').textContent=this.nextElementSibling.style.display==='none'?'▸':'▾';"
+          style="width:100%;display:flex;align-items:center;gap:0.5rem;background:transparent;border:none;cursor:pointer;padding:0.1rem 0;text-align:left;">
+          <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;color:${dotColor};background:${dotBg};border:1px solid ${dotBorder};border-radius:3px;padding:0.15rem 0.45rem;min-width:1.6rem;text-align:center;">${statusIcon}</span>
+          <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.82rem;color:var(--text);">${week} Day ${day}</span>
+          ${logged ? `<span style="font-size:0.72rem;color:#4ade80;margin-left:auto;">${sessions.length} session${sessions.length>1?'s':''}</span>` : `<span style="font-size:0.72rem;color:var(--muted);margin-left:auto;">not logged</span>`}
+          <span class="alog-arrow" style="color:var(--muted);font-size:0.7rem;">${logged ? '▸' : ''}</span>
+        </button>
+        <div style="display:none;padding-left:0.5rem;border-left:2px solid ${logged?'rgba(74,222,128,0.4)':'var(--border)'};">
+          ${logged ? sessions.sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(s =>
+            `<div style="padding-top:0.15rem;">${_fmtSessionLine(s, s._type)}</div>`
+          ).join('') : '<div style="color:var(--muted);font-size:0.78rem;padding:0.3rem 0;">No sessions logged for this day.</div>'}
+        </div>
+      </div>`;
+    });
+  }
+
+  // Unlinked sessions (logged manually or before tagging was added)
+  if (unlinked.length) {
+    html += `<div style="margin-top:0.6rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:0.3rem;">Other Sessions</div>`;
+    unlinked.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).forEach(s => {
+      html += `<div style="border-bottom:1px solid var(--border);padding:0.15rem 0;">
+        <span style="color:var(--muted);font-size:0.7rem;">${formatDate(s.date)}</span>
+        ${_fmtSessionLine(s, s._type)}
+      </div>`;
+    });
+  }
+
   return html;
 }
 
@@ -3464,6 +3601,7 @@ function logFromProgram(type) {
     const week     = localStorage.getItem('lerums_wl_week_' + type) || Object.keys(wlData)[0] || 'W1';
     const day      = localStorage.getItem('lerums_wl_day_'  + type) || '1';
     const content  = (wlData[week] || {})['day' + day] || '';
+    const parts    = content ? parseStrengthParts(stripHtml(content)) : [];
     const title    = type === 'lbwl' ? 'LB Weightlifting' : '2-Day Weightlifting';
     document.getElementById('wodDate').value  = viewDate;
     document.getElementById('wodName').value  = `${title} ${week} Day ${day}`;
@@ -3471,10 +3609,31 @@ function logFromProgram(type) {
     document.getElementById('wodScore').value = '';
     document.getElementById('wodNotes').value = `${title} ${week} Day ${day}`;
     document.getElementById('wodType').value  = detectWodType(content);
-    window._pendingWLLog = { type, week, day: parseInt(day) };
+    window._pendingWLLog = { type, week, day: parseInt(day), partKey: parts.length ? parts[0].key : 'session', allParts: parts };
     openWodModalDisplay();
     onWodTypeChange(true);
   }
+}
+
+function logFromWLPart(type, week, day, partKey) {
+  const today    = new Date().toISOString().split('T')[0];
+  const wlData   = (state.lbwlProgram || {})[type] || {};
+  const content  = (wlData[week] || {})['day' + day] || '';
+  const allParts = content ? parseStrengthParts(stripHtml(content)) : [];
+  const part     = allParts.find(p => p.key === partKey) || allParts[0];
+  const partContent = part ? part.content : stripHtml(content);
+  const title    = type === 'lbwl' ? 'LB Weightlifting' : '2-Day Weightlifting';
+  const partLabel = part && part.label ? ` ${part.label}` : '';
+  resetWodBuilders();
+  document.getElementById('wodDate').value  = today;
+  document.getElementById('wodName').value  = `${title} ${week} Day ${day}${partLabel}`;
+  document.getElementById('wodDesc').value  = partContent;
+  document.getElementById('wodScore').value = '';
+  document.getElementById('wodNotes').value = '';
+  document.getElementById('wodType').value  = detectWodType(partContent);
+  window._pendingWLLog = { type, week, day: parseInt(day), partKey, allParts };
+  openWodModalDisplay();
+  onWodTypeChange(true);
 }
 
 // Event delegation for dynamically injected buttons (e.g. program banner log buttons)
@@ -3682,10 +3841,11 @@ function saveWod() {
   const share = document.getElementById('wodShare')?.checked;
   const _wlCtx = window._pendingWLLog || null;
   const _ipCtx = window._pendingIPLog || null;
+  if (_ipCtx) { wod.ipWeek = _ipCtx.week; wod.ipDay = _ipCtx.day; }
   state.wods.push(wod);
   save(); closeWodModal(); renderWodList(); renderDashboard();
   if (document.getElementById('log-wod-section')) switchLogTab('wod');
-  if (_wlCtx) _markWLDoneAndAdvance(_wlCtx.type, _wlCtx.week, _wlCtx.day);
+  if (_wlCtx) _markWLDoneAndAdvance(_wlCtx.type, _wlCtx.week, _wlCtx.day, _wlCtx.partKey, _wlCtx.allParts);
   if (_ipCtx) _markIPDoneAndAdvance(_ipCtx.week, _ipCtx.day, _ipCtx.partKey);
   showToast('WOD logged! 💪');
   cloudPush('wod', wod);
@@ -5100,6 +5260,7 @@ function saveStrengthSession() {
   };
   const share = document.getElementById('strShare')?.checked;
   const _ipCtxStr = window._pendingIPLog || null;
+  if (_ipCtxStr) { session.ipWeek = _ipCtxStr.week; session.ipDay = _ipCtxStr.day; }
   state.strength.push(session);
   save();
   closeStrengthModal();
@@ -5561,6 +5722,7 @@ function saveCondSession() {
   }
 
   const _ipCtxCond = window._pendingIPLog || null;
+  if (_ipCtxCond) { session.ipWeek = _ipCtxCond.week; session.ipDay = _ipCtxCond.day; }
   state.conditioning.push(session);
   save();
   closeCondModal();
