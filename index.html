@@ -4086,10 +4086,11 @@ const BUILDER_MOVEMENTS = [...MOVEMENTS, ...BUILDER_ONLY_MOVEMENTS, 'Rest'];
 // Return the custom movement object for a name (or null)
 function getCustomMovement(name) {
   if (!name) return null;
+  const needle = name.trim().toLowerCase();
   const list = state.customMovements || [];
   return list.find(m => {
-    const mn = typeof m === 'string' ? m : m.name;
-    return mn.toLowerCase() === name.toLowerCase();
+    const mn = (typeof m === 'string' ? m : m.name).trim();
+    return mn.toLowerCase() === needle;
   }) || null;
 }
 
@@ -4177,7 +4178,7 @@ function _wRowHtml(cid, rid, movType, opts, emomMode) {
       data-cid="${cid}" data-rid="${rid}"
       style="width:100%;padding:0.3rem 0.5rem;font-size:0.82rem;"
       oninput="filterWDd(${rid},'${listFlag}')" onfocus="filterWDd(${rid},'${listFlag}')"
-      onblur="setTimeout(()=>hideWDd(${rid}),150)">
+      onblur="setTimeout(()=>{hideWDd(${rid});_syncMovRow(${rid},'${listFlag}')},160)">
     <div id="wdd-${rid}" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:500;background:var(--card);border:1px solid var(--border);border-radius:4px;max-height:180px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>
   </div>`;
 
@@ -4255,13 +4256,15 @@ function filterWDd(rid, listFlag) {
   const dd = document.getElementById('wdd-' + rid);
   if (!input || !dd) return;
   const q = input.value.toLowerCase().trim();
-  const customNames = (state.customMovements || []).map(m => typeof m === 'string' ? m : m.name);
+  const customNames = (state.customMovements || []).map(m => (typeof m === 'string' ? m : m.name).trim()).filter(Boolean);
   const base = (listFlag === 'rest') ? MOVEMENTS_WITH_REST : BUILDER_MOVEMENTS;
-  const list = customNames.length ? [...base, ...customNames.filter(m => !base.includes(m))] : base;
+  // Custom movements first so they're always visible; built-ins after (excluding duplicates)
+  const builtinOnly = base.filter(m => !customNames.some(c => c.toLowerCase() === m.toLowerCase()));
+  const list = customNames.length ? [...customNames, ...builtinOnly] : base;
   const matches = q ? list.filter(m => m.toLowerCase().includes(q)) : list;
   if (!matches.length) { dd.style.display = 'none'; return; }
   dd.style.display = 'block';
-  dd.innerHTML = matches.slice(0, 60).map(m => `
+  dd.innerHTML = matches.slice(0, 80).map(m => `
     <div onmousedown="event.preventDefault();selectWMov(${rid},'${m.replace(/'/g,"\\'")}','${listFlag}');"
       style="padding:0.5rem 0.75rem;cursor:pointer;font-size:0.85rem;border-bottom:1px solid var(--border);"
       onmouseover="this.style.background='var(--card2)'"
@@ -4306,6 +4309,27 @@ function selectWMov(rid, name, listFlag) {
 function hideWDd(rid) {
   const dd = document.getElementById('wdd-' + rid);
   if (dd) dd.style.display = 'none';
+}
+
+// Auto-apply the correct row type when a movement name is typed manually (not selected from dropdown)
+function _syncMovRow(rid, listFlag) {
+  const input = document.getElementById('wmov-' + rid);
+  if (!input) return;
+  const name = input.value.trim();
+  if (!name) return;
+  // Find in custom movements or built-ins (case-insensitive)
+  const customNames = (state.customMovements || []).map(m => (typeof m === 'string' ? m : m.name).trim());
+  const allMov = [...customNames, ...BUILDER_MOVEMENTS];
+  const matched = allMov.find(m => m.toLowerCase() === name.toLowerCase());
+  if (!matched) return;
+  const newType = getMovType(matched);
+  if (newType === 'default') return; // no special fields needed
+  // Check if the current row already has the right structure
+  const hasCombined = !!document.getElementById('wamt2-' + rid);
+  const hasAmt = !!document.getElementById('wamt-' + rid);
+  if (newType === 'combined' && hasCombined) return; // already correct
+  if (newType !== 'combined' && hasAmt) return; // already has amount field, likely correct
+  selectWMov(rid, matched, listFlag);
 }
 
 // Thin wrappers so existing onclick attributes still work
@@ -6494,8 +6518,8 @@ async function fetchCustomMovements() {
     if (data.error && !data.movements) throw new Error(data.error);
     // Normalise to objects — handle both legacy strings and new {name,unit,defaultValue}
     const movements = (data.movements || [])
-      .map(m => typeof m === 'string' ? {name: m, unit: '', defaultValue: ''} : m)
-      .filter(m => m && m.name && m.name.trim());
+      .map(m => typeof m === 'string' ? {name: m.trim(), unit: '', defaultValue: ''} : {...m, name: (m.name||'').trim()})
+      .filter(m => m && m.name);
     state.customMovements = movements;
     save();
     renderCustomMovementsList();
