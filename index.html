@@ -2062,9 +2062,11 @@ function json(obj) {
     <div id="rftBuilder" style="display:none;margin-bottom:1rem;">
       <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.6rem;flex-wrap:wrap;">
         <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.78rem;letter-spacing:0.12em;text-transform:uppercase;color:#c084fc;">🔁 Rounds for Time</div>
-        <div style="display:flex;align-items:center;gap:0.4rem;margin-left:auto;">
+        <div style="display:flex;align-items:center;gap:0.4rem;margin-left:auto;flex-wrap:wrap;">
           <label style="font-size:0.75rem;color:var(--muted);margin:0;">Rounds</label>
           <input type="number" id="rftRounds" min="1" max="50" value="3" style="width:56px;padding:0.3rem 0.5rem;font-size:0.85rem;">
+          <label style="font-size:0.75rem;color:var(--muted);margin:0 0 0 0.5rem;">Rest (min)</label>
+          <input type="number" id="rftRest" min="0" max="30" value="0" step="0.5" style="width:56px;padding:0.3rem 0.5rem;font-size:0.85rem;" placeholder="0">
         </div>
       </div>
       <div id="rftRows"></div>
@@ -2760,6 +2762,7 @@ function wodCardHTML(w, showActions=false) {
   const rx   = w.rx   || 'rx';
   const id   = w.id;
   const scoreText = w.score ? `⏱ ${w.score} · ${rx.toUpperCase()}` : '';
+  const restText = w.restBetweenRounds ? `<span style="font-size:0.75rem;color:#c084fc;margin-left:0.4rem;">⏸ ${w.restBetweenRounds} min rest/rd</span>` : '';
   const notes = w.notes ? `<div style="font-size:0.8rem;color:#777;margin-top:0.3rem;">💬 ${w.notes}</div>` : '';
   const actions = `<div class="wod-actions">
     <button class="btn btn-ghost btn-sm btn-icon" title="Edit" onclick="event.stopPropagation();editWod('${id}')">✏️</button>
@@ -2780,7 +2783,7 @@ function wodCardHTML(w, showActions=false) {
         <span class="tag ${type}">${type.toUpperCase()}</span>
         ${w.score ? `<div class="wod-score">⏱ ${w.score} &nbsp;·&nbsp; ${rx.toUpperCase()}</div>` : ''}
       </div>
-      <div class="wod-name">${w.name || 'Unnamed WOD'}</div>
+      <div class="wod-name">${w.name || 'Unnamed WOD'}${restText}</div>
       <div class="wod-desc">${stripHtml(w.desc || '')}</div>
       ${w.partners?.length ? `<div style="font-size:0.78rem;color:var(--muted);margin-top:0.3rem;">🤝 with ${w.partners.join(', ')}</div>` : ''}
       ${notes}
@@ -2955,11 +2958,11 @@ function buildIndividualProgramCard(programRows, adminName) {
     let dayDone = false;
     if (!isAdminView && row) {
       const parts = parseStrengthParts(row.strength);
-      const wod = parseWodSection(row.wod);
+      const wodParts = parseWodParts(row.wod);
       const strAllDone = !parts.length || parts.every(p => done[curWeek+'-'+d+'-str-'+p.key]);
-      const wodDone = !wod || !!done[curWeek+'-'+d+'-wod'];
+      const wodAllDone = !wodParts.length || wodParts.every(p => done[curWeek+'-'+d+'-'+p.key]);
       const accDone = !row.accessory || !!done[curWeek+'-'+d+'-accessory'];
-      dayDone = strAllDone && wodDone && accDone && (parts.length > 0 || !!wod || !!row.accessory);
+      dayDone = strAllDone && wodAllDone && accDone && (parts.length > 0 || !!wodParts.length || !!row.accessory);
     }
     const label = dayDone ? `Day ${d} ✓` : `Day ${d}`;
     const color  = active ? '#a78bfa' : (dayDone ? '#4ade80' : 'var(--muted)');
@@ -2993,24 +2996,30 @@ function buildIndividualProgramCard(programRows, adminName) {
       });
       contentHtml += `</div>`;
     }
-    if (wodSection) {
+    const wodParts = parseWodParts(currentRow.wod);
+    if (wodParts.length > 0) {
       if (parts.length > 0) contentHtml += `<div style="border-top:1px solid var(--border);margin:0.75rem 0;"></div>`;
-      const wodDoneKey = curWeek+'-'+curDay+'-wod';
-      const wodDone = !!done[wodDoneKey];
-      const isWorkout = wodSection.type === 'workout';
+      const isWorkout = wodParts[0].type === 'workout';
       const sectionLabel = isWorkout ? '🏋️ Workout' : '🏃 Conditioning';
       const btnBg  = isWorkout ? 'var(--red)' : '#059669';
       const btnTxt = isWorkout ? '+ LOG WORKOUT' : '+ LOG CONDITIONING';
-      contentHtml += `<div><div class="program-section-label">${sectionLabel}</div>
-        <div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(wodSection.content)}</div>`;
-      if (!isAdminView) {
-        if (wodDone) {
-          contentHtml += `<div style="display:inline-flex;align-items:center;gap:0.35rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#4ade80;padding:0.3rem 0.65rem;border:1px solid rgba(74,222,128,0.4);border-radius:3px;">✓ LOGGED</div>
-            <button onclick="logFromIPProgram('wod')" style="margin-left:0.4rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG AGAIN</button>`;
-        } else {
-          contentHtml += `<button onclick="logFromIPProgram('wod')" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:${btnBg};color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">${btnTxt}</button>`;
+      contentHtml += `<div><div class="program-section-label">${sectionLabel}</div>`;
+      wodParts.forEach((wpart, wpi) => {
+        const partDoneKey = curWeek+'-'+curDay+'-'+wpart.key;
+        const partDone = !!done[partDoneKey];
+        contentHtml += `<div style="${wpi>0?'margin-top:0.6rem;padding-top:0.6rem;border-top:1px solid var(--border);':''}">`;
+        if (wpart.label) contentHtml += `<div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#ef4444;margin-bottom:0.2rem;">${wpart.label}</div>`;
+        contentHtml += `<div class="program-section-text" style="margin-bottom:0.35rem;">${enrichProgramText(wpart.content)}</div>`;
+        if (!isAdminView) {
+          if (partDone) {
+            contentHtml += `<div style="display:inline-flex;align-items:center;gap:0.35rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#4ade80;padding:0.3rem 0.65rem;border:1px solid rgba(74,222,128,0.4);border-radius:3px;">✓ LOGGED</div>
+              <button onclick="logFromIPProgram('${wpart.key}')" style="margin-left:0.4rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG AGAIN</button>`;
+          } else {
+            contentHtml += `<button onclick="logFromIPProgram('${wpart.key}')" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:${btnBg};color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">${btnTxt}</button>`;
+          }
         }
-      }
+        contentHtml += `</div>`;
+      });
       contentHtml += `</div>`;
     }
     if (currentRow.accessory) {
@@ -3102,14 +3111,20 @@ function logFromIPProgram(partKey) {
   const row  = rows.find(r => r.week === week && String(r.day) === String(day));
   if (!row) return;
   window._pendingIPLog = { week, day, partKey };
-  if (partKey === 'wod') {
+  if (partKey === 'wod' || partKey.startsWith('wod-')) {
     const wod = parseWodSection(row.wod);
     if (!wod) { window._pendingIPLog = null; return; }
+    let wodContent = wod.content;
+    if (partKey !== 'wod') {
+      const wparts = parseWodParts(row.wod);
+      const wpart = wparts.find(p => p.key === partKey);
+      if (wpart) wodContent = wpart.content;
+    }
     if (wod.type === 'conditioning') {
       openCondModal();
     } else {
       openWodModal();
-      const firstLine = (wod.content || '').split('\n')[0].trim();
+      const firstLine = (wodContent || '').split('\n')[0].trim();
       if (firstLine) { const el = document.getElementById('wodName'); if (el && !el.value) el.value = firstLine; }
     }
   } else if (partKey === 'accessory') {
@@ -3196,6 +3211,23 @@ function parseWodSection(text) {
   if (text.trim()) return { type: 'workout', content: text.trim() };
   return null;
 }
+function parseWodParts(text) {
+  if (!text) return [];
+  const wod = parseWodSection(text);
+  if (!wod) return [];
+  const content = wod.content;
+  if (/Part\s+[A-Z]/i.test(content)) {
+    const segments = content.split(/(?=Part\s+[A-Z][\s:])/i).filter(s => s.trim());
+    if (segments.length > 1) {
+      return segments.map(seg => {
+        const m = seg.trim().match(/^(Part\s+[A-Z])[:\s]*([\s\S]*)/i);
+        if (m) return { label: m[1].trim(), content: m[2].trim(), key: 'wod-'+m[1].trim().replace(/\s+/g,'').toUpperCase(), type: wod.type };
+        return { label: null, content: seg.trim(), key: 'wod-single', type: wod.type };
+      }).filter(p => p.content);
+    }
+  }
+  return [{ label: null, content: content, key: 'wod', type: wod.type }];
+}
 function _getIPDone() { try { return JSON.parse(localStorage.getItem('lerums_ip_done') || '{}'); } catch(e) { return {}; } }
 function _markIPDoneAndAdvance(week, day, partKey) {
   const done = _getIPDone();
@@ -3205,12 +3237,12 @@ function _markIPDoneAndAdvance(week, day, partKey) {
   const row = rows.find(r => r.week === week && String(r.day) === String(day));
   if (row) {
     const parts = parseStrengthParts(row.strength);
-    const wod = parseWodSection(row.wod);
+    const wodParts = parseWodParts(row.wod);
     const newDone = _getIPDone();
     const strAllDone = !parts.length || parts.every(p => newDone[week+'-'+day+'-str-'+p.key]);
-    const wodDone = !wod || !!newDone[week+'-'+day+'-wod'];
+    const wodAllDone = !wodParts.length || wodParts.every(p => newDone[week+'-'+day+'-'+p.key]);
     const accDone = !row.accessory || !!newDone[week+'-'+day+'-accessory'];
-    if (strAllDone && wodDone && accDone && (parts.length > 0 || !!wod || !!row.accessory)) {
+    if (strAllDone && wodAllDone && accDone && (parts.length > 0 || !!wodParts.length || !!row.accessory)) {
       const allEntries = [...new Set(rows.map(r => r.week+'|'+r.day))].sort((a,b) => {
         const [aw,ad] = a.split('|'), [bw,bd] = b.split('|');
         const wi = (parseInt(aw.replace(/\D/g,''))||0)-(parseInt(bw.replace(/\D/g,''))||0);
@@ -3255,16 +3287,82 @@ async function toggleIPAdminExpand(name, ref) {
   }
   contentEl.style.display = 'block';
   if (btnEl) btnEl.textContent = '▾ Hide';
-  if (window._ipAdminCache[ref]) { contentEl.innerHTML = buildIndividualProgramCard(window._ipAdminCache[ref], name); return; }
+  if (window._ipAdminCache[ref]) {
+    contentEl.innerHTML = buildIndividualProgramCard(window._ipAdminCache[ref], name) + _buildAdminLogsSection(name, safeId);
+    return;
+  }
   contentEl.innerHTML = '<div style="color:var(--muted);font-size:0.82rem;padding:0.5rem 0;">Loading…</div>';
   try {
     const data = await xhrPost(APPS_SCRIPT_URL, { action: 'getIndividualProgram', tab: ref });
     if (data.error) throw new Error(data.error);
     window._ipAdminCache[ref] = data.rows || [];
-    contentEl.innerHTML = buildIndividualProgramCard(window._ipAdminCache[ref], name);
+    contentEl.innerHTML = buildIndividualProgramCard(window._ipAdminCache[ref], name) + _buildAdminLogsSection(name, safeId);
   } catch(e) {
     contentEl.innerHTML = `<div style="color:var(--red);font-size:0.82rem;">${e.message}</div>`;
   }
+}
+
+function _buildAdminLogsSection(name, safeId) {
+  return `<div style="margin-top:0.5rem;">
+    <button onclick="toggleAdminMemberLogs('${name}','${safeId}')" id="ip-logs-btn-${safeId}"
+      style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:transparent;color:#60a5fa;border:1px solid rgba(96,165,250,0.4);border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;width:100%;">
+      ▸ Show Logged Sessions
+    </button>
+    <div id="ip-logs-content-${safeId}" style="display:none;margin-top:0.5rem;"></div>
+  </div>`;
+}
+
+async function toggleAdminMemberLogs(name, safeId) {
+  const contentEl = document.getElementById('ip-logs-content-'+safeId);
+  const btnEl = document.getElementById('ip-logs-btn-'+safeId);
+  if (!contentEl) return;
+  if (contentEl.style.display !== 'none') {
+    contentEl.style.display = 'none';
+    if (btnEl) btnEl.textContent = '▸ Show Logged Sessions';
+    return;
+  }
+  contentEl.style.display = 'block';
+  if (btnEl) btnEl.textContent = '▾ Hide Logged Sessions';
+  if (window._ipAdminLogs && window._ipAdminLogs[name]) {
+    contentEl.innerHTML = _renderAdminMemberLogs(window._ipAdminLogs[name]);
+    return;
+  }
+  contentEl.innerHTML = '<div style="color:var(--muted);font-size:0.82rem;padding:0.4rem 0;">Loading sessions…</div>';
+  try {
+    const data = await xhrPost(APPS_SCRIPT_URL, { action: 'cloudPull', memberName: name });
+    if (!window._ipAdminLogs) window._ipAdminLogs = {};
+    window._ipAdminLogs[name] = data;
+    contentEl.innerHTML = _renderAdminMemberLogs(data);
+  } catch(e) {
+    contentEl.innerHTML = `<div style="color:var(--red);font-size:0.82rem;">Could not load sessions: ${e.message}</div>`;
+  }
+}
+
+function _renderAdminMemberLogs(data) {
+  const wods = (data.wods || []).filter(w => !w.deleted).sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  const strength = (data.strength || []).filter(s => !s.deleted).sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  if (!wods.length && !strength.length) return '<div style="color:var(--muted);font-size:0.82rem;padding:0.4rem 0;">No logged sessions yet.</div>';
+  let html = '<div style="font-family:\'Barlow Condensed\';font-weight:700;font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;color:#60a5fa;margin-bottom:0.4rem;">Logged Sessions</div>';
+  const all = [
+    ...wods.map(w => ({ date: w.date, html: `<div style="padding:0.35rem 0;border-bottom:1px solid var(--border);font-size:0.8rem;">
+      <span style="color:var(--muted);font-size:0.72rem;">${formatDate(w.date)}</span>
+      <span class="tag ${w.type||'fortime'}" style="margin:0 0.4rem;font-size:0.65rem;">${(w.type||'wod').toUpperCase()}</span>
+      <strong>${w.name||'WOD'}</strong>
+      ${w.score ? `<span style="color:var(--muted);margin-left:0.4rem;">⏱ ${w.score} · ${(w.rx||'rx').toUpperCase()}</span>` : ''}
+      ${w.feeling ? `<span style="margin-left:0.4rem;">${['','😫','😕','😐','😊','🔥'][w.feeling]||''} ${w.feeling}/5</span>` : ''}
+      ${w.notes ? `<div style="color:var(--muted);font-size:0.75rem;margin-top:0.15rem;">💬 ${w.notes}</div>` : ''}
+    </div>` })),
+    ...strength.map(s => ({ date: s.date, html: `<div style="padding:0.35rem 0;border-bottom:1px solid var(--border);font-size:0.8rem;">
+      <span style="color:var(--muted);font-size:0.72rem;">${formatDate(s.date)}</span>
+      <span style="background:rgba(167,139,250,0.12);color:#a78bfa;border:1px solid rgba(167,139,250,0.3);border-radius:2px;padding:0.1rem 0.35rem;font-size:0.65rem;margin:0 0.4rem;">STRENGTH</span>
+      <strong>${s.exercise||'Strength'}</strong>
+      ${s.sets ? `<span style="color:var(--muted);margin-left:0.4rem;">${s.sets}×${s.reps} @ ${s.weight}${s.unit||'kg'}</span>` : ''}
+      ${s.feeling ? `<span style="margin-left:0.4rem;">${['','😫','😕','😐','😊','🔥'][s.feeling]||''} ${s.feeling}/5</span>` : ''}
+      ${s.notes ? `<div style="color:var(--muted);font-size:0.75rem;margin-top:0.15rem;">💬 ${s.notes}</div>` : ''}
+    </div>` }))
+  ].sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  html += all.map(e => e.html).join('');
+  return html;
 }
 
 // ===== WOD MODAL =====
@@ -3558,6 +3656,8 @@ function resetWodBuilders() {
     if (el) el.innerHTML = '';
   });
   emomRowCount = 0;
+  const rftRestEl = document.getElementById('rftRest');
+  if (rftRestEl) rftRestEl.value = '0';
 }
 
 function saveWod() {
@@ -3577,6 +3677,7 @@ function saveWod() {
     notes: document.getElementById('wodNotes').value.trim(),
     partners: selectedPartners.length ? [...selectedPartners] : undefined,
     feeling: _wodFeeling || undefined,
+    restBetweenRounds: (() => { const v = parseFloat(document.getElementById('rftRest')?.value); return (document.getElementById('wodType')?.value === 'roundsfortime' && v > 0) ? v : undefined; })(),
   };
   const share = document.getElementById('wodShare')?.checked;
   const _wlCtx = window._pendingWLLog || null;
@@ -7701,6 +7802,19 @@ async function fetchMembers() {
         }
       }
       fetchAnthropicKey(); // always refresh key for all users
+      // Admins: pre-fetch all member individual programs into cache so "▸ View" shows instantly
+      if (isAdmin()) {
+        const withProgs = data.members.filter(m => m.programRef);
+        withProgs.forEach((m, i) => {
+          setTimeout(async () => {
+            if (window._ipAdminCache[m.programRef]) return;
+            try {
+              const pd = await xhrPost(APPS_SCRIPT_URL, { action: 'getIndividualProgram', tab: m.programRef });
+              if (!pd.error) window._ipAdminCache[m.programRef] = pd.rows || [];
+            } catch(e) {}
+          }, i * 600);
+        });
+      }
     }
   } catch(e) { /* silent */ }
 }
