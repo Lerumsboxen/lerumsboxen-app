@@ -4094,17 +4094,25 @@ function getCustomMovement(name) {
 }
 
 // Derive movement type from a unit string
-// Supports combined "kg+cm" / "kg+m" for movements needing both weight and a second dimension
+// Unit column conventions:
+//   kg        → reps + weight
+//   cm        → reps + height
+//   m         → distance only (no reps) — runs, rows
+//   reps+m    → reps + distance (rope climbs, wall walks by reps+height)
+//   kg+cm     → reps + weight + height (box step-ups)
+//   kg+m      → weight + distance, NO reps (carries)
 function unitToMovType(unit) {
   if (!unit) return null;
   const u = unit.toLowerCase();
   const hasWeight   = /kg|lbs/.test(u);
   const hasHeight   = /cm|inch/.test(u);
-  const hasDistance = /\bm\b|km/.test(u); // standalone m or km (e.g. kg+m, kg+km)
+  const hasDistance = /\bm\b|km/.test(u);
+  const hasReps     = /\breps\b/.test(u);
   if (hasWeight && (hasHeight || hasDistance)) return 'combined';
+  if (hasReps && hasDistance) return 'repdist'; // reps + distance, no weight
   if (hasHeight) return 'height';
   if (hasWeight) return 'weighted';
-  if (/^(m|km|cal|min)$/.test(u)) return 'cardio';
+  if (/^(m|km|cal|min)$/.test(u) || hasDistance) return 'cardio';
   return null;
 }
 
@@ -4210,18 +4218,44 @@ function _wRowHtml(cid, rid, movType, opts, emomMode) {
     const wOpts = ['kg','lbs'].map(u => `<option value="${u}"${u===(o.weightUnit||defWU)?' selected':''}>${u}</option>`).join('');
     const hOpts = (isDistUnit ? ['m','km'] : ['cm','inch']).map(u => `<option value="${u}"${u===(o.heightUnit||defHU)?' selected':''}>${u}</option>`).join('');
     const h2Label = isDistUnit ? 'Dist.' : 'Height';
+    const valRow = `<div style="display:grid;grid-template-columns:1fr 42px 1fr 48px;${gap}align-items:center;">
+        <input type="number" id="wamt-${rid}" value="${esc(o.weight||'')}" placeholder="Weight" min="0" step="0.5" style="${iS}">
+        <select id="wunit-${rid}" style="${sS}">${wOpts}</select>
+        <input type="number" id="wamt2-${rid}" value="${esc(o.height||'')}" placeholder="${h2Label}" min="0" style="${iS}">
+        <select id="wunit2-${rid}" style="${sS}">${hOpts}</select>
+      </div>`;
+    if (isDistUnit) {
+      // kg+m: carries — no reps, just movement on top line then weight + dist
+      return `<div style="margin-bottom:0.5rem;background:var(--black);border:1px solid var(--border);border-radius:3px;padding:0.35rem 0.4rem;">
+        <div style="display:grid;grid-template-columns:1fr auto;${gap}align-items:center;margin-bottom:0.35rem;">
+          ${movPicker}${rmBtn}
+        </div>
+        ${valRow}
+      </div>`;
+    }
+    // kg+cm: reps + movement on top, weight + height below
     return `<div style="margin-bottom:0.5rem;background:var(--black);border:1px solid var(--border);border-radius:3px;padding:0.35rem 0.4rem;">
       <div style="display:grid;grid-template-columns:46px 1fr auto;${gap}align-items:center;margin-bottom:0.35rem;">
         <input type="number" id="wreps-${rid}" value="${esc(o.reps||'')}" placeholder="Reps" min="0" style="${iS}">
         ${movPicker}
         ${rmBtn}
       </div>
-      <div style="display:grid;grid-template-columns:1fr 42px 1fr 48px;${gap}align-items:center;">
-        <input type="number" id="wamt-${rid}" value="${esc(o.weight||'')}" placeholder="Weight" min="0" step="0.5" style="${iS}">
-        <select id="wunit-${rid}" style="${sS}">${wOpts}</select>
-        <input type="number" id="wamt2-${rid}" value="${esc(o.height||'')}" placeholder="${h2Label}" min="0" style="${iS}">
-        <select id="wunit2-${rid}" style="${sS}">${hOpts}</select>
-      </div>
+      ${valRow}
+    </div>`;
+
+  } else if (movType === 'repdist') {
+    // Reps | Movement | Distance | Unit(m/km) — e.g. Legless Rope Climb
+    const customMov = getCustomMovement(o.movement || '');
+    const unitParts = (customMov?.unit || 'reps+m').toLowerCase().split(/[+&,\s]+/);
+    const defDU = unitParts.find(p => ['m','km'].includes(p)) || 'm';
+    const curDU = ['m','km'].includes(o.unit) ? o.unit : defDU;
+    const dOpts = ['m','km'].map(u => `<option value="${u}"${u===curDU?' selected':''}>${u}</option>`).join('');
+    return `<div style="display:grid;grid-template-columns:46px 1fr 62px 44px auto;${gap}margin-bottom:0.4rem;align-items:center;">
+      <input type="number" id="wreps-${rid}" value="${esc(o.reps||'')}" placeholder="Reps" min="0" style="${iS}">
+      ${movPicker}
+      <input type="number" id="wamt-${rid}" value="${esc(o.weight||'')}" placeholder="Dist." min="0" style="${iS}">
+      <select id="wunit-${rid}" style="${sS}">${dOpts}</select>
+      ${rmBtn}
     </div>`;
 
   } else if (movType === 'weighted' || movType === 'height') {
@@ -4450,6 +4484,10 @@ function _parseWorkoutLines(text) {
         heightUnit: unitW(distPair, 'cm'),
         movement:   known,
       });
+    } else if (movType === 'repdist') {
+      // reps = number of sets/climbs, weight = distance value
+      const p = cardioPair || heightPair;
+      parsed.push({ reps, weight: p ? pickW(p) : '', unit: p?.unit || 'm', movement: known });
     } else if (movType === 'cardio') {
       const p = cardioPair || weightPair || heightPair;
       parsed.push({ reps: p ? pickW(p) : reps, unit: p?.unit || 'm', movement: known });
