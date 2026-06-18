@@ -1871,7 +1871,7 @@ function json(obj) {
         </p>
         <div class="form-group" style="margin-bottom:0.75rem;">
           <label>Sheet Tab Name</label>
-          <input type="text" id="sheetCustomMovements" value="Movements" placeholder="e.g. Movements"
+          <input type="text" id="sheetCustomMovements" value="CustomMovements" placeholder="e.g. CustomMovements"
             oninput="localStorage.setItem('lerums_sheet_custom_movements', this.value.trim())">
         </div>
         <button class="btn btn-sm" style="background:#60a5fa;color:#000;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:2px;cursor:pointer;" onclick="fetchCustomMovements()">⬇ SYNC MOVEMENTS</button>
@@ -5099,7 +5099,7 @@ function updateSyncSummary() {
   if (lbwlStatus && lastLBWL) { lbwlStatus.textContent = '✓ Last synced: ' + lastLBWL; lbwlStatus.style.color = 'var(--success)'; }
   // Restore custom movements sheet tab name
   const cmTab = document.getElementById('sheetCustomMovements');
-  if (cmTab) cmTab.value = localStorage.getItem('lerums_sheet_custom_movements') || 'Movements';
+  if (cmTab) cmTab.value = localStorage.getItem('lerums_sheet_custom_movements') || 'CustomMovements';
   // Restore Anthropic API key
   const akEl = document.getElementById('anthropicApiKey');
   if (akEl) {
@@ -6510,7 +6510,7 @@ async function fetchCustomMovements() {
   const scriptUrl = APPS_SCRIPT_URL;
   if (!scriptUrl) { showToast('Set your Web App URL first'); return; }
   const sheetName = document.getElementById('sheetCustomMovements')?.value.trim()
-    || localStorage.getItem('lerums_sheet_custom_movements') || 'Movements';
+    || localStorage.getItem('lerums_sheet_custom_movements') || 'CustomMovements';
   const statusEl = document.getElementById('syncStatus-customMovements');
   if (statusEl) { statusEl.textContent = 'Syncing…'; statusEl.style.color = 'var(--muted)'; }
   try {
