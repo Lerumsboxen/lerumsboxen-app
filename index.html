@@ -1762,14 +1762,13 @@
   }
 
   if (action === "getCustomMovements") {
-    var sheetName = e.parameter.sheet || "Movements";
-    var sheet = ss.getSheetByName(sheetName);
-    if (!sheet) return json({movements: [], error: "Sheet '" + sheetName + "' not found"});
-    var lastRow = sheet.getLastRow();
+    var cmSheet = ss.getSheetByName(data.sheet || "CustomMovements");
+    if (!cmSheet) return json({movements: [], error: "Sheet '" + (data.sheet || "CustomMovements") + "' not found"});
+    var lastRow = cmSheet.getLastRow();
     if (lastRow < 2) return json({movements: []});
-    var numCols = Math.max(sheet.getLastColumn(), 3);
+    var numCols = Math.max(cmSheet.getLastColumn(), 3);
     // Row 1 is the header (Movement | Unit | Default Value) — start from row 2
-    var vals = sheet.getRange(2, 1, lastRow - 1, numCols).getValues();
+    var vals = cmSheet.getRange(2, 1, lastRow - 1, numCols).getValues();
     var movements = [];
     vals.forEach(function(r) {
       var name = (r[0]||"").toString().trim();
