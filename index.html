@@ -2323,7 +2323,14 @@ const DASH_SECTIONS = {
     }
   },
   programming: {
-    render: () => {},
+    render: () => {
+      // If we have a program ref but no data loaded yet, re-fetch silently.
+      // Guards against the card being empty after navigation.
+      if (!(state.individualProgram||[]).length && localStorage.getItem('lerums_ip_ref') && !window._ipFetching) {
+        window._ipFetching = true;
+        fetchIndividualProgram(true).then(() => { window._ipFetching = false; }).catch(() => { window._ipFetching = false; });
+      }
+    },
     build: () => {
       const today = new Date().toISOString().split('T')[0];
       if (!window.programViewDate) window.programViewDate = today;
@@ -2900,13 +2907,13 @@ function buildWLProgramCard(type) {
 
   const doneSessions = _getWLDone(type);
   const plainContent = content ? stripHtml(content) : '';
-  const wlParts = content ? parseStrengthParts(plainContent) : [];
+  const wlParts = content ? parseWLSessionParts(plainContent) : [];
   const allPartsDone = _isWLDayAllDone(type, curWeek, curDay, wlParts);
 
   const dayBtns = Array.from({length: numDays}, (_, i) => i + 1).map(d => {
     const active    = d === curDay;
     const dayContent = (typeData[curWeek] || {})['day' + d] || '';
-    const dParts    = dayContent ? parseStrengthParts(stripHtml(dayContent)) : [];
+    const dParts    = dayContent ? parseWLSessionParts(stripHtml(dayContent)) : [];
     const dayDone   = _isWLDayAllDone(type, curWeek, d, dParts);
     const label     = dayDone ? `Day ${d} ✓` : `Day ${d}`;
     const color     = active ? '#fb923c' : (dayDone ? '#4ade80' : 'var(--muted)');
@@ -3239,6 +3246,42 @@ function parseStrengthParts(text) {
     }
   }
   return [{ label: null, content: t, key: 'single' }];
+}
+// Parses WL program content that uses single-letter headers: "A.", "A:", "A)" at line starts
+// Falls back to parseStrengthParts for "Part A:" format
+function parseWLSessionParts(text) {
+  if (!text) return [];
+  const t = text.trim();
+  // Try "Part A:" format first
+  if (/Part\s+[A-Z]/i.test(t)) {
+    const parts = parseStrengthParts(t);
+    if (parts.length > 1) return parts;
+  }
+  // Try single-letter headers: A. / A: / A) at start of line
+  if (/(?:^|\n)[A-Z][.:)]\s/m.test(t)) {
+    const lines = t.split('\n');
+    const sections = [];
+    let curLabel = null, curLines = [];
+    for (const line of lines) {
+      const m = line.match(/^([A-Z])[.:)]\s*(.*)/);
+      if (m) {
+        if (curLabel) sections.push({ label: curLabel, lines: curLines });
+        curLabel = 'Part ' + m[1];
+        curLines = m[2] ? [m[2]] : [];
+      } else {
+        curLines.push(line);
+      }
+    }
+    if (curLabel) sections.push({ label: curLabel, lines: curLines });
+    if (sections.length > 1) {
+      return sections.map(s => ({
+        label: s.label,
+        content: s.lines.join('\n').trim(),
+        key: s.label.replace(/\s+/g, '').toUpperCase()
+      }));
+    }
+  }
+  return parseStrengthParts(t);
 }
 function parseWodSection(text) {
   if (!text) return null;
@@ -3619,7 +3662,7 @@ function logFromWLPart(type, week, day, partKey) {
   const today    = new Date().toISOString().split('T')[0];
   const wlData   = (state.lbwlProgram || {})[type] || {};
   const content  = (wlData[week] || {})['day' + day] || '';
-  const allParts = content ? parseStrengthParts(stripHtml(content)) : [];
+  const allParts = content ? parseWLSessionParts(stripHtml(content)) : [];
   const part     = allParts.find(p => p.key === partKey) || allParts[0];
   const partContent = part ? part.content : stripHtml(content);
   const title    = type === 'lbwl' ? 'LB Weightlifting' : '2-Day Weightlifting';
@@ -4051,14 +4094,14 @@ function getCustomMovement(name) {
 }
 
 // Derive movement type from a unit string
-// Supports combined "kg+cm" or "cm+kg" for movements needing both weight and height
+// Supports combined "kg+cm" / "kg+m" for movements needing both weight and a second dimension
 function unitToMovType(unit) {
   if (!unit) return null;
   const u = unit.toLowerCase();
-  // Combined: contains both a weight and a height unit
-  const hasWeight = /kg|lbs/.test(u);
-  const hasHeight = /cm|inch/.test(u);
-  if (hasWeight && hasHeight) return 'combined';
+  const hasWeight   = /kg|lbs/.test(u);
+  const hasHeight   = /cm|inch/.test(u);
+  const hasDistance = /\bm\b|km/.test(u); // standalone m or km (e.g. kg+m, kg+km)
+  if (hasWeight && (hasHeight || hasDistance)) return 'combined';
   if (hasHeight) return 'height';
   if (hasWeight) return 'weighted';
   if (/^(m|km|cal|min)$/.test(u)) return 'cardio';
@@ -4161,9 +4204,12 @@ function _wRowHtml(cid, rid, movType, opts, emomMode) {
     const customMov = getCustomMovement(o.movement || '');
     const unitParts = (customMov?.unit || 'kg+cm').toLowerCase().split(/[+&, ]+/);
     const defWU = unitParts.find(p => ['kg','lbs'].includes(p)) || 'kg';
-    const defHU = unitParts.find(p => ['cm','inch'].includes(p)) || 'cm';
+    // Second unit can be height (cm/inch) or distance (m/km)
+    const defHU = unitParts.find(p => ['cm','inch','m','km'].includes(p)) || 'cm';
+    const isDistUnit = ['m','km'].includes(defHU);
     const wOpts = ['kg','lbs'].map(u => `<option value="${u}"${u===(o.weightUnit||defWU)?' selected':''}>${u}</option>`).join('');
-    const hOpts = ['cm','inch'].map(u => `<option value="${u}"${u===(o.heightUnit||defHU)?' selected':''}>${u}</option>`).join('');
+    const hOpts = (isDistUnit ? ['m','km'] : ['cm','inch']).map(u => `<option value="${u}"${u===(o.heightUnit||defHU)?' selected':''}>${u}</option>`).join('');
+    const h2Label = isDistUnit ? 'Dist.' : 'Height';
     return `<div style="margin-bottom:0.5rem;background:var(--black);border:1px solid var(--border);border-radius:3px;padding:0.35rem 0.4rem;">
       <div style="display:grid;grid-template-columns:46px 1fr auto;${gap}align-items:center;margin-bottom:0.35rem;">
         <input type="number" id="wreps-${rid}" value="${esc(o.reps||'')}" placeholder="Reps" min="0" style="${iS}">
@@ -4173,7 +4219,7 @@ function _wRowHtml(cid, rid, movType, opts, emomMode) {
       <div style="display:grid;grid-template-columns:1fr 42px 1fr 48px;${gap}align-items:center;">
         <input type="number" id="wamt-${rid}" value="${esc(o.weight||'')}" placeholder="Weight" min="0" step="0.5" style="${iS}">
         <select id="wunit-${rid}" style="${sS}">${wOpts}</select>
-        <input type="number" id="wamt2-${rid}" value="${esc(o.height||'')}" placeholder="Height" min="0" style="${iS}">
+        <input type="number" id="wamt2-${rid}" value="${esc(o.height||'')}" placeholder="${h2Label}" min="0" style="${iS}">
         <select id="wunit2-${rid}" style="${sS}">${hOpts}</select>
       </div>
     </div>`;
@@ -4358,9 +4404,11 @@ function _parseWorkoutLines(text) {
     const heightPair = valuePairs.find(p => ['cm','inch'].includes(p.unit));
     const cardioPair = valuePairs.find(p => ['m','km','cal','min'].includes(p.unit));
 
-    // Auto-promote to combined if BOTH a weight value AND a height value are present in the line,
-    // regardless of whether the movement is in the custom list
+    // Auto-promote to combined if BOTH a weight value AND a height/distance value are present,
+    // or if the custom movement is defined as a combined unit (e.g. kg+m, kg+cm)
     const isCombined = movType === 'combined' || (weightPair && heightPair);
+    // For kg+m movements: use cardioPair (distance) as the second dimension when no heightPair
+    const distPair = heightPair || (isCombined && cardioPair ? cardioPair : null);
 
     // Helper: pick gendered value and auto-convert lbs → kg
     const pickW = (pair) => {
@@ -4375,8 +4423,8 @@ function _parseWorkoutLines(text) {
         reps,
         weight:     pickW(weightPair),
         weightUnit: unitW(weightPair, 'kg'),
-        height:     pickW(heightPair),
-        heightUnit: unitW(heightPair, 'cm'),
+        height:     pickW(distPair),
+        heightUnit: unitW(distPair, 'cm'),
         movement:   known,
       });
     } else if (movType === 'cardio') {
@@ -6420,9 +6468,14 @@ async function fetchIndividualProgram(silent = false) {
   try {
     const data = await xhrPost(APPS_SCRIPT_URL, { action: 'getIndividualProgram', tab: ref });
     if (data.error) throw new Error(data.error);
-    state.individualProgram = data.rows || [];
-    save();
-    if (!silent) showToast('Individual program synced! 📋');
+    const rows = data.rows || [];
+    // On silent (startup) fetch: only update if server returned actual data.
+    // Prevents a transient empty response from wiping a previously-synced program.
+    if (rows.length > 0 || !silent) {
+      state.individualProgram = rows;
+      save();
+    }
+    if (!silent) showToast(rows.length ? 'Individual program synced! 📋' : 'Individual program: no data returned');
     if (currentDashSection === 'programming') selectDashSection('programming');
   } catch(e) {
     if (!silent) showToast('Individual program sync failed: ' + e.message);
