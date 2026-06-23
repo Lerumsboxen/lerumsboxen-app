@@ -2051,9 +2051,28 @@ function json(obj) {
       </div>
     </div>
 
+    <!-- AMRAP BUILDER -->
+    <div id="amrapBuilder" style="display:none;margin-bottom:1rem;">
+      <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.6rem;flex-wrap:wrap;">
+        <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.78rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--red);">🔁 AMRAP</div>
+        <div style="display:flex;align-items:center;gap:0.4rem;margin-left:auto;">
+          <label style="font-size:0.75rem;color:var(--muted);margin:0;">Duration (min)</label>
+          <input type="number" id="amrapMinutes" min="1" max="60" value="20" style="width:56px;padding:0.3rem 0.5rem;font-size:0.85rem;" placeholder="20">
+        </div>
+      </div>
+      <div id="amrapRows"></div>
+      <button class="btn btn-ghost btn-sm" onclick="addAmrapRow()" style="margin-top:0.4rem;width:100%;">+ ADD MOVEMENT</button>
+    </div>
+
     <!-- FOR TIME BUILDER -->
     <div id="fortimeBuilder" style="display:none;margin-bottom:1rem;">
-      <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.78rem;letter-spacing:0.12em;text-transform:uppercase;color:#fbbf24;margin-bottom:0.6rem;">⏱ For Time — movements</div>
+      <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.6rem;flex-wrap:wrap;">
+        <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.78rem;letter-spacing:0.12em;text-transform:uppercase;color:#fbbf24;">⏱ For Time</div>
+        <div style="display:flex;align-items:center;gap:0.4rem;margin-left:auto;">
+          <label style="font-size:0.75rem;color:var(--muted);margin:0;">Rest between parts (min)</label>
+          <input type="number" id="fortimeRest" min="0" max="30" value="0" step="0.5" style="width:56px;padding:0.3rem 0.5rem;font-size:0.85rem;" placeholder="0">
+        </div>
+      </div>
       <div id="fortimeRows"></div>
       <button class="btn btn-ghost btn-sm" onclick="addFortimeRow()" style="margin-top:0.4rem;width:100%;">+ ADD MOVEMENT</button>
     </div>
@@ -2769,7 +2788,8 @@ function wodCardHTML(w, showActions=false) {
   const rx   = w.rx   || 'rx';
   const id   = w.id;
   const scoreText = w.score ? `⏱ ${w.score} · ${rx.toUpperCase()}` : '';
-  const restText = w.restBetweenRounds ? `<span style="font-size:0.75rem;color:#c084fc;margin-left:0.4rem;">⏸ ${w.restBetweenRounds} min rest/rd</span>` : '';
+  const restText = w.restBetweenRounds ? `<span style="font-size:0.75rem;color:#c084fc;margin-left:0.4rem;">⏸ ${w.restBetweenRounds} min rest/rd</span>`
+    : w.restBetweenParts ? `<span style="font-size:0.75rem;color:#fbbf24;margin-left:0.4rem;">⏸ ${w.restBetweenParts} min rest/part</span>` : '';
   const notes = w.notes ? `<div style="font-size:0.8rem;color:#777;margin-top:0.3rem;">💬 ${w.notes}</div>` : '';
   const actions = `<div class="wod-actions">
     <button class="btn btn-ghost btn-sm btn-icon" title="Edit" onclick="event.stopPropagation();editWod('${id}')">✏️</button>
@@ -3848,17 +3868,19 @@ function openWodModal() {
 }
 
 function resetWodBuilders() {
-  ['emomBuilder','fortimeBuilder','rftBuilder'].forEach(id => {
+  ['emomBuilder','amrapBuilder','fortimeBuilder','rftBuilder'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
-  ['emomRows','fortimeRows','rftRows'].forEach(id => {
+  ['emomRows','amrapRows','fortimeRows','rftRows'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = '';
   });
   emomRowCount = 0;
   const rftRestEl = document.getElementById('rftRest');
   if (rftRestEl) rftRestEl.value = '0';
+  const ftRestEl = document.getElementById('fortimeRest');
+  if (ftRestEl) ftRestEl.value = '0';
 }
 
 function saveWod() {
@@ -3879,6 +3901,7 @@ function saveWod() {
     partners: selectedPartners.length ? [...selectedPartners] : undefined,
     feeling: _wodFeeling || undefined,
     restBetweenRounds: (() => { const v = parseFloat(document.getElementById('rftRest')?.value); return (document.getElementById('wodType')?.value === 'roundsfortime' && v > 0) ? v : undefined; })(),
+    restBetweenParts:  (() => { const v = parseFloat(document.getElementById('fortimeRest')?.value); return (document.getElementById('wodType')?.value === 'fortime' && v > 0) ? v : undefined; })(),
   };
   const share = document.getElementById('wodShare')?.checked;
   const _wlCtx = window._pendingWLLog || null;
@@ -4048,6 +4071,7 @@ function detectWodType(text) {
 function onWodTypeChange(fromProgram) {
   const type = document.getElementById('wodType')?.value;
   document.getElementById('emomBuilder').style.display = (type === 'emom') ? 'block' : 'none';
+  document.getElementById('amrapBuilder').style.display = (type === 'amrap') ? 'block' : 'none';
   document.getElementById('fortimeBuilder').style.display = (type === 'fortime') ? 'block' : 'none';
   document.getElementById('rftBuilder').style.display = (type === 'roundsfortime') ? 'block' : 'none';
   if (type === 'emom' && fromProgram) {
@@ -4055,6 +4079,11 @@ function onWodTypeChange(fromProgram) {
   } else if (type === 'emom' && document.getElementById('emomRows').children.length === 0) {
     addEmomRow(1); addEmomRow(1); addEmomRow(1); addEmomRow(1);
     recalcEmomRounds();
+  }
+  if (type === 'amrap' && fromProgram) {
+    parseAmrapFromDesc();
+  } else if (type === 'amrap' && document.getElementById('amrapRows').children.length === 0) {
+    addAmrapRow(); addAmrapRow(); addAmrapRow();
   }
   if (type === 'fortime' && fromProgram) {
     parseFortimeFromDesc();
@@ -4366,6 +4395,7 @@ function _syncMovRow(rid, listFlag) {
 }
 
 // Thin wrappers so existing onclick attributes still work
+function addAmrapRow(reps, unit, movement)   { addWRow('amrapRows',   {reps, unit, movement}); }
 function addFortimeRow(reps, unit, movement) { addWRow('fortimeRows', {reps, unit, movement}); }
 function addRftRow(reps, unit, movement)     { addWRow('rftRows',     {reps, unit, movement}); }
 
@@ -4545,6 +4575,16 @@ function parseEmomFromDesc() {
     addEmomRow(1); addEmomRow(1); addEmomRow(1); addEmomRow(1);
     recalcEmomRounds();
   }
+}
+
+function parseAmrapFromDesc() {
+  const text = document.getElementById('wodDesc')?.value || '';
+  const minsMatch = text.match(/(\d+)\s*min/i);
+  if (minsMatch) { const el = document.getElementById('amrapMinutes'); if (el) el.value = minsMatch[1]; }
+  const parsed = _parseWorkoutLines(text);
+  document.getElementById('amrapRows').innerHTML = '';
+  if (parsed.length > 0) parsed.forEach(p => addWRow('amrapRows', p));
+  else { addWRow('amrapRows', {}); addWRow('amrapRows', {}); addWRow('amrapRows', {}); }
 }
 
 function parseFortimeFromDesc() {
@@ -6543,31 +6583,39 @@ async function fetchIndividualProgram(silent = false) {
   }
 }
 
-async function fetchCustomMovements() {
+async function fetchCustomMovements(silent = false) {
   const scriptUrl = APPS_SCRIPT_URL;
-  if (!scriptUrl) { showToast('Set your Web App URL first'); return; }
-  const sheetName = document.getElementById('sheetCustomMovements')?.value.trim()
-    || localStorage.getItem('lerums_sheet_custom_movements') || 'CustomMovements';
-  const statusEl = document.getElementById('syncStatus-customMovements');
+  if (!scriptUrl) { if (!silent) showToast('Set your Web App URL first'); return; }
+  // Read tab name from localStorage (authoritative) or default; DOM input only exists on settings page
+  const sheetName = localStorage.getItem('lerums_sheet_custom_movements') || 'CustomMovements';
+  const statusEl = silent ? null : document.getElementById('syncStatus-customMovements');
   if (statusEl) { statusEl.textContent = 'Syncing…'; statusEl.style.color = 'var(--muted)'; }
   try {
-    const data = await xhrPost(scriptUrl, { action: 'getCustomMovements', sheet: sheetName });
+    // Append sheet as URL param so old deployed Apps Scripts (using e.parameter.sheet) also work
+    const data = await xhrPost(scriptUrl + '?sheet=' + encodeURIComponent(sheetName), { action: 'getCustomMovements', sheet: sheetName });
     if (data.error && !data.movements) throw new Error(data.error);
     // Normalise to objects — handle both legacy strings and new {name,unit,defaultValue}
     const movements = (data.movements || [])
       .map(m => typeof m === 'string' ? {name: m.trim(), unit: '', defaultValue: ''} : {...m, name: (m.name||'').trim()})
       .filter(m => m && m.name);
-    state.customMovements = movements;
-    save();
+    // On silent fetch: only overwrite if server returned data (don't wipe existing on transient empty)
+    if (movements.length > 0 || !silent) {
+      state.customMovements = movements;
+      save();
+    }
     renderCustomMovementsList();
-    const msg = movements.length
-      ? `✓ ${movements.length} custom movement${movements.length !== 1 ? 's' : ''} loaded`
-      : `✓ Synced — sheet "${sheetName}" is empty`;
-    if (statusEl) { statusEl.textContent = msg; statusEl.style.color = 'var(--success)'; }
-    showToast(`Custom movements synced! (${movements.length})`);
+    if (!silent) {
+      const msg = movements.length
+        ? `✓ ${movements.length} custom movement${movements.length !== 1 ? 's' : ''} loaded`
+        : `✓ Synced — sheet "${sheetName}" is empty`;
+      if (statusEl) { statusEl.textContent = msg; statusEl.style.color = 'var(--success)'; }
+      showToast(`Custom movements synced! (${movements.length})`);
+    }
   } catch(e) {
-    if (statusEl) { statusEl.textContent = '✗ ' + e.message; statusEl.style.color = 'var(--red)'; }
-    showToast('Sync failed: ' + e.message);
+    if (!silent) {
+      if (statusEl) { statusEl.textContent = '✗ ' + e.message; statusEl.style.color = 'var(--red)'; }
+      showToast('Sync failed: ' + e.message);
+    }
   }
 }
 
@@ -6650,10 +6698,15 @@ async function fetchDailyProgram(silent = false) {
 }
 
 function autoSyncProgramIfEnabled() {
-  // Always sync on startup — daily class program + WL programs
+  // Migrate old default tab name 'Movements' → 'CustomMovements'
+  if (localStorage.getItem('lerums_sheet_custom_movements') === 'Movements') {
+    localStorage.setItem('lerums_sheet_custom_movements', 'CustomMovements');
+  }
+  // Always sync on startup — daily class program + WL programs + custom movements
   // Individual program is synced inside fetchMembers once the programRef is confirmed
   fetchDailyProgram(true);
   fetchLBWLProgram(true);
+  fetchCustomMovements(true);
 }
 
 async function fetchLBWLProgram(silent = false) {
