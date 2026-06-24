@@ -4105,13 +4105,30 @@ function hideStrMovementDropdown() {
 
 // ===== WOD TYPE DETECTION =====
 function detectWodType(text) {
-  const t = (text || '').toLowerCase();
-  if (/\bemom\b/.test(t)) return 'emom';
-  if (/for\s+time|rounds?\s+for\s+time/.test(t)) return 'fortime';
-  if (/\bamrap\b/.test(t)) return 'amrap';
-  if (/\d+\s*rounds?\s+for\s+time/.test(t)) return 'roundsfortime';
-  // numbered lines hint at EMOM
-  if (/^\s*\d+\s*[-–]\s*.+/m.test(text || '')) return 'emom';
+  if (!text) return 'amrap';
+  const t = text;
+  const tl = t.toLowerCase();
+
+  // EMOM / Alternating EMOM — most specific keyword, check first
+  if (/alternating\s+emom|\bemom\b/i.test(tl)) return 'emom';
+
+  // AMRAP
+  if (/\bamrap\b/i.test(tl)) return 'amrap';
+
+  // Rounds For Time — single group (e.g. "3 Rounds For Time")
+  if (/\d+\s+rounds?\s+for\s+time/i.test(tl)) return 'roundsfortime';
+
+  // For Time variants
+  if (/for\s+time/i.test(tl)) {
+    // Count distinct round-count headers (lines starting with "N rounds" / "N round")
+    // Two or more = For Time — Blocks
+    const roundHeaders = (t.match(/^\s*\d+\s+rounds?[\s:]/gim) || []).length;
+    if (roundHeaders >= 2) return 'fortimeblocks';
+    return 'fortime';
+  }
+
+  // EMOM hint: minute-numbered lines like "1 - Push-ups" or "Min 1:"
+  if (/^\s*(?:min(?:ute)?\s*)?\d+\s*[-–:]\s*.+/im.test(t)) return 'emom';
   return 'amrap';
 }
 
