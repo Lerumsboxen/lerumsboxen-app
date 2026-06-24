@@ -3018,7 +3018,7 @@ function buildIndividualProgramCard(programRows, adminName) {
     const row = programRows.find(r => r.week === curWeek && String(r.day) === d);
     let dayDone = false;
     if (!isAdminView && row) {
-      const parts = parseWLSessionParts(row.strength || '');
+      const parts = parseWLSessionParts(stripHtml(row.strength || ''));
       const wodParts = parseWodParts(row.wod);
       const strAllDone = !parts.length || parts.every(p => done[curWeek+'-'+d+'-str-'+p.key]);
       const wodAllDone = !wodParts.length || wodParts.every(p => done[curWeek+'-'+d+'-'+p.key]);
@@ -3035,7 +3035,7 @@ function buildIndividualProgramCard(programRows, adminName) {
   const currentRow = programRows.find(r => r.week === curWeek && String(r.day) === curDay);
   let contentHtml = '';
   if (currentRow) {
-    const parts = parseWLSessionParts(currentRow.strength || '');
+    const parts = parseWLSessionParts(stripHtml(currentRow.strength || ''));
     const wodSection = parseWodSection(currentRow.wod);
     if (parts.length > 0) {
       contentHtml += `<div style="margin-bottom:0.75rem;"><div class="program-section-label">💪 Strength</div>`;
@@ -3181,25 +3181,30 @@ function logFromIPProgram(partKey) {
       const wpart = wparts.find(p => p.key === partKey);
       if (wpart) wodContent = wpart.content;
     }
+    const plainWodContent = stripHtml(wodContent || '');
     if (wod.type === 'conditioning') {
       openCondModal();
     } else {
       openWodModal();
-      const firstLine = (wodContent || '').split('\n')[0].trim();
+      const descEl = document.getElementById('wodDesc');
+      if (descEl && !descEl.value) descEl.value = plainWodContent;
+      const firstLine = plainWodContent.split('\n')[0].trim();
       if (firstLine) { const el = document.getElementById('wodName'); if (el && !el.value) el.value = firstLine; }
+      document.getElementById('wodType').value = detectWodType(plainWodContent);
+      onWodTypeChange(true);
     }
   } else if (partKey === 'accessory') {
     openStrengthModal();
     const noteEl = document.getElementById('strNotes');
-    if (noteEl && !noteEl.value) noteEl.value = row.accessory;
-    const firstLine = (row.accessory || '').split('\n')[0].trim();
+    if (noteEl && !noteEl.value) noteEl.value = stripHtml(row.accessory || '');
+    const firstLine = stripHtml(row.accessory || '').split('\n')[0].trim();
     const guessed = (typeof MOVEMENTS !== 'undefined' ? MOVEMENTS : []).find(m => firstLine.toLowerCase().includes(m.toLowerCase())) || '';
     const exEl = document.getElementById('strExercise');
     if (exEl && !exEl.value && guessed) exEl.value = guessed;
   } else {
     openStrengthModal();
     const key = partKey.replace(/^str-/,'');
-    const parts = parseWLSessionParts(row.strength || '');
+    const parts = parseWLSessionParts(stripHtml(row.strength || ''));
     const part = parts.find(p => p.key === key) || parts[0];
     if (part) {
       const noteEl = document.getElementById('strNotes');
@@ -3371,7 +3376,7 @@ function _markIPDoneAndAdvance(week, day, partKey) {
   const rows = state.individualProgram || [];
   const row = rows.find(r => r.week === week && String(r.day) === String(day));
   if (row) {
-    const parts = parseWLSessionParts(row.strength || '');
+    const parts = parseWLSessionParts(stripHtml(row.strength || ''));
     const wodParts = parseWodParts(row.wod);
     const newDone = _getIPDone();
     const strAllDone = !parts.length || parts.every(p => newDone[week+'-'+day+'-str-'+p.key]);
@@ -3609,7 +3614,7 @@ function logFromProgram(type) {
   if (type === 'strength') {
     document.getElementById('strDate').value = viewDate;
     document.getElementById('strNotes').value = stripHtml(prog.strength || '');
-    const firstLine = (prog.strength || '').split('\n')[0].trim();
+    const firstLine = stripHtml(prog.strength || '').split('\n')[0].trim();
     const guessed = MOVEMENTS.find(m => firstLine.toLowerCase().includes(m.toLowerCase())) || '';
     document.getElementById('strExercise').value = guessed;
     // custom dropdown — no datalist needed
@@ -3621,7 +3626,7 @@ function logFromProgram(type) {
 
   if (type === 'workout') {
     const wSplit = splitWorkoutText(prog.workout || '');
-    const workoutText = wSplit.workout;
+    const workoutText = stripHtml(wSplit.workout);
     document.getElementById('wodDate').value = viewDate;
     document.getElementById('wodName').value = '';
     document.getElementById('wodDesc').value = workoutText;
@@ -3636,7 +3641,7 @@ function logFromProgram(type) {
     const wSplit = splitWorkoutText(prog.workout || '');
     document.getElementById('strDate').value = viewDate;
     document.getElementById('strExercise').value = '';
-    document.getElementById('strNotes').value = wSplit.accessory;
+    document.getElementById('strNotes').value = stripHtml(wSplit.accessory);
     const lbl = document.getElementById('strWeightLabel');
     if (lbl) lbl.textContent = `Weight (${profile.unit || 'kg'})`;
     setRowCount = 0;
