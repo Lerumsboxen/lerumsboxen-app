@@ -367,6 +367,7 @@
   .tag.amrap { background: rgba(232,0,29,0.12); color: var(--red); border-color: rgba(232,0,29,0.3); }
   .tag.emom { background: rgba(59,130,246,0.12); color: #60a5fa; border-color: rgba(59,130,246,0.3); }
   .tag.fortime { background: rgba(245,158,11,0.12); color: #fbbf24; border-color: rgba(245,158,11,0.3); }
+  .tag.fortimeblocks { background: rgba(245,158,11,0.12); color: #fbbf24; border-color: rgba(245,158,11,0.3); }
   .tag.strength { background: rgba(240,240,240,0.08); color: #e0e0e0; border-color: rgba(240,240,240,0.25); }
   .tag.roundsfortime { background: rgba(168,85,247,0.12); color: #c084fc; border-color: rgba(168,85,247,0.3); }
   .tag.done { background: rgba(34,197,94,0.12); color: var(--success); border-color: rgba(34,197,94,0.3); }
@@ -2022,6 +2023,7 @@ function json(obj) {
         <select id="wodType" onchange="onWodTypeChange()">
           <option value="amrap">AMRAP</option>
           <option value="fortime">For Time</option>
+          <option value="fortimeblocks">For Time — Blocks</option>
           <option value="emom">EMOM</option>
           <option value="roundsfortime">Rounds for Time</option>
           <option value="other">Other</option>
@@ -2075,6 +2077,13 @@ function json(obj) {
       </div>
       <div id="fortimeRows"></div>
       <button class="btn btn-ghost btn-sm" onclick="addFortimeRow()" style="margin-top:0.4rem;width:100%;">+ ADD MOVEMENT</button>
+    </div>
+
+    <!-- FOR TIME — BLOCKS BUILDER -->
+    <div id="fortimeblocksBuilder" style="display:none;margin-bottom:1rem;">
+      <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.78rem;letter-spacing:0.12em;text-transform:uppercase;color:#fbbf24;margin-bottom:0.6rem;">⏱ For Time — Blocks</div>
+      <div id="fortimeblocksContainer"></div>
+      <button class="btn btn-ghost btn-sm" onclick="addFortimeBlock()" style="margin-top:0.25rem;width:100%;">+ ADD BLOCK</button>
     </div>
 
     <!-- ROUNDS FOR TIME BUILDER -->
@@ -3009,7 +3018,7 @@ function buildIndividualProgramCard(programRows, adminName) {
     const row = programRows.find(r => r.week === curWeek && String(r.day) === d);
     let dayDone = false;
     if (!isAdminView && row) {
-      const parts = parseStrengthParts(row.strength);
+      const parts = parseWLSessionParts(row.strength || '');
       const wodParts = parseWodParts(row.wod);
       const strAllDone = !parts.length || parts.every(p => done[curWeek+'-'+d+'-str-'+p.key]);
       const wodAllDone = !wodParts.length || wodParts.every(p => done[curWeek+'-'+d+'-'+p.key]);
@@ -3026,7 +3035,7 @@ function buildIndividualProgramCard(programRows, adminName) {
   const currentRow = programRows.find(r => r.week === curWeek && String(r.day) === curDay);
   let contentHtml = '';
   if (currentRow) {
-    const parts = parseStrengthParts(currentRow.strength);
+    const parts = parseWLSessionParts(currentRow.strength || '');
     const wodSection = parseWodSection(currentRow.wod);
     if (parts.length > 0) {
       contentHtml += `<div style="margin-bottom:0.75rem;"><div class="program-section-label">💪 Strength</div>`;
@@ -3190,7 +3199,7 @@ function logFromIPProgram(partKey) {
   } else {
     openStrengthModal();
     const key = partKey.replace(/^str-/,'');
-    const parts = parseStrengthParts(row.strength);
+    const parts = parseWLSessionParts(row.strength || '');
     const part = parts.find(p => p.key === key) || parts[0];
     if (part) {
       const noteEl = document.getElementById('strNotes');
@@ -3316,6 +3325,7 @@ function parseWodParts(text) {
   const wod = parseWodSection(text);
   if (!wod) return [];
   const content = wod.content;
+  // Try "Part A:" / "Part B:" format first
   if (/Part\s+[A-Z]/i.test(content)) {
     const segments = content.split(/(?=Part\s+[A-Z][\s:])/i).filter(s => s.trim());
     if (segments.length > 1) {
@@ -3324,6 +3334,31 @@ function parseWodParts(text) {
         if (m) return { label: m[1].trim(), content: m[2].trim(), key: 'wod-'+m[1].trim().replace(/\s+/g,'').toUpperCase(), type: wod.type };
         return { label: null, content: seg.trim(), key: 'wod-single', type: wod.type };
       }).filter(p => p.content);
+    }
+  }
+  // Try "A." / "A:" / "A)" at line start
+  if (/(?:^|\n)[A-Z][.:)]\s/m.test(content)) {
+    const lines = content.split('\n');
+    const sections = [];
+    let curLabel = null, curLines = [];
+    for (const line of lines) {
+      const m = line.match(/^([A-Z])[.:)]\s*(.*)/);
+      if (m) {
+        if (curLabel) sections.push({ label: curLabel, lines: curLines });
+        curLabel = 'Part ' + m[1];
+        curLines = m[2] ? [m[2]] : [];
+      } else {
+        curLines.push(line);
+      }
+    }
+    if (curLabel) sections.push({ label: curLabel, lines: curLines });
+    if (sections.length > 1) {
+      return sections.map(s => ({
+        label: s.label,
+        content: s.lines.join('\n').trim(),
+        key: 'wod-' + s.label.replace(/\s+/g, '').toUpperCase(),
+        type: wod.type
+      }));
     }
   }
   return [{ label: null, content: content, key: 'wod', type: wod.type }];
@@ -3336,7 +3371,7 @@ function _markIPDoneAndAdvance(week, day, partKey) {
   const rows = state.individualProgram || [];
   const row = rows.find(r => r.week === week && String(r.day) === String(day));
   if (row) {
-    const parts = parseStrengthParts(row.strength);
+    const parts = parseWLSessionParts(row.strength || '');
     const wodParts = parseWodParts(row.wod);
     const newDone = _getIPDone();
     const strAllDone = !parts.length || parts.every(p => newDone[week+'-'+day+'-str-'+p.key]);
@@ -3442,8 +3477,8 @@ async function toggleAdminMemberLogs(name, safeId, ref) {
 function _fmtSessionLine(s, type) {
   const feelEmoji = ['','😫','😕','😐','😊','🔥'];
   if (type === 'wod') {
-    const typeLabels = { amrap:'AMRAP', fortime:'For Time', emom:'EMOM', roundsfortime:'Rounds for Time', other:'Other' };
-    const typeColors = { amrap:'var(--red)', fortime:'#fbbf24', emom:'#60a5fa', roundsfortime:'#c084fc', other:'#94a3b8' };
+    const typeLabels = { amrap:'AMRAP', fortime:'For Time', fortimeblocks:'For Time — Blocks', emom:'EMOM', roundsfortime:'Rounds for Time', other:'Other' };
+    const typeColors = { amrap:'var(--red)', fortime:'#fbbf24', fortimeblocks:'#fbbf24', emom:'#60a5fa', roundsfortime:'#c084fc', other:'#94a3b8' };
     const tc = typeColors[s.type] || '#94a3b8';
     return `<div style="padding:0.3rem 0;font-size:0.8rem;">
       <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;">
@@ -3868,10 +3903,13 @@ function openWodModal() {
 }
 
 function resetWodBuilders() {
-  ['emomBuilder','amrapBuilder','fortimeBuilder','rftBuilder'].forEach(id => {
+  ['emomBuilder','amrapBuilder','fortimeBuilder','fortimeblocksBuilder','rftBuilder'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
+  const ftbCont = document.getElementById('fortimeblocksContainer');
+  if (ftbCont) ftbCont.innerHTML = '';
+  _ftbBlockId = 0;
   ['emomRows','amrapRows','fortimeRows','rftRows'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = '';
@@ -3902,7 +3940,12 @@ function saveWod() {
     feeling: _wodFeeling || undefined,
     restBetweenRounds: (() => { const v = parseFloat(document.getElementById('rftRest')?.value); return (document.getElementById('wodType')?.value === 'roundsfortime' && v > 0) ? v : undefined; })(),
     restBetweenParts:  (() => { const v = parseFloat(document.getElementById('fortimeRest')?.value); return (document.getElementById('wodType')?.value === 'fortime' && v > 0) ? v : undefined; })(),
+    blocks: (document.getElementById('wodType')?.value === 'fortimeblocks') ? _collectFortimeBlocks() : undefined,
   };
+  // For fortimeblocks: generate description from block data
+  if (wod.type === 'fortimeblocks' && wod.blocks && wod.blocks.length) {
+    wod.desc = _buildFortimeBlocksDesc(wod.blocks);
+  }
   const share = document.getElementById('wodShare')?.checked;
   const _wlCtx = window._pendingWLLog || null;
   const _ipCtx = window._pendingIPLog || null;
@@ -4073,6 +4116,7 @@ function onWodTypeChange(fromProgram) {
   document.getElementById('emomBuilder').style.display = (type === 'emom') ? 'block' : 'none';
   document.getElementById('amrapBuilder').style.display = (type === 'amrap') ? 'block' : 'none';
   document.getElementById('fortimeBuilder').style.display = (type === 'fortime') ? 'block' : 'none';
+  document.getElementById('fortimeblocksBuilder').style.display = (type === 'fortimeblocks') ? 'block' : 'none';
   document.getElementById('rftBuilder').style.display = (type === 'roundsfortime') ? 'block' : 'none';
   if (type === 'emom' && fromProgram) {
     parseEmomFromDesc();
@@ -4084,6 +4128,9 @@ function onWodTypeChange(fromProgram) {
     parseAmrapFromDesc();
   } else if (type === 'amrap' && document.getElementById('amrapRows').children.length === 0) {
     addAmrapRow(); addAmrapRow(); addAmrapRow();
+  }
+  if (type === 'fortimeblocks' && document.getElementById('fortimeblocksContainer').children.length === 0) {
+    addFortimeBlock(); addFortimeBlock();
   }
   if (type === 'fortime' && fromProgram) {
     parseFortimeFromDesc();
@@ -4398,6 +4445,87 @@ function _syncMovRow(rid, listFlag) {
 function addAmrapRow(reps, unit, movement)   { addWRow('amrapRows',   {reps, unit, movement}); }
 function addFortimeRow(reps, unit, movement) { addWRow('fortimeRows', {reps, unit, movement}); }
 function addRftRow(reps, unit, movement)     { addWRow('rftRows',     {reps, unit, movement}); }
+
+// ===== FOR TIME — BLOCKS BUILDER =====
+let _ftbBlockId = 0;
+
+function addFortimeBlock() {
+  _ftbBlockId++;
+  const bid = _ftbBlockId;
+  const container = document.getElementById('fortimeblocksContainer');
+  if (!container) return;
+  const el = document.createElement('div');
+  el.id = 'ftb-block-' + bid;
+  el.style.cssText = 'background:var(--black);border:1px solid var(--border);border-radius:4px;padding:0.5rem 0.6rem;margin-bottom:0.5rem;';
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.45rem;flex-wrap:wrap;">
+      <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:#fbbf24;">Block ${bid}</span>
+      <div style="display:flex;align-items:center;gap:0.3rem;margin-left:0.4rem;">
+        <label style="font-size:0.72rem;color:var(--muted);white-space:nowrap;">Rounds</label>
+        <input type="number" id="ftb-rounds-${bid}" min="1" max="50" value="3" style="width:46px;padding:0.25rem 0.35rem;font-size:0.8rem;">
+      </div>
+      <div style="display:flex;align-items:center;gap:0.3rem;margin-left:0.3rem;">
+        <label style="font-size:0.72rem;color:var(--muted);white-space:nowrap;">Rest after (min)</label>
+        <input type="number" id="ftb-rest-${bid}" min="0" max="30" value="0" step="0.5" style="width:46px;padding:0.25rem 0.35rem;font-size:0.8rem;" placeholder="0">
+      </div>
+      <button onmousedown="event.preventDefault()" onclick="document.getElementById('ftb-block-${bid}').remove()" style="margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.9rem;padding:0.1rem 0.3rem;line-height:1;">✕</button>
+    </div>
+    <div id="ftb-rows-${bid}"></div>
+    <button class="btn btn-ghost btn-sm" onclick="addWRow('ftb-rows-${bid}',{})" style="margin-top:0.3rem;width:100%;font-size:0.72rem;padding:0.2rem;">+ ADD MOVEMENT</button>
+  `;
+  container.appendChild(el);
+  addWRow('ftb-rows-' + bid, {});
+  addWRow('ftb-rows-' + bid, {});
+}
+
+function _collectFortimeBlocks() {
+  const container = document.getElementById('fortimeblocksContainer');
+  if (!container) return [];
+  const blocks = [];
+  container.querySelectorAll('[id^="ftb-block-"]').forEach(blockEl => {
+    const bid = blockEl.id.replace('ftb-block-', '');
+    const rounds = parseInt(document.getElementById('ftb-rounds-' + bid)?.value || '3') || 3;
+    const rest   = parseFloat(document.getElementById('ftb-rest-'   + bid)?.value || '0') || 0;
+    const movements = [];
+    blockEl.querySelectorAll('[id^="wrow-"]').forEach(rowEl => {
+      const rid  = rowEl.id.replace('wrow-', '');
+      const mov  = (document.getElementById('wmov-'  + rid)?.value || '').trim();
+      if (!mov) return;
+      const reps  = (document.getElementById('wreps-' + rid)?.value || '').trim();
+      const amt   = (document.getElementById('wamt-'  + rid)?.value || '').trim();
+      const unit  = (document.getElementById('wunit-' + rid)?.value || '').trim();
+      const amt2  = (document.getElementById('wamt2-' + rid)?.value || '').trim();
+      const unit2 = (document.getElementById('wunit2-'+ rid)?.value || '').trim();
+      movements.push({ mov, reps, amt, unit, amt2, unit2 });
+    });
+    if (movements.length) blocks.push({ rounds, rest, movements });
+  });
+  return blocks;
+}
+
+function _buildFortimeBlocksDesc(blocks) {
+  const lines = ['For Time:'];
+  blocks.forEach((block, i) => {
+    if (i > 0) lines.push('');
+    lines.push(block.rounds + (block.rounds === 1 ? ' Round:' : ' Rounds:'));
+    block.movements.forEach(m => {
+      let line = '';
+      if (m.reps) line += m.reps + ' ';
+      line += m.mov;
+      if (m.amt) {
+        line += ' ' + m.amt;
+        if (m.unit && m.unit !== 'reps') line += ' ' + m.unit;
+      }
+      if (m.amt2) line += ' / ' + m.amt2 + (m.unit2 ? ' ' + m.unit2 : '');
+      lines.push(line);
+    });
+    if (block.rest > 0) {
+      lines.push('');
+      lines.push('Rest ' + block.rest + ' min');
+    }
+  });
+  return lines.join('\n');
+}
 
 // ===== EMOM BUILDER =====
 function addEmomRow(movesPerMin) {
