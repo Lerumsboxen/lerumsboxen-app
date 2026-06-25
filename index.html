@@ -4206,11 +4206,13 @@ function unitToMovType(unit) {
   const hasHeight   = /cm|inch/.test(u);
   const hasDistance = /\bm\b|km/.test(u);
   const hasReps     = /\breps\b/.test(u);
+  const hasDuration = /\bsec\b/.test(u); // seconds-based timed movement
+  if (hasWeight && hasDuration) return 'timekgs'; // e.g. sec+kg — time hold with weight, no reps
   if (hasWeight && (hasHeight || hasDistance)) return 'combined';
-  if (hasReps && hasDistance) return 'repdist'; // reps + distance, no weight
+  if (hasReps && hasDistance) return 'repdist';
   if (hasHeight) return 'height';
   if (hasWeight) return 'weighted';
-  if (/^(m|km|cal|min)$/.test(u) || hasDistance) return 'cardio';
+  if (/^(m|km|cal|min|sec)$/.test(u) || hasDistance || hasDuration) return 'cardio';
   return null;
 }
 
@@ -4295,11 +4297,16 @@ function _wRowHtml(cid, rid, movType, opts, emomMode) {
   const gap = 'gap:0.35rem;';
 
   if (movType === 'cardio') {
-    // 1.Distance  2.Movement  3.Unit
-    const units = ['m','km','cal','min'];
-    const uOpts = units.map(u => `<option value="${u}"${u===(o.unit||'m')?' selected':''}>${u}</option>`).join('');
+    // 1.Amount  2.Movement  3.Unit — covers distance (m/km) and time (sec/min)
+    const allCardioUnits = ['m','km','cal','min','sec'];
+    const customMov = getCustomMovement(o.movement || '');
+    const unitParts = (customMov?.unit || '').toLowerCase().split(/[+&,\s]+/);
+    const defCU = unitParts.find(p => allCardioUnits.includes(p)) || 'm';
+    const curCU = allCardioUnits.includes(o.unit) ? o.unit : defCU;
+    const ph = ['sec','min'].includes(curCU) ? 'Time' : 'Dist.';
+    const uOpts = allCardioUnits.map(u => `<option value="${u}"${u===curCU?' selected':''}>${u}</option>`).join('');
     return `<div style="display:grid;grid-template-columns:58px 1fr 48px auto;${gap}margin-bottom:0.4rem;align-items:center;">
-      <input type="number" id="wamt-${rid}" value="${esc(o.reps||'')}" placeholder="Dist." min="0" style="${iS}">
+      <input type="number" id="wamt-${rid}" value="${esc(o.reps||'')}" placeholder="${ph}" min="0" style="${iS}">
       ${movPicker}
       <select id="wunit-${rid}" style="${sS}">${uOpts}</select>
       ${rmBtn}
@@ -4339,6 +4346,27 @@ function _wRowHtml(cid, rid, movType, opts, emomMode) {
         ${rmBtn}
       </div>
       ${valRow}
+    </div>`;
+
+  } else if (movType === 'timekgs') {
+    // Time + Weight, no reps (e.g. sec+kg — weighted holds, carries for time)
+    const customMov = getCustomMovement(o.movement || '');
+    const unitParts = (customMov?.unit || 'sec+kg').toLowerCase().split(/[+&,\s]+/);
+    const defTU = unitParts.find(p => ['sec','min'].includes(p)) || 'sec';
+    const defWU = unitParts.find(p => ['kg','lbs'].includes(p)) || 'kg';
+    const curTU = ['sec','min'].includes(o.unit) ? o.unit : defTU;
+    const tOpts = ['sec','min'].map(u => `<option value="${u}"${u===curTU?' selected':''}>${u}</option>`).join('');
+    const wOpts = ['kg','lbs'].map(u => `<option value="${u}"${u===(o.weightUnit||defWU)?' selected':''}>${u}</option>`).join('');
+    return `<div style="margin-bottom:0.5rem;background:var(--black);border:1px solid var(--border);border-radius:3px;padding:0.35rem 0.4rem;">
+      <div style="display:grid;grid-template-columns:1fr auto;${gap}align-items:center;margin-bottom:0.35rem;">
+        ${movPicker}${rmBtn}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 44px 1fr 42px;${gap}align-items:center;">
+        <input type="number" id="wamt-${rid}" value="${esc(o.weight||'')}" placeholder="Time" min="0" style="${iS}">
+        <select id="wunit-${rid}" style="${sS}">${tOpts}</select>
+        <input type="number" id="wamt2-${rid}" value="${esc(o.height||'')}" placeholder="Weight" min="0" step="0.5" style="${iS}">
+        <select id="wunit2-${rid}" style="${sS}">${wOpts}</select>
+      </div>
     </div>`;
 
   } else if (movType === 'repdist') {
@@ -4607,7 +4635,7 @@ function recalcEmomMinutes() {
 }
 
 // Regex for a single numeric value (possibly X/Y gendered) followed by a unit
-const _WEIGHT_RE = /\b(\d+(?:[.,]\d+)?(?:\s*\/\s*\d+(?:[.,]\d+)?)?)\s*(kg|lbs|cm|inch|m(?!\w)|s(?!\w)|cal|min)\b/gi;
+const _WEIGHT_RE = /\b(\d+(?:[.,]\d+)?(?:\s*\/\s*\d+(?:[.,]\d+)?)?)\s*(kg|lbs|cm|inch|m(?!\w)|s(?!\w)|sec|cal|min)\b/gi;
 
 function _parseWorkoutLines(text) {
   const parsed = [];
@@ -4639,7 +4667,7 @@ function _parseWorkoutLines(text) {
     // Pick weight (kg/lbs) and height (cm/inch) values separately
     const weightPair = valuePairs.find(p => ['kg','lbs'].includes(p.unit));
     const heightPair = valuePairs.find(p => ['cm','inch'].includes(p.unit));
-    const cardioPair = valuePairs.find(p => ['m','km','cal','min'].includes(p.unit));
+    const cardioPair = valuePairs.find(p => ['m','km','cal','min','sec'].includes(p.unit));
 
     // Auto-promote to combined if BOTH a weight value AND a height/distance value are present,
     // or if the custom movement is defined as a combined unit (e.g. kg+m, kg+cm)
@@ -4662,6 +4690,16 @@ function _parseWorkoutLines(text) {
         weightUnit: unitW(weightPair, 'kg'),
         height:     pickW(distPair),
         heightUnit: unitW(distPair, 'cm'),
+        movement:   known,
+      });
+    } else if (movType === 'timekgs') {
+      // time + weight, no reps (e.g. 60 sec Farmers Hold 40 kg)
+      const timePair = valuePairs.find(p => ['sec','min'].includes(p.unit));
+      parsed.push({
+        weight:     timePair ? pickW(timePair) : reps,
+        unit:       timePair?.unit || 'sec',
+        height:     pickW(weightPair),
+        heightUnit: unitW(weightPair, 'kg'),
         movement:   known,
       });
     } else if (movType === 'repdist') {
