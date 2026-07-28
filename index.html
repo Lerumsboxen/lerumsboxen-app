@@ -4694,7 +4694,8 @@ function addEmomRow(movesPerMin) {
   wrapper.innerHTML = `
     <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem;">
       <span class="emom-slot-label" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.78rem;letter-spacing:0.1em;color:#60a5fa;min-width:36px;">${_emomSlotLabel(slotIndex)}</span>
-      <span style="font-size:0.7rem;color:var(--muted);flex:1;">${movesPerMin > 1 ? movesPerMin + ' movements' : ''}</span>
+      <span style="flex:1;"></span>
+      <button onclick="addMovToEmomSlot(${id})" style="background:none;border:1px solid var(--border);border-radius:3px;color:var(--muted);cursor:pointer;font-size:0.65rem;padding:0.1rem 0.3rem;line-height:1.4;font-family:'Barlow Condensed';letter-spacing:0.06em;">+ MOV</button>
       <button onclick="removeEmomRow(${id})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.85rem;padding:0;line-height:1;">✕</button>
     </div>
     <div id="${innerCid}"></div>`;
@@ -4709,6 +4710,11 @@ function removeEmomRow(id) {
   if (el) el.remove();
   renumberEmomRows();
   recalcEmomRounds();
+}
+
+function addMovToEmomSlot(id) {
+  const innerCid = 'emom-slots-' + id;
+  if (document.getElementById(innerCid)) addWRow(innerCid, {});
 }
 
 function renumberEmomRows() {
@@ -5751,6 +5757,9 @@ let _supersetMode = false;
 let _supersetPanelIds = [];   // ordered list of panel ids (not indices — panels can be removed)
 let _supersetPanelCounter = 0;
 let _supersetSetCounters = {}; // panelId → next set id
+let _strengthEmomMode = false;
+let _strEmomMovCounter = 0;
+let _strEmomMovIds = [];
 
 function _resetSupersetState() {
   _supersetMode = false;
@@ -5767,6 +5776,20 @@ function _resetSupersetState() {
   if (singleSets) singleSets.style.display = 'block';
   const btn = document.getElementById('supersetToggleBtn');
   if (btn) { btn.textContent = '＋ SUPERSET'; btn.style.color = 'var(--muted)'; btn.style.borderColor = 'var(--border)'; btn.style.background = 'transparent'; }
+  // Reset EMOM mode
+  _strengthEmomMode = false;
+  _strEmomMovCounter = 0;
+  _strEmomMovIds = [];
+  const emomRows = document.getElementById('strEmomMovRows');
+  if (emomRows) emomRows.innerHTML = '';
+  const emomSec = document.getElementById('strEmomSection');
+  if (emomSec) emomSec.style.display = 'none';
+  const emomBtn = document.getElementById('strEmomToggleBtn');
+  if (emomBtn) { emomBtn.textContent = '⏱ EMOM'; emomBtn.style.color = 'var(--muted)'; emomBtn.style.borderColor = 'var(--border)'; emomBtn.style.background = 'transparent'; }
+  const strEmomIntEl = document.getElementById('strEmomInterval');
+  if (strEmomIntEl) strEmomIntEl.value = '60';
+  const strEmomCustEl = document.getElementById('strEmomIntervalCustom');
+  if (strEmomCustEl) strEmomCustEl.style.display = 'none';
 }
 
 function toggleSupersetMode() {
@@ -5774,17 +5797,143 @@ function toggleSupersetMode() {
   const btn = document.getElementById('supersetToggleBtn');
   const singleSets = document.getElementById('strSingleSets');
   const supersetSec = document.getElementById('supersetSection');
-  // The exercise row (date + movement) stays always visible
+  const emomSec = document.getElementById('strEmomSection');
+  const singleEx = document.getElementById('strSingleExercise');
+  // Deactivate EMOM if switching to superset
+  if (_supersetMode && _strengthEmomMode) {
+    _strengthEmomMode = false;
+    const eb = document.getElementById('strEmomToggleBtn');
+    if (eb) { eb.textContent = '⏱ EMOM'; eb.style.color = 'var(--muted)'; eb.style.borderColor = 'var(--border)'; eb.style.background = 'transparent'; }
+    if (emomSec) emomSec.style.display = 'none';
+  }
   if (_supersetMode) {
     if (btn) { btn.textContent = '✕ SUPERSET'; btn.style.color = '#a78bfa'; btn.style.borderColor = '#a78bfa'; btn.style.background = 'rgba(167,139,250,0.1)'; }
+    if (singleEx) singleEx.style.display = 'block';
     if (singleSets) singleSets.style.display = 'none';
     if (supersetSec) supersetSec.style.display = 'block';
     if (_supersetPanelIds.length === 0) { addSupersetMovement(); addSupersetMovement(); }
   } else {
     if (btn) { btn.textContent = '＋ SUPERSET'; btn.style.color = 'var(--muted)'; btn.style.borderColor = 'var(--border)'; btn.style.background = 'transparent'; }
+    if (singleEx) singleEx.style.display = 'block';
     if (singleSets) singleSets.style.display = 'block';
     if (supersetSec) supersetSec.style.display = 'none';
   }
+}
+
+// ===== STRENGTH EMOM MODE =====
+
+function _getStrEmomIntervalSec() {
+  const sel = document.getElementById('strEmomInterval');
+  if (!sel) return 60;
+  if (sel.value === 'custom') return parseInt(document.getElementById('strEmomIntervalCustom')?.value) || 60;
+  return parseInt(sel.value) || 60;
+}
+
+function _setStrEmomInterval(sec) {
+  const sel = document.getElementById('strEmomInterval');
+  const customInput = document.getElementById('strEmomIntervalCustom');
+  if (!sel) return;
+  const presets = [30, 45, 60, 90, 120, 180];
+  if (presets.includes(sec)) {
+    sel.value = String(sec);
+    if (customInput) customInput.style.display = 'none';
+  } else {
+    sel.value = 'custom';
+    if (customInput) { customInput.value = sec; customInput.style.display = 'inline-block'; }
+  }
+}
+
+function onStrEmomIntervalChange() {
+  const sel = document.getElementById('strEmomInterval');
+  const customInput = document.getElementById('strEmomIntervalCustom');
+  if (sel && sel.value === 'custom') {
+    if (customInput) customInput.style.display = 'inline-block';
+  } else {
+    if (customInput) customInput.style.display = 'none';
+  }
+}
+
+function _formatEmomInterval(sec) {
+  if (sec === 60) return 'EMOM';
+  if (sec < 60) return 'E' + sec + 'S';
+  const mins = sec / 60;
+  return 'E' + (Number.isInteger(mins) ? mins : mins.toFixed(1)) + 'M';
+}
+
+function toggleStrEmomMode() {
+  _strengthEmomMode = !_strengthEmomMode;
+  const btn = document.getElementById('strEmomToggleBtn');
+  const emomSec = document.getElementById('strEmomSection');
+  const singleSets = document.getElementById('strSingleSets');
+  const supersetSec = document.getElementById('supersetSection');
+  const superBtn = document.getElementById('supersetToggleBtn');
+  const singleEx = document.getElementById('strSingleExercise');
+  // Deactivate superset if switching to EMOM
+  if (_strengthEmomMode && _supersetMode) {
+    _supersetMode = false;
+    if (superBtn) { superBtn.textContent = '＋ SUPERSET'; superBtn.style.color = 'var(--muted)'; superBtn.style.borderColor = 'var(--border)'; superBtn.style.background = 'transparent'; }
+    if (supersetSec) supersetSec.style.display = 'none';
+  }
+  if (_strengthEmomMode) {
+    if (btn) { btn.textContent = '✕ EMOM'; btn.style.color = '#60a5fa'; btn.style.borderColor = '#60a5fa'; btn.style.background = 'rgba(96,165,250,0.1)'; }
+    if (singleEx) singleEx.style.display = 'none';
+    if (singleSets) singleSets.style.display = 'none';
+    if (emomSec) emomSec.style.display = 'block';
+    if (_strEmomMovIds.length === 0) { addStrEmomMovRow(); addStrEmomMovRow(); }
+  } else {
+    if (btn) { btn.textContent = '⏱ EMOM'; btn.style.color = 'var(--muted)'; btn.style.borderColor = 'var(--border)'; btn.style.background = 'transparent'; }
+    if (singleEx) singleEx.style.display = 'block';
+    if (singleSets) singleSets.style.display = 'block';
+    if (emomSec) emomSec.style.display = 'none';
+  }
+}
+
+function addStrEmomMovRow(opts) {
+  _strEmomMovCounter++;
+  const mid = _strEmomMovCounter;
+  _strEmomMovIds.push(mid);
+  opts = opts || {};
+  const container = document.getElementById('strEmomMovRows');
+  if (!container) return;
+  const esc = s => (s || '').replace(/"/g, '&quot;');
+  const row = document.createElement('div');
+  row.id = 'semov-row-' + mid;
+  row.style.cssText = 'display:grid;grid-template-columns:1fr 90px 58px auto;gap:0.35rem;margin-bottom:0.3rem;align-items:center;';
+  row.innerHTML = `
+    <input type="text" id="semov-${mid}" value="${esc(opts.exercise||'')}" placeholder="Movement…" autocomplete="off"
+      style="padding:0.35rem 0.5rem;font-size:0.85rem;border:1px solid var(--border);border-radius:4px;background:var(--input);color:var(--text);">
+    <input type="text" id="semov-reps-${mid}" value="${esc(opts.repsRaw||'')}" placeholder="10-8-6-4-2"
+      style="padding:0.35rem 0.4rem;font-size:0.82rem;border:1px solid var(--border);border-radius:4px;background:var(--input);color:var(--text);text-align:center;" title="Single value or hyphen-separated ladder e.g. 10-8-6-4-2">
+    <select id="semov-unit-${mid}" style="padding:0.35rem 0.3rem;font-size:0.82rem;border:1px solid var(--border);border-radius:4px;background:var(--input);color:var(--text);">
+      <option value="reps"${(opts.unit||'reps')==='reps'?' selected':''}>reps</option>
+      <option value="m"${opts.unit==='m'?' selected':''}>m</option>
+      <option value="cal"${opts.unit==='cal'?' selected':''}>cal</option>
+      <option value="kg"${opts.unit==='kg'?' selected':''}>kg</option>
+      <option value="min"${opts.unit==='min'?' selected':''}>min</option>
+    </select>
+    <button onclick="removeStrEmomMovRow(${mid})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.9rem;padding:0.2rem 0.3rem;line-height:1;">✕</button>`;
+  container.appendChild(row);
+}
+
+function removeStrEmomMovRow(mid) {
+  const el = document.getElementById('semov-row-' + mid);
+  if (el) el.remove();
+  _strEmomMovIds = _strEmomMovIds.filter(id => id !== mid);
+}
+
+function _collectStrEmom() {
+  const interval = _getStrEmomIntervalSec();
+  const rounds = parseInt(document.getElementById('strEmomRounds')?.value) || 1;
+  const movements = _strEmomMovIds.map(mid => {
+    const exercise = document.getElementById('semov-' + mid)?.value.trim() || '';
+    const repsRaw = document.getElementById('semov-reps-' + mid)?.value.trim() || '';
+    const unit = document.getElementById('semov-unit-' + mid)?.value || 'reps';
+    const repsSeq = repsRaw
+      ? repsRaw.split('-').map(v => parseFloat(v.trim())).filter(n => !isNaN(n))
+      : [];
+    return { exercise, repsSeq, repsRaw, unit };
+  }).filter(m => m.exercise);
+  return { interval, rounds, movements };
 }
 
 function addSupersetMovement() {
@@ -6014,9 +6163,14 @@ function renumberSetRows() {
 }
 
 function saveStrengthSession() {
-  let exercise, sets, supersets;
+  let exercise, sets, supersets, emom;
 
-  if (_supersetMode) {
+  if (_strengthEmomMode) {
+    emom = _collectStrEmom();
+    if (!emom.movements.length) { showToast('Add at least one movement!'); return; }
+    exercise = emom.movements.map(m => m.exercise).join(' + ');
+    sets = [];
+  } else if (_supersetMode) {
     supersets = _collectSupersets();
     if (!supersets.length) { showToast('Add at least one movement!'); return; }
     if (supersets.every(s => !s.sets.length)) { showToast('Add at least one set!'); return; }
@@ -6043,6 +6197,7 @@ function saveStrengthSession() {
     exercise,
     sets,
     supersets: supersets || undefined,
+    emom: emom || undefined,
     notes: document.getElementById('strNotes').value.trim(),
     feeling: _strFeeling || undefined,
   };
@@ -6138,21 +6293,33 @@ function editStrengthSession(id) {
   const lbl = document.getElementById('strWeightLabel');
   if (lbl) lbl.textContent = `Weight (${profile.unit || 'kg'})`;
 
-  if (session.supersets && session.supersets.length > 1) {
+  if (session.emom) {
+    // Restore EMOM mode
+    _strengthEmomMode = true;
+    const btn = document.getElementById('strEmomToggleBtn');
+    if (btn) { btn.textContent = '✕ EMOM'; btn.style.color = '#60a5fa'; btn.style.borderColor = '#60a5fa'; btn.style.background = 'rgba(96,165,250,0.1)'; }
+    document.getElementById('strSingleExercise').style.display = 'none';
+    document.getElementById('strSingleSets').style.display = 'none';
+    document.getElementById('strEmomSection').style.display = 'block';
+    _setStrEmomInterval(session.emom.interval || 60);
+    const roundsEl = document.getElementById('strEmomRounds');
+    if (roundsEl) roundsEl.value = session.emom.rounds || 5;
+    (session.emom.movements || []).forEach(m => {
+      addStrEmomMovRow({ exercise: m.exercise, repsRaw: m.repsRaw || (m.repsSeq || []).join('-'), unit: m.unit || 'reps' });
+    });
+  } else if (session.supersets && session.supersets.length > 1) {
     // Restore superset mode
     _supersetMode = true;
     const btn = document.getElementById('supersetToggleBtn');
     if (btn) { btn.textContent = '✕ SUPERSET'; btn.style.color = '#a78bfa'; btn.style.borderColor = '#a78bfa'; btn.style.background = 'rgba(167,139,250,0.1)'; }
     document.getElementById('strSingleSets').style.display = 'none';
     document.getElementById('supersetSection').style.display = 'block';
-    // Set the main exercise field to first movement for reference
     document.getElementById('strExercise').value = session.supersets[0]?.exercise || '';
     session.supersets.forEach(ss => {
       addSupersetMovement();
       const pid = _supersetPanelIds[_supersetPanelIds.length - 1];
       const movInput = document.getElementById('ssmov-' + pid);
       if (movInput) movInput.value = ss.exercise;
-      // Clear default 3 rows, then restore saved sets
       const container = document.getElementById('sssc-' + pid);
       if (container) container.innerHTML = '';
       _supersetSetCounters[pid] = 0;
@@ -6173,7 +6340,7 @@ function editStrengthSession(id) {
     document.getElementById('strExercise').value = session.exercise;
     setRowCount = 0;
     document.getElementById('setsContainer').innerHTML = '';
-    session.sets.forEach(st => {
+    (session.sets || []).forEach(st => {
       addSetRow();
       const rowId = setRowCount;
       const dispW = (profile.unit === 'lbs' && st.weight != null) ? Math.round(st.weight * KG_TO_LBS * 10) / 10 : st.weight;
@@ -6191,8 +6358,13 @@ function editStrengthSession(id) {
 function updateStrengthSession(id) {
   const idx = state.strength.findIndex(s => s.id === id);
   if (idx === -1) return;
-  let exercise, sets, supersets;
-  if (_supersetMode) {
+  let exercise, sets, supersets, emom;
+  if (_strengthEmomMode) {
+    emom = _collectStrEmom();
+    if (!emom.movements.length) { showToast('Add at least one movement!'); return; }
+    exercise = emom.movements.map(m => m.exercise).join(' + ');
+    sets = [];
+  } else if (_supersetMode) {
     supersets = _collectSupersets();
     if (!supersets.length) { showToast('Add at least one movement!'); return; }
     exercise = supersets.map(s => s.exercise).join(' + ');
@@ -6217,6 +6389,7 @@ function updateStrengthSession(id) {
     date: document.getElementById('strDate').value,
     sets,
     supersets: supersets || undefined,
+    emom: emom || undefined,
     notes: document.getElementById('strNotes').value.trim(),
   };
   state.strength[idx] = updated;
@@ -6234,7 +6407,7 @@ function renderStrengthList() {
   const filter = document.getElementById('strengthFilter')?.value || '';
   updateStrengthFilter();
 
-  const _strExNames = (s) => s.supersets ? s.supersets.map(ss => ss.exercise) : [s.exercise];
+  const _strExNames = (s) => s.emom ? s.emom.movements.map(m => m.exercise) : s.supersets ? s.supersets.map(ss => ss.exercise) : [s.exercise];
   let sessions = [...state.strength].sort((a,b) => b.date.localeCompare(a.date));
   sessions = sessions.filter(s => inDateRange(s.date));
   if (filter) sessions = sessions.filter(s => _strExNames(s).includes(filter));
@@ -6263,6 +6436,36 @@ function strengthCardHTML(s) {
     <button class="btn btn-ghost btn-sm btn-icon" title="Share on leaderboard" onclick="event.stopPropagation();shareStrengthById('${s.id}')">🌍</button>
     <button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();deleteStrengthSession('${s.id}')">🗑</button>
   </div>`;
+
+  if (s.emom) {
+    const em = s.emom;
+    const label = _formatEmomInterval(em.interval || 60) + ' × ' + (em.rounds || '?');
+    const compactName = (em.movements || []).map(m => m.exercise).join(' + ');
+    const movRows = (em.movements || []).map(m => {
+      const repsStr = m.repsRaw || (m.repsSeq || []).join('-');
+      const unitStr = (m.unit && m.unit !== 'reps') ? ' ' + m.unit : (repsStr ? ' reps' : '');
+      return `<div style="display:flex;gap:0.5rem;align-items:baseline;margin-bottom:0.15rem;">
+        <span style="font-family:'Bebas Neue';font-size:0.95rem;color:#60a5fa;min-width:72px;flex-shrink:0;">${repsStr}${unitStr}</span>
+        <span style="font-size:0.85rem;color:var(--text);">${m.exercise}</span>
+      </div>`;
+    }).join('');
+    return `<div class="strength-card" onclick="toggleCard(this)">
+      <div class="str-compact">
+        <span class="str-compact-date">${formatDate(s.date)}</span>
+        <span class="tag" style="flex-shrink:0;background:rgba(96,165,250,0.15);color:#60a5fa;border-color:rgba(96,165,250,0.4);">${_formatEmomInterval(em.interval||60)}</span>
+        <span class="str-compact-name">${compactName}</span>
+        <span class="str-compact-top" style="color:#60a5fa;">×${em.rounds||'?'}</span>
+      </div>
+      <div class="str-detail">
+        <div class="strength-header">
+          <div class="strength-date">${formatDate(s.date)}</div>
+          <span class="tag" style="background:rgba(96,165,250,0.15);color:#60a5fa;border-color:rgba(96,165,250,0.4);">${label}</span>
+        </div>
+        <div style="margin:0.4rem 0 0.5rem;">${movRows}</div>
+        ${notes}${actions}
+      </div>
+    </div>`;
+  }
 
   if (s.supersets && s.supersets.length > 1) {
     const letters = ['A','B','C','D','E'];
@@ -6683,7 +6886,9 @@ function updateStrengthFilter() {
   const current = sel.value;
   const names = new Set();
   state.strength.forEach(s => {
-    if (s.supersets && s.supersets.length > 1) {
+    if (s.emom) {
+      (s.emom.movements || []).forEach(m => { if (m.exercise) names.add(m.exercise); });
+    } else if (s.supersets && s.supersets.length > 1) {
       s.supersets.forEach(ss => { if (ss.exercise) names.add(ss.exercise); });
     } else {
       if (s.exercise) names.add(s.exercise);
@@ -9426,10 +9631,16 @@ window.addEventListener('orientationchange', () => {
       <div class="form-group" style="position:relative;" id="strSingleExercise">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.35rem;">
           <label style="margin:0;">Movement</label>
-          <button type="button" id="supersetToggleBtn" onclick="toggleSupersetMode()"
-            style="font-size:0.62rem;letter-spacing:0.09em;font-family:'Barlow Condensed';font-weight:700;padding:0.15rem 0.45rem;border:1px solid var(--border);border-radius:3px;background:transparent;color:var(--muted);cursor:pointer;text-transform:uppercase;white-space:nowrap;">
-            ＋ SUPERSET
-          </button>
+          <div style="display:flex;gap:0.35rem;">
+            <button type="button" id="strEmomToggleBtn" onclick="toggleStrEmomMode()"
+              style="font-size:0.62rem;letter-spacing:0.09em;font-family:'Barlow Condensed';font-weight:700;padding:0.15rem 0.45rem;border:1px solid var(--border);border-radius:3px;background:transparent;color:var(--muted);cursor:pointer;text-transform:uppercase;white-space:nowrap;">
+              ⏱ EMOM
+            </button>
+            <button type="button" id="supersetToggleBtn" onclick="toggleSupersetMode()"
+              style="font-size:0.62rem;letter-spacing:0.09em;font-family:'Barlow Condensed';font-weight:700;padding:0.15rem 0.45rem;border:1px solid var(--border);border-radius:3px;background:transparent;color:var(--muted);cursor:pointer;text-transform:uppercase;white-space:nowrap;">
+              ＋ SUPERSET
+            </button>
+          </div>
         </div>
         <input type="text" id="strExercise" placeholder="Search movement…" autocomplete="off"
           oninput="filterStrMovementDropdown()" onfocus="filterStrMovementDropdown()" onblur="setTimeout(hideStrMovementDropdown,200)">
@@ -9454,6 +9665,36 @@ window.addEventListener('orientationchange', () => {
     <div id="supersetSection" style="display:none;margin-bottom:0.75rem;">
       <div id="supersetPanels"></div>
       <button id="addSupersetMovBtn" class="btn btn-ghost btn-sm" onclick="addSupersetMovement()" style="width:100%;margin-top:0.25rem;">+ ADD MOVEMENT</button>
+    </div>
+
+    <!-- EMOM section (hidden by default) -->
+    <div id="strEmomSection" style="display:none;margin-bottom:0.75rem;">
+      <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.5rem;flex-wrap:wrap;">
+        <label style="font-size:0.75rem;color:var(--muted);margin:0;">Every</label>
+        <select id="strEmomInterval" oninput="onStrEmomIntervalChange()" style="padding:0.28rem 0.3rem;font-size:0.8rem;border:1px solid var(--border);border-radius:4px;background:var(--input);color:var(--text);">
+          <option value="30">30 sec</option>
+          <option value="45">45 sec</option>
+          <option value="60" selected>1 min</option>
+          <option value="90">90 sec</option>
+          <option value="120">2 min</option>
+          <option value="180">3 min</option>
+          <option value="custom">Custom…</option>
+        </select>
+        <input type="number" id="strEmomIntervalCustom" min="10" max="600" step="5" placeholder="sec"
+          style="display:none;width:52px;padding:0.28rem 0.4rem;font-size:0.8rem;border:1px solid var(--border);border-radius:4px;background:var(--input);color:var(--text);"
+          oninput="onStrEmomIntervalChange()">
+        <label style="font-size:0.75rem;color:var(--muted);margin:0 0 0 0.4rem;">× Rounds</label>
+        <input type="number" id="strEmomRounds" min="1" max="50" value="5"
+          style="width:48px;padding:0.3rem 0.4rem;font-size:0.85rem;border:1px solid var(--border);border-radius:4px;background:var(--input);color:var(--text);">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 90px 58px auto;gap:0.35rem;margin-bottom:0.25rem;padding:0 0.1rem;">
+        <label style="margin:0;font-size:0.72rem;color:var(--muted);">Movement</label>
+        <label style="margin:0;font-size:0.72rem;color:var(--muted);text-align:center;">Reps / Ladder</label>
+        <label style="margin:0;font-size:0.72rem;color:var(--muted);">Unit</label>
+        <div></div>
+      </div>
+      <div id="strEmomMovRows"></div>
+      <button class="btn btn-ghost btn-sm" onclick="addStrEmomMovRow()" style="width:100%;margin-top:0.25rem;">+ ADD MOVEMENT</button>
     </div>
 
     <div class="form-group">
