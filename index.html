@@ -5672,16 +5672,212 @@ function renderAllList() {
 
 // ===== STRENGTH LOG =====
 let setRowCount = 0;
+let _supersetMode = false;
+let _supersetPanelIds = [];   // ordered list of panel ids (not indices — panels can be removed)
+let _supersetPanelCounter = 0;
+let _supersetSetCounters = {}; // panelId → next set id
+
+function _resetSupersetState() {
+  _supersetMode = false;
+  _supersetPanelIds = [];
+  _supersetPanelCounter = 0;
+  _supersetSetCounters = {};
+  const panels = document.getElementById('supersetPanels');
+  if (panels) panels.innerHTML = '';
+  const sec = document.getElementById('supersetSection');
+  if (sec) sec.style.display = 'none';
+  const singleEx = document.getElementById('strSingleExercise');
+  if (singleEx) singleEx.style.display = 'block';  // keep date+movement row visible
+  const singleSets = document.getElementById('strSingleSets');
+  if (singleSets) singleSets.style.display = 'block';
+  const btn = document.getElementById('supersetToggleBtn');
+  if (btn) { btn.textContent = '＋ SUPERSET'; btn.style.color = 'var(--muted)'; btn.style.borderColor = 'var(--border)'; btn.style.background = 'transparent'; }
+}
+
+function toggleSupersetMode() {
+  _supersetMode = !_supersetMode;
+  const btn = document.getElementById('supersetToggleBtn');
+  const singleSets = document.getElementById('strSingleSets');
+  const supersetSec = document.getElementById('supersetSection');
+  // The exercise row (date + movement) stays always visible
+  if (_supersetMode) {
+    if (btn) { btn.textContent = '✕ SUPERSET'; btn.style.color = '#a78bfa'; btn.style.borderColor = '#a78bfa'; btn.style.background = 'rgba(167,139,250,0.1)'; }
+    if (singleSets) singleSets.style.display = 'none';
+    if (supersetSec) supersetSec.style.display = 'block';
+    if (_supersetPanelIds.length === 0) { addSupersetMovement(); addSupersetMovement(); }
+  } else {
+    if (btn) { btn.textContent = '＋ SUPERSET'; btn.style.color = 'var(--muted)'; btn.style.borderColor = 'var(--border)'; btn.style.background = 'transparent'; }
+    if (singleSets) singleSets.style.display = 'block';
+    if (supersetSec) supersetSec.style.display = 'none';
+  }
+}
+
+function addSupersetMovement() {
+  if (_supersetPanelIds.length >= 5) { showToast('Max 5 movements per superset'); return; }
+  _supersetPanelCounter++;
+  const pid = _supersetPanelCounter;
+  _supersetPanelIds.push(pid);
+  _supersetSetCounters[pid] = 0;
+
+  const letters = ['A','B','C','D','E'];
+  const letter = letters[_supersetPanelIds.length - 1] || pid;
+  const u = profile.unit || 'kg';
+
+  const panel = document.createElement('div');
+  panel.className = 'superset-panel';
+  panel.id = 'sspanel-' + pid;
+  panel.dataset.pid = pid;
+  panel.style.cssText = 'margin-bottom:0.6rem;background:var(--card2,var(--black));border:1px solid var(--border);border-radius:5px;padding:0.5rem 0.65rem;';
+  panel.innerHTML = `
+    <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem;">
+      <span class="ss-letter" style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#a78bfa;min-width:16px;line-height:1;">${letter}</span>
+      <div style="position:relative;flex:1;">
+        <input type="text" id="ssmov-${pid}" placeholder="Movement…" autocomplete="off"
+          style="width:100%;padding:0.35rem 0.5rem;font-size:0.82rem;border:1px solid var(--border);border-radius:4px;background:var(--input,var(--black));color:var(--text);box-sizing:border-box;"
+          oninput="filterSupersetMovDD(${pid})" onfocus="filterSupersetMovDD(${pid})"
+          onblur="setTimeout(()=>hideSupersetDD(${pid}),180)">
+        <div id="ssdd-${pid}" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:400;background:var(--card);border:1px solid var(--border);border-radius:4px;max-height:160px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>
+      </div>
+      <button onclick="removeSupersetMovement(${pid})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.95rem;padding:0.15rem 0.25rem;line-height:1;flex-shrink:0;">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:36px 1fr 1fr 1fr auto;gap:0.4rem;margin-bottom:0.3rem;align-items:center;">
+      <div></div>
+      <label style="margin:0;font-size:0.7rem;color:var(--muted);">Wt (${u})</label>
+      <label style="margin:0;font-size:0.7rem;color:var(--muted);">Reps</label>
+      <label style="margin:0;font-size:0.7rem;color:var(--muted);">RPE</label>
+      <div></div>
+    </div>
+    <div id="sssc-${pid}"></div>
+    <button class="btn btn-ghost btn-sm" onclick="addSupersetSetRow(${pid})" style="margin-top:0.2rem;width:100%;font-size:0.72rem;">+ ADD SET</button>`;
+  document.getElementById('supersetPanels').appendChild(panel);
+  addSupersetSetRow(pid); addSupersetSetRow(pid); addSupersetSetRow(pid);
+  _relabelSupersetPanels();
+  _updateAddSupersetBtn();
+}
+
+function removeSupersetMovement(pid) {
+  const panel = document.getElementById('sspanel-' + pid);
+  if (panel) panel.remove();
+  _supersetPanelIds = _supersetPanelIds.filter(id => id !== pid);
+  delete _supersetSetCounters[pid];
+  _relabelSupersetPanels();
+  _updateAddSupersetBtn();
+}
+
+function _relabelSupersetPanels() {
+  const letters = ['A','B','C','D','E'];
+  document.querySelectorAll('#supersetPanels .superset-panel').forEach((panel, i) => {
+    const lEl = panel.querySelector('.ss-letter');
+    if (lEl) lEl.textContent = letters[i] || (i + 1);
+  });
+}
+
+function _updateAddSupersetBtn() {
+  const btn = document.getElementById('addSupersetMovBtn');
+  if (!btn) return;
+  const count = _supersetPanelIds.length;
+  btn.disabled = count >= 5;
+  btn.style.opacity = count >= 5 ? '0.4' : '1';
+}
+
+function addSupersetSetRow(pid) {
+  if (!_supersetSetCounters[pid]) _supersetSetCounters[pid] = 0;
+  _supersetSetCounters[pid]++;
+  const sid = _supersetSetCounters[pid];
+  const container = document.getElementById('sssc-' + pid);
+  if (!container) return;
+  const u = profile.unit || 'kg';
+  // Pre-fill from previous row
+  const existing = container.querySelectorAll('.ss-set-row');
+  let prevW = '', prevR = '', prevE = '';
+  if (existing.length > 0) {
+    const last = existing[existing.length - 1];
+    const lsid = last.dataset.sid;
+    prevW = document.getElementById(`sswt-${pid}-${lsid}`)?.value || '';
+    prevR = document.getElementById(`ssrp-${pid}-${lsid}`)?.value || '';
+    prevE = document.getElementById(`ssrpe-${pid}-${lsid}`)?.value || '';
+  }
+  const row = document.createElement('div');
+  row.className = 'set-row ss-set-row';
+  row.id = `ssetrow-${pid}-${sid}`;
+  row.dataset.sid = sid;
+  row.innerHTML = `
+    <div class="set-row-label">S?</div>
+    <input type="number" id="sswt-${pid}-${sid}" placeholder="${u}" step="0.5" min="0" value="${prevW}">
+    <input type="number" id="ssrp-${pid}-${sid}" placeholder="reps" min="1" value="${prevR}">
+    <input type="number" id="ssrpe-${pid}-${sid}" placeholder="1-10" min="1" max="10" step="0.5" value="${prevE}">
+    <button class="del-set-btn" onclick="removeSupersetSetRow(${pid},${sid})">✕</button>`;
+  container.appendChild(row);
+  _renumberSupersetSets(pid);
+}
+
+function removeSupersetSetRow(pid, sid) {
+  const row = document.getElementById(`ssetrow-${pid}-${sid}`);
+  if (row) row.remove();
+  _renumberSupersetSets(pid);
+}
+
+function _renumberSupersetSets(pid) {
+  const container = document.getElementById('sssc-' + pid);
+  if (!container) return;
+  container.querySelectorAll('.ss-set-row').forEach((row, i) => {
+    const lbl = row.querySelector('.set-row-label');
+    if (lbl) lbl.textContent = 'S' + (i + 1);
+  });
+}
+
+function filterSupersetMovDD(pid) {
+  const input = document.getElementById('ssmov-' + pid);
+  const dd = document.getElementById('ssdd-' + pid);
+  if (!input || !dd) return;
+  const q = input.value.toLowerCase().trim();
+  const customNames = (state.customMovements || []).map(m => (typeof m === 'string' ? m : m.name).trim()).filter(Boolean);
+  const base = BUILDER_MOVEMENTS.filter(m => !customNames.some(c => c.toLowerCase() === m.toLowerCase()));
+  const list = customNames.length ? [...customNames, ...base] : BUILDER_MOVEMENTS;
+  const matches = (q ? list.filter(m => m.toLowerCase().includes(q)) : list).slice(0, 60);
+  if (!matches.length) { dd.style.display = 'none'; return; }
+  dd.innerHTML = matches.map(m => `<div style="padding:0.35rem 0.7rem;cursor:pointer;font-size:0.82rem;" onmousedown="selectSupersetMov(${pid},'${m.replace(/'/g,"\\'")}')">${m}</div>`).join('');
+  dd.style.display = 'block';
+}
+
+function hideSupersetDD(pid) {
+  const dd = document.getElementById('ssdd-' + pid);
+  if (dd) dd.style.display = 'none';
+}
+
+function selectSupersetMov(pid, name) {
+  const input = document.getElementById('ssmov-' + pid);
+  if (input) { input.value = name; }
+  hideSupersetDD(pid);
+}
+
+function _collectSupersets() {
+  const result = [];
+  document.querySelectorAll('#supersetPanels .superset-panel').forEach(panel => {
+    const pid = panel.dataset.pid;
+    const exercise = (document.getElementById('ssmov-' + pid)?.value || '').trim();
+    if (!exercise) return;
+    const sets = [];
+    panel.querySelectorAll('.ss-set-row').forEach(row => {
+      const sid = row.dataset.sid;
+      const w = parseFloat(document.getElementById(`sswt-${pid}-${sid}`)?.value);
+      const r = parseInt(document.getElementById(`ssrp-${pid}-${sid}`)?.value);
+      const e = parseFloat(document.getElementById(`ssrpe-${pid}-${sid}`)?.value);
+      const wKg = isNaN(w) ? null : (profile.unit === 'lbs' ? Math.round(w / KG_TO_LBS * 10) / 10 : w);
+      if (!isNaN(w) || !isNaN(r)) sets.push({ weight: wKg, reps: isNaN(r) ? null : r, rpe: isNaN(e) ? null : e });
+    });
+    result.push({ exercise, sets });
+  });
+  return result;
+}
 
 function openStrengthModal() {
+  _resetSupersetState();
   document.getElementById('strDate').value = new Date().toISOString().split('T')[0];
   document.getElementById('strExercise').value = '';
   document.getElementById('strNotes').value = '';
-  // Update weight label to current unit
   const lbl = document.getElementById('strWeightLabel');
   if (lbl) lbl.textContent = `Weight (${profile.unit || 'kg'})`;
-  // custom dropdown — no datalist needed
-  // reset sets
   setRowCount = 0;
   document.getElementById('setsContainer').innerHTML = '';
   addSetRow(); addSetRow(); addSetRow();
@@ -5695,7 +5891,7 @@ function closeStrengthModal(e) {
     document.getElementById('strengthModal').style.display = 'none';
     window._pendingIPLog = null;
     _strFeeling = null;
-    // Reset save button in case it was in edit mode
+    _resetSupersetState();
     const saveBtn = document.querySelector('#strengthModal .btn-red');
     if (saveBtn) { saveBtn.textContent = 'SAVE SESSION'; saveBtn.onclick = saveStrengthSession; }
   }
@@ -5743,27 +5939,35 @@ function renumberSetRows() {
 }
 
 function saveStrengthSession() {
-  const exercise = document.getElementById('strExercise').value.trim();
-  if (!exercise) { document.getElementById('strExercise').focus(); return; }
+  let exercise, sets, supersets;
 
-  const sets = [];
-  document.querySelectorAll('#setsContainer .set-row').forEach(row => {
-    const id = row.id.replace('set-row-', '');
-    const w = parseFloat(document.getElementById('sw-' + id)?.value);
-    const r = parseInt(document.getElementById('sr-' + id)?.value);
-    const e = parseFloat(document.getElementById('se-' + id)?.value);
-    // Always store in kg internally — convert from display unit if needed
-    const wKg = isNaN(w) ? null : (profile.unit === 'lbs' ? Math.round(w / KG_TO_LBS * 10) / 10 : w);
-    if (!isNaN(w) || !isNaN(r)) sets.push({ weight: wKg, reps: isNaN(r) ? null : r, rpe: isNaN(e) ? null : e });
-  });
-
-  if (!sets.length) { showToast('Add at least one set!'); return; }
+  if (_supersetMode) {
+    supersets = _collectSupersets();
+    if (!supersets.length) { showToast('Add at least one movement!'); return; }
+    if (supersets.every(s => !s.sets.length)) { showToast('Add at least one set!'); return; }
+    exercise = supersets.map(s => s.exercise).join(' + ');
+    sets = supersets[0]?.sets || [];
+  } else {
+    exercise = document.getElementById('strExercise').value.trim();
+    if (!exercise) { document.getElementById('strExercise').focus(); return; }
+    sets = [];
+    document.querySelectorAll('#setsContainer .set-row').forEach(row => {
+      const id = row.id.replace('set-row-', '');
+      const w = parseFloat(document.getElementById('sw-' + id)?.value);
+      const r = parseInt(document.getElementById('sr-' + id)?.value);
+      const e = parseFloat(document.getElementById('se-' + id)?.value);
+      const wKg = isNaN(w) ? null : (profile.unit === 'lbs' ? Math.round(w / KG_TO_LBS * 10) / 10 : w);
+      if (!isNaN(w) || !isNaN(r)) sets.push({ weight: wKg, reps: isNaN(r) ? null : r, rpe: isNaN(e) ? null : e });
+    });
+    if (!sets.length) { showToast('Add at least one set!'); return; }
+  }
 
   const session = {
     id: Date.now().toString(),
     date: document.getElementById('strDate').value,
     exercise,
     sets,
+    supersets: supersets || undefined,
     notes: document.getElementById('strNotes').value.trim(),
     feeling: _strFeeling || undefined,
   };
@@ -5853,65 +6057,97 @@ function deleteStrengthSession(id) {
 function editStrengthSession(id) {
   const session = state.strength.find(s => s.id === id);
   if (!session) return;
-  // Pre-fill the strength modal
-  document.getElementById('strDate').value     = session.date;
-  document.getElementById('strExercise').value = session.exercise;
-  document.getElementById('strNotes').value    = session.notes || '';
+  _resetSupersetState();
+  document.getElementById('strDate').value  = session.date;
+  document.getElementById('strNotes').value = session.notes || '';
   const lbl = document.getElementById('strWeightLabel');
   if (lbl) lbl.textContent = `Weight (${profile.unit || 'kg'})`;
-  // custom dropdown — no datalist needed
-  // Restore sets — convert kg→display unit
-  setRowCount = 0;
-  document.getElementById('setsContainer').innerHTML = '';
-  session.sets.forEach(st => {
-    addSetRow();
-    const rowId = setRowCount;
-    const dispW = (profile.unit === 'lbs' && st.weight != null)
-      ? Math.round(st.weight * KG_TO_LBS * 10) / 10
-      : st.weight;
-    const wEl = document.getElementById('sw-' + rowId);
-    const rEl = document.getElementById('sr-' + rowId);
-    const eEl = document.getElementById('se-' + rowId);
-    if (wEl && dispW != null) wEl.value = dispW;
-    if (rEl && st.reps  != null) rEl.value = st.reps;
-    if (eEl && st.rpe   != null) eEl.value = st.rpe;
-  });
-  // Change save button to update mode
-  const saveBtn = document.querySelector('#strengthModal .btn-red');
-  if (saveBtn) {
-    saveBtn.textContent = 'UPDATE SESSION';
-    saveBtn.onclick = () => updateStrengthSession(id);
+
+  if (session.supersets && session.supersets.length > 1) {
+    // Restore superset mode
+    _supersetMode = true;
+    const btn = document.getElementById('supersetToggleBtn');
+    if (btn) { btn.textContent = '✕ SUPERSET'; btn.style.color = '#a78bfa'; btn.style.borderColor = '#a78bfa'; btn.style.background = 'rgba(167,139,250,0.1)'; }
+    document.getElementById('strSingleSets').style.display = 'none';
+    document.getElementById('supersetSection').style.display = 'block';
+    // Set the main exercise field to first movement for reference
+    document.getElementById('strExercise').value = session.supersets[0]?.exercise || '';
+    session.supersets.forEach(ss => {
+      addSupersetMovement();
+      const pid = _supersetPanelIds[_supersetPanelIds.length - 1];
+      const movInput = document.getElementById('ssmov-' + pid);
+      if (movInput) movInput.value = ss.exercise;
+      // Clear default 3 rows, then restore saved sets
+      const container = document.getElementById('sssc-' + pid);
+      if (container) container.innerHTML = '';
+      _supersetSetCounters[pid] = 0;
+      (ss.sets || []).forEach(st => {
+        addSupersetSetRow(pid);
+        const sid = _supersetSetCounters[pid];
+        const dispW = (profile.unit === 'lbs' && st.weight != null) ? Math.round(st.weight * KG_TO_LBS * 10) / 10 : st.weight;
+        const wEl = document.getElementById(`sswt-${pid}-${sid}`);
+        const rEl = document.getElementById(`ssrp-${pid}-${sid}`);
+        const eEl = document.getElementById(`ssrpe-${pid}-${sid}`);
+        if (wEl && dispW != null) wEl.value = dispW;
+        if (rEl && st.reps != null) rEl.value = st.reps;
+        if (eEl && st.rpe  != null) eEl.value = st.rpe;
+      });
+    });
+  } else {
+    // Single exercise mode
+    document.getElementById('strExercise').value = session.exercise;
+    setRowCount = 0;
+    document.getElementById('setsContainer').innerHTML = '';
+    session.sets.forEach(st => {
+      addSetRow();
+      const rowId = setRowCount;
+      const dispW = (profile.unit === 'lbs' && st.weight != null) ? Math.round(st.weight * KG_TO_LBS * 10) / 10 : st.weight;
+      if (dispW != null) document.getElementById('sw-' + rowId).value = dispW;
+      if (st.reps != null) document.getElementById('sr-' + rowId).value = st.reps;
+      if (st.rpe  != null) document.getElementById('se-' + rowId).value = st.rpe;
+    });
   }
+
+  const saveBtn = document.querySelector('#strengthModal .btn-red');
+  if (saveBtn) { saveBtn.textContent = 'UPDATE SESSION'; saveBtn.onclick = () => updateStrengthSession(id); }
   document.getElementById('strengthModal').style.display = 'flex';
 }
 
 function updateStrengthSession(id) {
   const idx = state.strength.findIndex(s => s.id === id);
   if (idx === -1) return;
-  const exercise = document.getElementById('strExercise').value.trim();
-  if (!exercise) { document.getElementById('strExercise').focus(); return; }
-  const sets = [];
-  document.querySelectorAll('#setsContainer .set-row').forEach(row => {
-    const rid = row.id.replace('set-row-', '');
-    const w = parseFloat(document.getElementById('sw-' + rid)?.value);
-    const r = parseInt(document.getElementById('sr-'  + rid)?.value);
-    const e = parseFloat(document.getElementById('se-' + rid)?.value);
-    const wKg = isNaN(w) ? null : (profile.unit === 'lbs' ? Math.round(w / KG_TO_LBS * 10) / 10 : w);
-    if (!isNaN(w) || !isNaN(r)) sets.push({ weight: wKg, reps: isNaN(r) ? null : r, rpe: isNaN(e) ? null : e });
-  });
-  if (!sets.length) { showToast('Add at least one set!'); return; }
+  let exercise, sets, supersets;
+  if (_supersetMode) {
+    supersets = _collectSupersets();
+    if (!supersets.length) { showToast('Add at least one movement!'); return; }
+    exercise = supersets.map(s => s.exercise).join(' + ');
+    sets = supersets[0]?.sets || [];
+  } else {
+    exercise = document.getElementById('strExercise').value.trim();
+    if (!exercise) { document.getElementById('strExercise').focus(); return; }
+    sets = [];
+    document.querySelectorAll('#setsContainer .set-row').forEach(row => {
+      const rid = row.id.replace('set-row-', '');
+      const w = parseFloat(document.getElementById('sw-' + rid)?.value);
+      const r = parseInt(document.getElementById('sr-' + rid)?.value);
+      const e = parseFloat(document.getElementById('se-' + rid)?.value);
+      const wKg = isNaN(w) ? null : (profile.unit === 'lbs' ? Math.round(w / KG_TO_LBS * 10) / 10 : w);
+      if (!isNaN(w) || !isNaN(r)) sets.push({ weight: wKg, reps: isNaN(r) ? null : r, rpe: isNaN(e) ? null : e });
+    });
+    if (!sets.length) { showToast('Add at least one set!'); return; }
+  }
   const updated = {
     ...state.strength[idx],
     exercise,
-    date:  document.getElementById('strDate').value,
+    date: document.getElementById('strDate').value,
     sets,
+    supersets: supersets || undefined,
     notes: document.getElementById('strNotes').value.trim(),
   };
   state.strength[idx] = updated;
   save(); closeStrengthModal(); renderStrengthList(); updateStrengthFilter(); renderDashboard();
   showToast('Session updated ✓');
   cloudPush('strength', updated);
-  // Reset save button
   const saveBtn = document.querySelector('#strengthModal .btn-red');
   if (saveBtn) { saveBtn.textContent = 'SAVE SESSION'; saveBtn.onclick = saveStrengthSession; }
 }
@@ -5923,10 +6159,11 @@ function renderStrengthList() {
   const filter = document.getElementById('strengthFilter')?.value || '';
   updateStrengthFilter();
 
+  const _strExNames = (s) => s.supersets ? s.supersets.map(ss => ss.exercise) : [s.exercise];
   let sessions = [...state.strength].sort((a,b) => b.date.localeCompare(a.date));
   sessions = sessions.filter(s => inDateRange(s.date));
-  if (filter) sessions = sessions.filter(s => s.exercise === filter);
-  if (query)  sessions = sessions.filter(s => s.exercise.toLowerCase().includes(query));
+  if (filter) sessions = sessions.filter(s => _strExNames(s).includes(filter));
+  if (query)  sessions = sessions.filter(s => _strExNames(s).some(n => n.toLowerCase().includes(query)));
 
   if (!sessions.length) {
     el.innerHTML = `<div class="empty-state"><div class="empty-icon">🏋️</div><p>No strength sessions for this period.</p></div>`;
@@ -5938,9 +6175,7 @@ function renderStrengthList() {
 function strengthCardHTML(s) {
   const u = profile.unit || 'kg';
   const dispW = (kg) => kg == null ? '—' : (u === 'lbs' ? Math.round(kg * KG_TO_LBS * 10) / 10 : kg) + u;
-  const topSet = [...s.sets].filter(x => x.weight).sort((a,b) => b.weight - a.weight)[0];
-  const topText = topSet ? `${dispW(topSet.weight)} × ${topSet.reps || '?'}` : '';
-  const setsBubbles = s.sets.map((st, i) => `
+  const makeBubbles = (sets) => sets.map((st, i) => `
     <div class="set-bubble">
       <div class="set-num">Set ${i+1}</div>
       <div class="set-weight">${dispW(st.weight)}</div>
@@ -5948,6 +6183,48 @@ function strengthCardHTML(s) {
       ${st.rpe ? `<div class="set-rpe">RPE ${st.rpe}</div>` : ''}
     </div>`).join('');
   const notes = s.notes ? `<div style="font-size:0.8rem;color:#777;margin-top:0.6rem;">💬 ${s.notes}</div>` : '';
+  const actions = `<div class="strength-actions">
+    <button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();editStrengthSession('${s.id}')">✏️</button>
+    <button class="btn btn-ghost btn-sm btn-icon" title="Share on leaderboard" onclick="event.stopPropagation();shareStrengthById('${s.id}')">🌍</button>
+    <button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();deleteStrengthSession('${s.id}')">🗑</button>
+  </div>`;
+
+  if (s.supersets && s.supersets.length > 1) {
+    const letters = ['A','B','C','D','E'];
+    const topOverall = s.supersets.flatMap(ss => ss.sets || []).filter(x => x.weight).sort((a,b) => b.weight - a.weight)[0];
+    const compactName = s.supersets.map(ss => ss.exercise).join(' + ');
+    const detailPanels = s.supersets.map((ss, i) => {
+      const top = (ss.sets||[]).filter(x=>x.weight).sort((a,b)=>b.weight-a.weight)[0];
+      return `<div style="margin-bottom:0.5rem;">
+        <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.25rem;">
+          <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#a78bfa;line-height:1;">${letters[i]||i+1}</span>
+          <span class="strength-title" style="font-size:1rem;margin:0;">${ss.exercise}</span>
+          ${top ? `<span style="font-family:'Bebas Neue';font-size:0.85rem;color:#e0e0e0;margin-left:auto;">${dispW(top.weight)} × ${top.reps||'?'}</span>` : ''}
+        </div>
+        <div class="sets-grid">${makeBubbles(ss.sets||[])}</div>
+      </div>`;
+    }).join('');
+    return `<div class="strength-card" onclick="toggleCard(this)">
+      <div class="str-compact">
+        <span class="str-compact-date">${formatDate(s.date)}</span>
+        <span class="tag strength" style="flex-shrink:0;background:rgba(167,139,250,0.15);color:#a78bfa;border-color:rgba(167,139,250,0.4);">SS</span>
+        <span class="str-compact-name">${compactName}</span>
+        ${topOverall ? `<span class="str-compact-top">${dispW(topOverall.weight)} × ${topOverall.reps||'?'}</span>` : ''}
+      </div>
+      <div class="str-detail">
+        <div class="strength-header">
+          <div class="strength-date">${formatDate(s.date)}</div>
+          <span class="tag" style="background:rgba(167,139,250,0.15);color:#a78bfa;border-color:rgba(167,139,250,0.4);">SUPERSET</span>
+        </div>
+        ${detailPanels}
+        ${notes}${actions}
+      </div>
+    </div>`;
+  }
+
+  // Single movement
+  const topSet = [...(s.sets||[])].filter(x => x.weight).sort((a,b) => b.weight - a.weight)[0];
+  const topText = topSet ? `${dispW(topSet.weight)} × ${topSet.reps || '?'}` : '';
   return `<div class="strength-card" onclick="toggleCard(this)">
     <div class="str-compact">
       <span class="str-compact-date">${formatDate(s.date)}</span>
@@ -5962,13 +6239,8 @@ function strengthCardHTML(s) {
         ${topSet ? `<span style="font-family:'Bebas Neue';font-size:1rem;color:#e0e0e0;margin-left:auto;">${dispW(topSet.weight)} × ${topSet.reps || '?'}</span>` : ''}
       </div>
       <div class="strength-title">${s.exercise}</div>
-      <div class="sets-grid">${setsBubbles}</div>
-      ${notes}
-      <div class="strength-actions">
-        <button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();editStrengthSession('${s.id}')">✏️</button>
-        <button class="btn btn-ghost btn-sm btn-icon" title="Share on leaderboard" onclick="event.stopPropagation();shareStrengthById('${s.id}')">🌍</button>
-        <button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();deleteStrengthSession('${s.id}')">🗑</button>
-      </div>
+      <div class="sets-grid">${makeBubbles(s.sets||[])}</div>
+      ${notes}${actions}
     </div>
   </div>`;
 }
@@ -6334,7 +6606,15 @@ function updateStrengthFilter() {
   const sel = document.getElementById('strengthFilter');
   if (!sel) return;
   const current = sel.value;
-  const exercises = [...new Set(state.strength.map(s => s.exercise))].sort();
+  const names = new Set();
+  state.strength.forEach(s => {
+    if (s.supersets && s.supersets.length > 1) {
+      s.supersets.forEach(ss => { if (ss.exercise) names.add(ss.exercise); });
+    } else {
+      if (s.exercise) names.add(s.exercise);
+    }
+  });
+  const exercises = [...names].sort();
   sel.innerHTML = '<option value="">All exercises</option>' +
     exercises.map(e => `<option value="${e}"${e===current?' selected':''}>${e}</option>`).join('');
 }
@@ -9068,15 +9348,22 @@ window.addEventListener('orientationchange', () => {
         <label>Date</label>
         <input type="date" id="strDate">
       </div>
-      <div class="form-group" style="position:relative;">
-        <label>Movement</label>
+      <div class="form-group" style="position:relative;" id="strSingleExercise">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.35rem;">
+          <label style="margin:0;">Movement</label>
+          <button type="button" id="supersetToggleBtn" onclick="toggleSupersetMode()"
+            style="font-size:0.62rem;letter-spacing:0.09em;font-family:'Barlow Condensed';font-weight:700;padding:0.15rem 0.45rem;border:1px solid var(--border);border-radius:3px;background:transparent;color:var(--muted);cursor:pointer;text-transform:uppercase;white-space:nowrap;">
+            ＋ SUPERSET
+          </button>
+        </div>
         <input type="text" id="strExercise" placeholder="Search movement…" autocomplete="off"
           oninput="filterStrMovementDropdown()" onfocus="filterStrMovementDropdown()" onblur="setTimeout(hideStrMovementDropdown,200)">
         <div id="strMovementDropdown" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:300;background:var(--card);border:1px solid var(--border);border-radius:4px;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>
       </div>
     </div>
 
-    <div style="margin-bottom:0.75rem;">
+    <!-- Single movement sets -->
+    <div id="strSingleSets" style="margin-bottom:0.75rem;">
       <div style="display:grid;grid-template-columns:36px 1fr 1fr 1fr auto;gap:0.5rem;margin-bottom:0.4rem;">
         <div></div>
         <label style="margin:0;display:flex;align-items:center;" id="strWeightLabel">Weight (kg)</label>
@@ -9086,6 +9373,12 @@ window.addEventListener('orientationchange', () => {
       </div>
       <div id="setsContainer"></div>
       <button class="btn btn-ghost btn-sm" onclick="addSetRow()" style="margin-top:0.5rem;">+ ADD SET</button>
+    </div>
+
+    <!-- Superset panels (hidden by default) -->
+    <div id="supersetSection" style="display:none;margin-bottom:0.75rem;">
+      <div id="supersetPanels"></div>
+      <button id="addSupersetMovBtn" class="btn btn-ghost btn-sm" onclick="addSupersetMovement()" style="width:100%;margin-top:0.25rem;">+ ADD MOVEMENT</button>
     </div>
 
     <div class="form-group">
