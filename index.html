@@ -5898,21 +5898,61 @@ function addStrEmomMovRow(opts) {
   const esc = s => (s || '').replace(/"/g, '&quot;');
   const row = document.createElement('div');
   row.id = 'semov-row-' + mid;
-  row.style.cssText = 'display:grid;grid-template-columns:1fr 90px 58px auto;gap:0.35rem;margin-bottom:0.3rem;align-items:center;';
+  row.style.cssText = 'margin-bottom:0.4rem;';
   row.innerHTML = `
-    <input type="text" id="semov-${mid}" value="${esc(opts.exercise||'')}" placeholder="Movement…" autocomplete="off"
-      style="padding:0.35rem 0.5rem;font-size:0.85rem;border:1px solid var(--border);border-radius:4px;background:var(--input);color:var(--text);">
-    <input type="text" id="semov-reps-${mid}" value="${esc(opts.repsRaw||'')}" placeholder="10-8-6-4-2"
-      style="padding:0.35rem 0.4rem;font-size:0.82rem;border:1px solid var(--border);border-radius:4px;background:var(--input);color:var(--text);text-align:center;" title="Single value or hyphen-separated ladder e.g. 10-8-6-4-2">
-    <select id="semov-unit-${mid}" style="padding:0.35rem 0.3rem;font-size:0.82rem;border:1px solid var(--border);border-radius:4px;background:var(--input);color:var(--text);">
-      <option value="reps"${(opts.unit||'reps')==='reps'?' selected':''}>reps</option>
-      <option value="m"${opts.unit==='m'?' selected':''}>m</option>
-      <option value="cal"${opts.unit==='cal'?' selected':''}>cal</option>
-      <option value="kg"${opts.unit==='kg'?' selected':''}>kg</option>
-      <option value="min"${opts.unit==='min'?' selected':''}>min</option>
-    </select>
-    <button onclick="removeStrEmomMovRow(${mid})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.9rem;padding:0.2rem 0.3rem;line-height:1;">✕</button>`;
+    <div style="display:grid;grid-template-columns:1fr 90px 58px auto;gap:0.35rem;align-items:center;">
+      <input type="text" id="semov-${mid}" value="${esc(opts.exercise||'')}" placeholder="Movement…" autocomplete="off"
+        style="padding:0.35rem 0.5rem;font-size:0.85rem;border:1px solid var(--border);border-radius:4px;background:var(--input);color:var(--text);">
+      <input type="text" id="semov-reps-${mid}" value="${esc(opts.repsRaw||'')}" placeholder="10-8-6-4-2"
+        oninput="onStrEmomRepsChange(${mid})"
+        style="padding:0.35rem 0.4rem;font-size:0.82rem;border:1px solid var(--border);border-radius:4px;background:var(--input);color:var(--text);text-align:center;"
+        title="Single value or ladder e.g. 10-8-6-4-2">
+      <select id="semov-unit-${mid}" style="padding:0.35rem 0.3rem;font-size:0.82rem;border:1px solid var(--border);border-radius:4px;background:var(--input);color:var(--text);">
+        <option value="reps"${(opts.unit||'reps')==='reps'?' selected':''}>reps</option>
+        <option value="m"${opts.unit==='m'?' selected':''}>m</option>
+        <option value="cal"${opts.unit==='cal'?' selected':''}>cal</option>
+        <option value="kg"${opts.unit==='kg'?' selected':''}>kg</option>
+        <option value="min"${opts.unit==='min'?' selected':''}>min</option>
+      </select>
+      <button onclick="removeStrEmomMovRow(${mid})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.9rem;padding:0.2rem 0.3rem;line-height:1;">✕</button>
+    </div>
+    <div id="semov-wts-${mid}" style="display:none;margin-top:0.25rem;padding:0.3rem 0.5rem;background:rgba(96,165,250,0.05);border:1px solid rgba(96,165,250,0.15);border-radius:4px;"></div>`;
   container.appendChild(row);
+  // Restore saved per-round weights after building the DOM
+  if (opts.repsRaw && opts.repsRaw.includes('-')) {
+    const u = profile.unit || 'kg';
+    const isLbs = u === 'lbs';
+    const dispWeights = (opts.weightPerRound || []).map(w =>
+      w != null ? (isLbs ? Math.round(w * KG_TO_LBS * 10) / 10 : w) : null
+    );
+    onStrEmomRepsChange(mid, dispWeights);
+  }
+}
+
+function onStrEmomRepsChange(mid, savedWeights) {
+  const repsEl = document.getElementById('semov-reps-' + mid);
+  const wtsEl  = document.getElementById('semov-wts-' + mid);
+  if (!repsEl || !wtsEl) return;
+  const raw   = repsEl.value.trim();
+  const parts = raw.split('-').map(v => parseFloat(v.trim())).filter(n => !isNaN(n));
+  if (parts.length <= 1) { wtsEl.style.display = 'none'; wtsEl.innerHTML = ''; return; }
+  const u = profile.unit || 'kg';
+  // Preserve any weights the user already typed (only rebuild if parts count changed)
+  const existingCount = wtsEl.querySelectorAll('input[type=number]').length;
+  const existing = existingCount === parts.length
+    ? parts.map((_, i) => { const el = document.getElementById(`semov-wt-${mid}-${i}`); return el ? el.value : ''; })
+    : (savedWeights || []).map(w => w != null ? w : '');
+  wtsEl.style.display = 'block';
+  wtsEl.innerHTML = `<div style="font-size:0.68rem;color:var(--muted);margin-bottom:0.3rem;font-family:'Barlow Condensed';letter-spacing:0.07em;text-transform:uppercase;">Weight per round (${u})</div>
+    <div style="display:flex;flex-wrap:wrap;gap:0.4rem;">
+      ${parts.map((reps, i) => `
+        <div style="display:flex;flex-direction:column;align-items:center;gap:0.1rem;">
+          <span style="font-size:0.63rem;color:var(--muted);white-space:nowrap;">Rd ${i+1} · ${reps} ${reps === 1 ? 'rep' : 'reps'}</span>
+          <input type="number" id="semov-wt-${mid}-${i}" value="${existing[i]||''}"
+            placeholder="—" min="0" step="0.5"
+            style="width:54px;padding:0.25rem 0.3rem;font-size:0.82rem;text-align:center;border:1px solid var(--border);border-radius:4px;background:var(--input);color:var(--text);">
+        </div>`).join('')}
+    </div>`;
 }
 
 function removeStrEmomMovRow(mid) {
@@ -5923,15 +5963,28 @@ function removeStrEmomMovRow(mid) {
 
 function _collectStrEmom() {
   const interval = _getStrEmomIntervalSec();
-  const rounds = parseInt(document.getElementById('strEmomRounds')?.value) || 1;
+  const rounds   = parseInt(document.getElementById('strEmomRounds')?.value) || 1;
+  const isLbs    = (profile.unit === 'lbs');
   const movements = _strEmomMovIds.map(mid => {
     const exercise = document.getElementById('semov-' + mid)?.value.trim() || '';
-    const repsRaw = document.getElementById('semov-reps-' + mid)?.value.trim() || '';
-    const unit = document.getElementById('semov-unit-' + mid)?.value || 'reps';
-    const repsSeq = repsRaw
+    const repsRaw  = document.getElementById('semov-reps-' + mid)?.value.trim() || '';
+    const unit     = document.getElementById('semov-unit-' + mid)?.value || 'reps';
+    const repsSeq  = repsRaw
       ? repsRaw.split('-').map(v => parseFloat(v.trim())).filter(n => !isNaN(n))
       : [];
-    return { exercise, repsSeq, repsRaw, unit };
+    let weightPerRound = null;
+    if (repsSeq.length > 1) {
+      const raw = repsSeq.map((_, i) => {
+        const el = document.getElementById(`semov-wt-${mid}-${i}`);
+        return el && el.value !== '' ? parseFloat(el.value) : null;
+      });
+      if (raw.some(w => w != null)) {
+        weightPerRound = raw.map(w => w != null
+          ? (isLbs ? Math.round(w / KG_TO_LBS * 10) / 10 : w)
+          : null);
+      }
+    }
+    return { exercise, repsSeq, repsRaw, unit, weightPerRound };
   }).filter(m => m.exercise);
   return { interval, rounds, movements };
 }
@@ -6444,9 +6497,20 @@ function strengthCardHTML(s) {
     const movRows = (em.movements || []).map(m => {
       const repsStr = m.repsRaw || (m.repsSeq || []).join('-');
       const unitStr = (m.unit && m.unit !== 'reps') ? ' ' + m.unit : (repsStr ? ' reps' : '');
-      return `<div style="display:flex;gap:0.5rem;align-items:baseline;margin-bottom:0.15rem;">
-        <span style="font-family:'Bebas Neue';font-size:0.95rem;color:#60a5fa;min-width:72px;flex-shrink:0;">${repsStr}${unitStr}</span>
-        <span style="font-size:0.85rem;color:var(--text);">${m.exercise}</span>
+      const hasWeights = m.weightPerRound && m.weightPerRound.some(w => w != null);
+      const wtRow = hasWeights
+        ? `<div style="display:flex;flex-wrap:wrap;gap:0.4rem 0.6rem;margin-top:0.2rem;margin-left:0;">
+            ${(m.repsSeq || []).map((reps, i) => {
+              const w = m.weightPerRound[i];
+              return `<span style="font-size:0.72rem;color:var(--muted);">R${i+1}: <span style="color:var(--text);font-weight:500;">${reps}</span> × <span style="color:#60a5fa;">${w != null ? dispW(w) : '—'}</span></span>`;
+            }).join('')}
+          </div>`
+        : '';
+      return `<div style="margin-bottom:${hasWeights?'0.4':'0.15'}rem;">
+        <div style="display:flex;gap:0.5rem;align-items:baseline;">
+          <span style="font-family:'Bebas Neue';font-size:0.95rem;color:#60a5fa;min-width:72px;flex-shrink:0;">${repsStr}${unitStr}</span>
+          <span style="font-size:0.85rem;color:var(--text);">${m.exercise}</span>
+        </div>${wtRow}
       </div>`;
     }).join('');
     return `<div class="strength-card" onclick="toggleCard(this)">
