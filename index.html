@@ -8256,23 +8256,40 @@ function renderLeaderboard() {
           ? Math.round(parseFloat(e.topWeight) * KG_TO_LBS * 10) / 10 + ' lbs'
           : parseFloat(e.topWeight) + ' kg') : null;
         const avatarHtml = `<div style="width:2rem;height:2rem;border-radius:50%;background:var(--red);display:flex;align-items:center;justify-content:center;font-size:1rem;overflow:hidden;flex-shrink:0;">${e.avatar || '💪'}</div>`;
+        const hasDetail = !!(e.desc || (e._type === 'strength' && e.topReps));
+        const detailContent = e._type === 'strength'
+          ? `<div style="font-size:0.8rem;color:var(--muted);">${e.exercise || ''}${e.topReps ? ' · ' + e.topReps + ' reps' : ''}</div>`
+          : `<div style="white-space:pre-line;font-size:0.82rem;color:var(--text);line-height:1.55;font-family:monospace;">${(e.desc || '').trim()}</div>`;
         return `
-        <div class="member-row" style="position:relative;">
-          <div class="rank-badge ${ranks[i]||''}">${i+1}</div>
-          ${avatarHtml}
-          <div>
-            <div class="member-name">${e.memberName || 'Anonymous'}</div>
-            <div class="member-meta">${formatDate(e.date)} ${e.rx ? '· ' + e.rx.toUpperCase() : ''}</div>
+        <div>
+          <div class="member-row" style="position:relative;${hasDetail ? 'cursor:pointer;' : ''}" ${hasDetail ? `onclick="toggleLbEntry('${e.id}')"` : ''}>
+            <div class="rank-badge ${ranks[i]||''}">${i+1}</div>
+            ${avatarHtml}
+            <div style="flex:1;min-width:0;">
+              <div class="member-name">${e.memberName || 'Anonymous'}</div>
+              <div class="member-meta">${formatDate(e.date)} ${e.rx ? '· ' + e.rx.toUpperCase() : ''}</div>
+            </div>
+            <div class="member-score">${e._type === 'strength' ? (dispWeight || '—') : (e.score || '—')}</div>
+            ${hasDetail ? `<span id="lb-chev-${e.id}" style="color:var(--muted);font-size:0.65rem;margin-left:0.2rem;flex-shrink:0;transition:transform 0.15s;display:inline-block;">▼</span>` : ''}
+            ${e.memberName === profile.name ? `
+            <button onclick="event.stopPropagation();deleteLeaderboardEntry('${e.id}')"
+              title="Remove from leaderboard"
+              style="margin-left:0.35rem;background:none;border:none;cursor:pointer;color:var(--muted);font-size:0.9rem;padding:0.25rem 0.4rem;flex-shrink:0;border-radius:4px;transition:color 0.15s;"
+              onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--muted)'">🗑</button>` : ''}
           </div>
-          <div class="member-score">${e._type === 'strength' ? (dispWeight || '—') : (e.score || '—')}</div>
-          ${e.memberName === profile.name ? `
-          <button onclick="deleteLeaderboardEntry('${e.id}')"
-            title="Remove from leaderboard"
-            style="margin-left:0.5rem;background:none;border:none;cursor:pointer;color:var(--muted);font-size:0.9rem;padding:0.25rem 0.4rem;flex-shrink:0;border-radius:4px;transition:color 0.15s;"
-            onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--muted)'">🗑</button>` : ''}
+          ${hasDetail ? `<div id="lb-detail-${e.id}" style="display:none;padding:0.5rem 0.75rem 0.6rem 2.9rem;border-top:1px solid var(--border);margin-top:0.15rem;">${detailContent}</div>` : ''}
         </div>`}).join('')}
     </div>`;
   }).join('');
+}
+
+function toggleLbEntry(id) {
+  const detail = document.getElementById('lb-detail-' + id);
+  const chev   = document.getElementById('lb-chev-'   + id);
+  if (!detail) return;
+  const open = detail.style.display !== 'none';
+  detail.style.display = open ? 'none' : 'block';
+  if (chev) chev.style.transform = open ? '' : 'rotate(180deg)';
 }
 
 async function deleteLeaderboardEntry(id) {
