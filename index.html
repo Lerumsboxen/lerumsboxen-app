@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta charset="utf-8">
 <link rel="manifest" href="manifest.json">
 
 <meta name="theme-color" content="#0a0a0a">
@@ -4101,7 +4102,7 @@ function renderPRs() {
       <td><span class="tag">${pr.unit}</span></td>
       <td class="date-cell">${pr.date ? formatDate(pr.date) : '<span style="color:var(--muted);">—</span>'}</td>
       <td style="display:flex;gap:0.25rem;">
-        <button class="btn btn-ghost btn-sm btn-icon" title="Progress chart" onclick="showProgressModal(${JSON.stringify(pr.movement)}, 'pr')">📈</button>
+        <button class="btn btn-ghost btn-sm btn-icon" title="Progress chart" onclick="showProgressModal(decodeURIComponent('${encodeURIComponent(pr.movement)}'),'pr')">📈</button>
         <button class="btn btn-ghost btn-sm btn-icon" onclick="editPR('${pr.id}')">✏️</button>
         <button class="btn btn-ghost btn-sm btn-icon" onclick="deletePR('${pr.id}')">🗑</button>
       </td>
@@ -6548,7 +6549,7 @@ function strengthCardHTML(s) {
   const _strCardEx = s.emom ? (s.emom.movements||[]).map(m=>m.exercise).filter(Boolean) : s.supersets ? s.supersets.map(ss=>ss.exercise).filter(Boolean) : [s.exercise].filter(Boolean);
   const actions = `<div class="strength-actions">
     <button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();editStrengthSession('${s.id}')">✏️</button>
-    ${_strCardEx.length ? `<button class="btn btn-ghost btn-sm btn-icon" title="Progress chart" onclick="event.stopPropagation();showProgressModal(${JSON.stringify(_strCardEx[0])})">📈</button>` : ''}
+    ${_strCardEx.length ? `<button class="btn btn-ghost btn-sm btn-icon" title="Progress chart" onclick="event.stopPropagation();showProgressModal(decodeURIComponent('${encodeURIComponent(_strCardEx[0]||'')}'))">📈</button>` : ''}
     <button class="btn btn-ghost btn-sm btn-icon" title="Share on leaderboard" onclick="event.stopPropagation();shareStrengthById('${s.id}')">🌍</button>
     <button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();deleteStrengthSession('${s.id}')">🗑</button>
   </div>`;
@@ -8645,7 +8646,7 @@ function generateWarmup() {
     'Jump rope / light row / bike · 3 min',
     'Shoulder rolls × 10 each direction',
     'Hip circles × 10 each direction',
-    'World's greatest stretch × 3/side',
+    'World\u2019s greatest stretch \u00d7 3/side',
   ];
 
   const catLabel = {
