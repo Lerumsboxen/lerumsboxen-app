@@ -2429,7 +2429,7 @@ const DASH_SECTIONS = {
       <div style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
           <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:var(--text);">Workout of the Day</div>
-          <button type="button" onclick="generateWarmupFromProg(decodeURIComponent('${encodeURIComponent(((prog.strength||'') + ' ' + (prog.workout||'')).trim())}'))" style="font-size:0.72rem;letter-spacing:0.07em;font-family:'Barlow Condensed';font-weight:700;padding:0.22rem 0.65rem;border:1px dashed var(--border);border-radius:4px;background:transparent;color:var(--muted);cursor:pointer;text-transform:uppercase;">🔥 Warm-up</button>
+          <button type="button" onclick="generateWarmupFromProg()" style="font-size:0.72rem;letter-spacing:0.07em;font-family:'Barlow Condensed';font-weight:700;padding:0.22rem 0.65rem;border:1px dashed var(--border);border-radius:4px;background:transparent;color:var(--muted);cursor:pointer;text-transform:uppercase;">🔥 Warm-up</button>
         </div>
         ${prog.strength ? `
         <div style="margin-bottom:0.75rem;">
@@ -8610,7 +8610,7 @@ function _openGenericModal(title, bodyHtml) {
 
 // ===== WARM-UP GENERATOR =====
 const _WARMUP_DB = {
-  squat:    { keywords:['squat','clean','snatch','thruster','ohs','overhead squat','front squat','back squat','wall ball','goblet','pistol','lunge','step-up','step up'],
+  squat:    { keywords:['squat','thruster','ohs','overhead squat','front squat','back squat','wall ball','goblet','pistol','lunge','step-up','step up'],
               warmup:['Hip circles × 10 each direction','Leg swings × 10 each leg','Air Squats × 15 — slow & controlled','Goblet Squat with light KB × 10','Ankle mobility: 1 min each side','Hip flexor stretch × 45 sec/side'] },
   pull:     { keywords:['pull-up','pullup','pull up','muscle-up','muscle up','ring','toes-to-bar','ttb','deadlift','rdl','kettlebell swing','kb swing','row','sumo'],
               warmup:['Dead hangs × 3 × 10 sec','Scapular pull-ups × 10','Banded pull-aparts × 20','Cat-cow × 10 reps','Good mornings × 15 (empty bar)','PVC pass-throughs × 15'] },
@@ -8622,9 +8622,9 @@ const _WARMUP_DB = {
               warmup:['Easy 2 min jog / row / bike','High knees × 20 m','Butt kicks × 20 m','Jumping jacks × 20','Single-unders × 50','Lateral shuffles × 10 m/side'] },
   olympic:  { keywords:['snatch','clean and jerk','clean','jerk','thruster','hang power'],
               warmup:['PVC pass-throughs × 15','PVC overhead squat × 10','Empty bar hang power clean × 10','Empty bar push press × 10','Tall muscle snatch × 8','Burgener warm-up × 1 round'] },
-  core:     { keywords:['sit-up','situp','ab','toes-to-bar','ttb','ghd','v-up','hollow','plank','l-sit'],
+  core:     { keywords:['sit-up','situp','ab','toes-to-bar','toes to bar','ttb','ghd','v-up','hollow','plank','l-sit'],
               warmup:['Dead bug × 10/side','Hollow body hold × 3 × 20 sec','Bicycle crunches × 20','Superman holds × 10','Plank × 3 × 30 sec'] },
-  gymnastics:{ keywords:['handstand','hspu','muscle-up','ring','dip','rope climb','pull-up','bar muscle'],
+  gymnastics:{ keywords:['handstand','hspu','muscle-up','muscle up','ring','dip','rope climb','pull-up','bar muscle','wall walk','wall walks'],
               warmup:['Wrist warm-up circuit × 1 min','Scapular push-ups × 10','Pike push-ups × 10','Skin-the-cats × 5 (if rings available)','Kipping swings × 10'] },
 };
 
@@ -8677,16 +8677,21 @@ function generateWarmup() {
 }
 
 // ===== PROGRAM WARM-UP (Programming section, capped at ~10 min) =====
-function generateWarmupFromProg(text) {
+function generateWarmupFromProg() {
+  const viewDate = window.programViewDate || new Date().toISOString().split('T')[0];
+  const prog = (state.dailyProgram || {})[viewDate] || {};
+  const text = ((prog.strength || '') + ' ' + (prog.workout || '')).trim();
+  if (!text) { showToast('No program loaded for this day'); return; }
   const lower = text.toLowerCase();
   const sections = [];
   const matched = new Set();
   for (const [cat, data] of Object.entries(_WARMUP_DB)) {
     if (data.keywords.some(kw => lower.includes(kw)) && !matched.has(cat)) {
-      matched.add(cat); sections.push({ cat, warmup: data.warmup });
+      matched.add(cat);
+      sections.push({ cat, warmup: data.warmup.slice(0, 3) });
     }
   }
-  const limited = sections.slice(0, 1);
+  const limited = sections.slice(0, 2);
   const catLabel = {
     squat:'Lower Body & Squat', pull:'Pull / Posterior Chain', push:'Push / Shoulder',
     hinge:'Hinge & Hip', cardio:'Cardio Prep', olympic:'Olympic Lifting',
@@ -8696,7 +8701,7 @@ function generateWarmupFromProg(text) {
     'Jump rope / light row / bike · 3 min',
     'Shoulder rolls × 10 each direction',
     'Hip circles × 10 each direction',
-    'Perfect Stretch \u00d7 3/side',
+    'Perfect Stretch × 3/side',
   ];
   const sectionsHtml = limited.length
     ? limited.map(s => `
@@ -8704,14 +8709,14 @@ function generateWarmupFromProg(text) {
           <div style="font-family:'Barlow Condensed';font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:#60a5fa;margin-bottom:0.35rem;">${catLabel[s.cat]||s.cat}</div>
           ${s.warmup.map(l=>`<div style="font-size:0.84rem;padding:0.2rem 0;border-bottom:1px solid var(--border);color:var(--text);">· ${l}</div>`).join('')}
         </div>`).join('')
-    : `<div style="color:var(--muted);font-size:0.84rem;padding:0.5rem 0;">No specific movements detected in today’s program.</div>`;
+    : `<div style="color:var(--muted);font-size:0.84rem;padding:0.5rem 0;">No specific movements detected — check the program text includes movement keywords.</div>`;
   _openGenericModal('🔥 Warm-up Generator', `
     <div style="margin-bottom:0.85rem;">
       <div style="font-family:'Barlow Condensed';font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:#fbbf24;margin-bottom:0.35rem;">General Prep · 5 min</div>
       ${general.map(l=>`<div style="font-size:0.84rem;padding:0.2rem 0;border-bottom:1px solid var(--border);color:var(--text);">· ${l}</div>`).join('')}
     </div>
     ${sectionsHtml}
-    <div style="margin-top:1rem;font-size:0.75rem;color:var(--muted);">Total: ~${limited.length ? '8–10' : '5'} min · Under 10 min</div>
+    <div style="margin-top:1rem;font-size:0.75rem;color:var(--muted);">Total: ~${5 + limited.length * 2}–10 min</div>
   `);
 }
 
