@@ -2035,6 +2035,7 @@ function json(obj) {
     <div class="form-group">
       <label>Description / Movements</label>
       <textarea id="wodDesc" rows="3" placeholder="21-15-9&#10;Thrusters 43kg&#10;Pull-ups" oninput="onWodDescInput()"></textarea>
+      <button type="button" onclick="generateWarmup()" style="margin-top:0.4rem;width:100%;font-size:0.72rem;letter-spacing:0.07em;font-family:'Barlow Condensed';font-weight:700;padding:0.22rem 0;border:1px dashed var(--border);border-radius:4px;background:transparent;color:var(--muted);cursor:pointer;text-transform:uppercase;">🔥 GENERATE WARM-UP</button>
     </div>
 
     <!-- EMOM BUILDER -->
@@ -2147,6 +2148,15 @@ function json(obj) {
     <div class="form-group">
       <label>Notes</label>
       <input type="text" id="wodNotes" placeholder="How did it feel?">
+    </div>
+    <div class="form-group" style="position:relative;">
+      <label>Benchmark <span style="font-size:0.72rem;color:var(--muted);">(optional)</span>
+        <button type="button" onclick="showBenchmarkHistory(document.getElementById('wodBenchmark').value)"
+          style="margin-left:0.5rem;font-size:0.65rem;padding:0.1rem 0.35rem;border:1px solid var(--border);border-radius:3px;background:transparent;color:var(--muted);cursor:pointer;font-family:'Barlow Condensed';letter-spacing:0.06em;">HISTORY</button>
+      </label>
+      <input type="text" id="wodBenchmark" placeholder="e.g. Fran, Murph, 22.1…" autocomplete="off"
+        oninput="filterBenchmarkDropdown()" onfocus="filterBenchmarkDropdown()" onblur="setTimeout(hideBenchmarkDropdown,200)">
+      <div id="benchmarkDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--border);border-radius:4px;z-index:200;max-height:180px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>
     </div>
     <div class="form-group" id="wodPartnerGroup">
       <label>🤝 Partner(s) <span style="font-size:0.75rem;color:var(--muted);">(optional — logs result for them too)</span></label>
@@ -2828,6 +2838,7 @@ function wodCardHTML(w, showActions=false) {
   const rx   = w.rx   || 'rx';
   const id   = w.id;
   const scoreText = w.score ? `⏱ ${w.score} · ${rx.toUpperCase()}` : '';
+  const benchmarkTag = w.benchmark ? `<span onclick="event.stopPropagation();showBenchmarkHistory('${w.benchmark.replace(/'/g,"\\'")}')" title="View all ${w.benchmark} results" style="cursor:pointer;font-family:'Barlow Condensed';font-size:0.68rem;letter-spacing:0.07em;text-transform:uppercase;padding:0.1rem 0.35rem;border-radius:3px;background:rgba(251,191,36,0.15);color:#fbbf24;border:1px solid rgba(251,191,36,0.35);flex-shrink:0;">${w.benchmark}</span>` : '';
   const restText = w.restBetweenRounds ? `<span style="font-size:0.75rem;color:#c084fc;margin-left:0.4rem;">⏸ ${w.restBetweenRounds} min rest/rd</span>`
     : w.restBetweenParts ? `<span style="font-size:0.75rem;color:#fbbf24;margin-left:0.4rem;">⏸ ${w.restBetweenParts} min rest/part</span>` : '';
   const notes = w.notes ? `<div style="font-size:0.8rem;color:#777;margin-top:0.3rem;">💬 ${w.notes}</div>` : '';
@@ -2842,12 +2853,14 @@ function wodCardHTML(w, showActions=false) {
       <span class="wod-compact-date">${formatDate(w.date)}</span>
       <span class="tag ${type}" style="flex-shrink:0;">${typeLabel}</span>
       <span class="wod-compact-name">${w.name || 'Unnamed WOD'}</span>
+      ${benchmarkTag}
       ${scoreText ? `<span class="wod-compact-score">${scoreText}</span>` : ''}
     </div>
     <div class="wod-detail">
       <div class="wod-meta">
         <div class="wod-date">${formatDate(w.date)}</div>
         <span class="tag ${type}">${typeLabel}</span>
+        ${benchmarkTag}
         ${w.score ? `<div class="wod-score">⏱ ${w.score} &nbsp;·&nbsp; ${rx.toUpperCase()}</div>` : ''}
       </div>
       <div class="wod-name">${w.name || 'Unnamed WOD'}${restText}</div>
@@ -2899,6 +2912,7 @@ function editWod(id) {
   document.getElementById('wodScore').value = wod.score || '';
   document.getElementById('wodRx').value    = wod.rx || 'rx';
   document.getElementById('wodNotes').value = wod.notes || '';
+  document.getElementById('wodBenchmark').value = wod.benchmark || '';
   // Change save button to update mode
   const saveBtn = document.querySelector('#wodModal .btn-red');
   if (saveBtn) {
@@ -2926,6 +2940,7 @@ function updateWod(id) {
     score: document.getElementById('wodScore').value.trim(),
     rx:    document.getElementById('wodRx').value,
     notes: document.getElementById('wodNotes').value.trim(),
+    benchmark: document.getElementById('wodBenchmark')?.value.trim() || undefined,
     emomInterval: (() => { if (document.getElementById('wodType')?.value !== 'emom') return undefined; const s = _getEmomIntervalSec(); return s !== 60 ? s : undefined; })(),
   };
   state.wods[idx] = updated;
@@ -3827,7 +3842,7 @@ function closeWodModal(e) {
   }
 }
 function clearWodForm() {
-  ['wodName','wodDesc','wodScore','wodNotes','wodPartner'].forEach(id => {
+  ['wodName','wodDesc','wodScore','wodNotes','wodBenchmark','wodPartner'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -3979,6 +3994,7 @@ function saveWod() {
     score: document.getElementById('wodScore').value.trim(),
     rx: document.getElementById('wodRx').value,
     notes: document.getElementById('wodNotes').value.trim(),
+    benchmark: document.getElementById('wodBenchmark')?.value.trim() || undefined,
     partners: selectedPartners.length ? [...selectedPartners] : undefined,
     feeling: _wodFeeling || undefined,
     restBetweenRounds: (() => {
@@ -4085,6 +4101,7 @@ function renderPRs() {
       <td><span class="tag">${pr.unit}</span></td>
       <td class="date-cell">${pr.date ? formatDate(pr.date) : '<span style="color:var(--muted);">—</span>'}</td>
       <td style="display:flex;gap:0.25rem;">
+        <button class="btn btn-ghost btn-sm btn-icon" title="Progress chart" onclick="showProgressModal(${JSON.stringify(pr.movement)}, 'pr')">📈</button>
         <button class="btn btn-ghost btn-sm btn-icon" onclick="editPR('${pr.id}')">✏️</button>
         <button class="btn btn-ghost btn-sm btn-icon" onclick="deletePR('${pr.id}')">🗑</button>
       </td>
@@ -5903,10 +5920,10 @@ function addStrEmomMovRow(opts) {
     <div style="display:grid;grid-template-columns:1fr 90px 58px auto;gap:0.35rem;align-items:center;">
       <input type="text" id="semov-${mid}" value="${esc(opts.exercise||'')}" placeholder="Movement…" autocomplete="off"
         style="padding:0.35rem 0.5rem;font-size:0.85rem;border:1px solid var(--border);border-radius:4px;background:var(--input);color:var(--text);">
-      <input type="text" id="semov-reps-${mid}" value="${esc(opts.repsRaw||'')}" placeholder="10-8-6-4-2"
+      <input type="text" id="semov-reps-${mid}" value="${esc(opts.repsRaw||'')}" placeholder="10-8-6 / MAX"
         oninput="onStrEmomRepsChange(${mid})"
         style="padding:0.35rem 0.4rem;font-size:0.82rem;border:1px solid var(--border);border-radius:4px;background:var(--input);color:var(--text);text-align:center;"
-        title="Single value or ladder e.g. 10-8-6-4-2">
+        title="Fixed: 10  Ladder: 10-8-6-4-2  Max reps: MAX">
       <select id="semov-unit-${mid}" style="padding:0.35rem 0.3rem;font-size:0.82rem;border:1px solid var(--border);border-radius:4px;background:var(--input);color:var(--text);">
         <option value="reps"${(opts.unit||'reps')==='reps'?' selected':''}>reps</option>
         <option value="m"${opts.unit==='m'?' selected':''}>m</option>
@@ -5918,31 +5935,60 @@ function addStrEmomMovRow(opts) {
     </div>
     <div id="semov-wts-${mid}" style="display:none;margin-top:0.25rem;padding:0.3rem 0.5rem;background:rgba(96,165,250,0.05);border:1px solid rgba(96,165,250,0.15);border-radius:4px;"></div>`;
   container.appendChild(row);
-  // Restore saved per-round weights after building the DOM
-  if (opts.repsRaw && opts.repsRaw.includes('-')) {
-    const u = profile.unit || 'kg';
-    const isLbs = u === 'lbs';
-    const dispWeights = (opts.weightPerRound || []).map(w =>
-      w != null ? (isLbs ? Math.round(w * KG_TO_LBS * 10) / 10 : w) : null
-    );
-    onStrEmomRepsChange(mid, dispWeights);
+  // Restore saved data after building the DOM
+  if (opts.repsRaw) {
+    if (/^max$/i.test(opts.repsRaw)) {
+      onStrEmomRepsChange(mid, opts.repsSeq || []);
+    } else if (opts.repsRaw.includes('-')) {
+      const u = profile.unit || 'kg';
+      const isLbs = u === 'lbs';
+      const dispWeights = (opts.weightPerRound || []).map(w =>
+        w != null ? (isLbs ? Math.round(w * KG_TO_LBS * 10) / 10 : w) : null
+      );
+      onStrEmomRepsChange(mid, dispWeights);
+    }
   }
 }
 
-function onStrEmomRepsChange(mid, savedWeights) {
+function onStrEmomRepsChange(mid, savedData) {
   const repsEl = document.getElementById('semov-reps-' + mid);
   const wtsEl  = document.getElementById('semov-wts-' + mid);
   if (!repsEl || !wtsEl) return;
-  const raw   = repsEl.value.trim();
+  const raw = repsEl.value.trim();
+
+  // MAX REPS mode — show one rep-count input per round
+  if (/^max$/i.test(raw)) {
+    const rounds = parseInt(document.getElementById('strEmomRounds')?.value) || 1;
+    const existingCount = wtsEl.querySelectorAll('[id^="semov-mr-"]').length;
+    const saved = Array.isArray(savedData) ? savedData : [];
+    const existing = existingCount === rounds
+      ? Array.from({length: rounds}, (_, i) => { const el = document.getElementById(`semov-mr-${mid}-${i}`); return el ? el.value : ''; })
+      : saved.map(v => v != null ? v : '');
+    wtsEl.style.display = 'block';
+    wtsEl.dataset.mode = 'maxreps';
+    wtsEl.innerHTML = `<div style="font-size:0.68rem;color:var(--muted);margin-bottom:0.3rem;font-family:'Barlow Condensed';letter-spacing:0.07em;text-transform:uppercase;">Reps per round</div>
+      <div style="display:flex;flex-wrap:wrap;gap:0.4rem;">
+        ${Array.from({length: rounds}, (_, i) => `
+          <div style="display:flex;flex-direction:column;align-items:center;gap:0.1rem;">
+            <span style="font-size:0.63rem;color:var(--muted);">Rd ${i+1}</span>
+            <input type="number" id="semov-mr-${mid}-${i}" value="${existing[i]||''}"
+              placeholder="—" min="0" step="1"
+              style="width:48px;padding:0.25rem 0.3rem;font-size:0.82rem;text-align:center;border:1px solid var(--border);border-radius:4px;background:var(--input);color:var(--text);">
+          </div>`).join('')}
+      </div>`;
+    return;
+  }
+
+  // LADDER mode — show weight input per ladder step
   const parts = raw.split('-').map(v => parseFloat(v.trim())).filter(n => !isNaN(n));
-  if (parts.length <= 1) { wtsEl.style.display = 'none'; wtsEl.innerHTML = ''; return; }
+  if (parts.length <= 1) { wtsEl.style.display = 'none'; wtsEl.innerHTML = ''; wtsEl.dataset.mode = ''; return; }
   const u = profile.unit || 'kg';
-  // Preserve any weights the user already typed (only rebuild if parts count changed)
-  const existingCount = wtsEl.querySelectorAll('input[type=number]').length;
+  const existingCount = wtsEl.querySelectorAll('[id^="semov-wt-"]').length;
   const existing = existingCount === parts.length
     ? parts.map((_, i) => { const el = document.getElementById(`semov-wt-${mid}-${i}`); return el ? el.value : ''; })
-    : (savedWeights || []).map(w => w != null ? w : '');
+    : (Array.isArray(savedData) ? savedData : []).map(w => w != null ? w : '');
   wtsEl.style.display = 'block';
+  wtsEl.dataset.mode = 'ladder';
   wtsEl.innerHTML = `<div style="font-size:0.68rem;color:var(--muted);margin-bottom:0.3rem;font-family:'Barlow Condensed';letter-spacing:0.07em;text-transform:uppercase;">Weight per round (${u})</div>
     <div style="display:flex;flex-wrap:wrap;gap:0.4rem;">
       ${parts.map((reps, i) => `
@@ -5953,6 +5999,13 @@ function onStrEmomRepsChange(mid, savedWeights) {
             style="width:54px;padding:0.25rem 0.3rem;font-size:0.82rem;text-align:center;border:1px solid var(--border);border-radius:4px;background:var(--input);color:var(--text);">
         </div>`).join('')}
     </div>`;
+}
+
+function onStrEmomRoundsChange() {
+  _strEmomMovIds.forEach(mid => {
+    const repsEl = document.getElementById('semov-reps-' + mid);
+    if (repsEl && /^max$/i.test(repsEl.value.trim())) onStrEmomRepsChange(mid);
+  });
 }
 
 function removeStrEmomMovRow(mid) {
@@ -5969,6 +6022,14 @@ function _collectStrEmom() {
     const exercise = document.getElementById('semov-' + mid)?.value.trim() || '';
     const repsRaw  = document.getElementById('semov-reps-' + mid)?.value.trim() || '';
     const unit     = document.getElementById('semov-unit-' + mid)?.value || 'reps';
+    // MAX REPS mode
+    if (/^max$/i.test(repsRaw)) {
+      const repsSeq = Array.from({length: rounds}, (_, i) => {
+        const el = document.getElementById(`semov-mr-${mid}-${i}`);
+        return el && el.value !== '' ? parseInt(el.value) : null;
+      });
+      return { exercise, repsRaw: 'max', isMaxReps: true, repsSeq: repsSeq.filter(r => r != null), unit };
+    }
     const repsSeq  = repsRaw
       ? repsRaw.split('-').map(v => parseFloat(v.trim())).filter(n => !isNaN(n))
       : [];
@@ -6484,8 +6545,10 @@ function strengthCardHTML(s) {
       ${st.rpe ? `<div class="set-rpe">RPE ${st.rpe}</div>` : ''}
     </div>`).join('');
   const notes = s.notes ? `<div style="font-size:0.8rem;color:#777;margin-top:0.6rem;">💬 ${s.notes}</div>` : '';
+  const _strCardEx = s.emom ? (s.emom.movements||[]).map(m=>m.exercise).filter(Boolean) : s.supersets ? s.supersets.map(ss=>ss.exercise).filter(Boolean) : [s.exercise].filter(Boolean);
   const actions = `<div class="strength-actions">
     <button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();editStrengthSession('${s.id}')">✏️</button>
+    ${_strCardEx.length ? `<button class="btn btn-ghost btn-sm btn-icon" title="Progress chart" onclick="event.stopPropagation();showProgressModal(${JSON.stringify(_strCardEx[0])})">📈</button>` : ''}
     <button class="btn btn-ghost btn-sm btn-icon" title="Share on leaderboard" onclick="event.stopPropagation();shareStrengthById('${s.id}')">🌍</button>
     <button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();deleteStrengthSession('${s.id}')">🗑</button>
   </div>`;
@@ -6495,17 +6558,24 @@ function strengthCardHTML(s) {
     const label = _formatEmomInterval(em.interval || 60) + ' × ' + (em.rounds || '?');
     const compactName = (em.movements || []).map(m => m.exercise).join(' + ');
     const movRows = (em.movements || []).map(m => {
-      const repsStr = m.repsRaw || (m.repsSeq || []).join('-');
-      const unitStr = (m.unit && m.unit !== 'reps') ? ' ' + m.unit : (repsStr ? ' reps' : '');
-      const hasWeights = m.weightPerRound && m.weightPerRound.some(w => w != null);
-      const wtRow = hasWeights
-        ? `<div style="display:flex;flex-wrap:wrap;gap:0.4rem 0.6rem;margin-top:0.2rem;margin-left:0;">
-            ${(m.repsSeq || []).map((reps, i) => {
-              const w = m.weightPerRound[i];
-              return `<span style="font-size:0.72rem;color:var(--muted);">R${i+1}: <span style="color:var(--text);font-weight:500;">${reps}</span> × <span style="color:#60a5fa;">${w != null ? dispW(w) : '—'}</span></span>`;
-            }).join('')}
+      const isMax = m.isMaxReps;
+      const repsStr = isMax ? 'MAX' : (m.repsRaw || (m.repsSeq || []).join('-'));
+      const unitStr = (m.unit && m.unit !== 'reps') ? ' ' + m.unit : (repsStr && !isMax ? ' reps' : '');
+      const hasWeights = !isMax && m.weightPerRound && m.weightPerRound.some(w => w != null);
+      const hasMaxResults = isMax && m.repsSeq && m.repsSeq.length > 0;
+      const wtRow = hasMaxResults
+        ? `<div style="display:flex;flex-wrap:wrap;gap:0.3rem 0.5rem;margin-top:0.2rem;">
+            ${m.repsSeq.map((r, i) => `<span style="font-size:0.72rem;color:var(--muted);">Rd${i+1}: <span style="color:var(--text);font-weight:600;">${r}</span></span>`).join('')}
+            <span style="font-size:0.72rem;color:var(--muted);">= <span style="color:#60a5fa;">${m.repsSeq.reduce((a,b)=>a+b,0)} total</span></span>
           </div>`
-        : '';
+        : hasWeights
+          ? `<div style="display:flex;flex-wrap:wrap;gap:0.4rem 0.6rem;margin-top:0.2rem;margin-left:0;">
+              ${(m.repsSeq || []).map((reps, i) => {
+                const w = m.weightPerRound[i];
+                return `<span style="font-size:0.72rem;color:var(--muted);">R${i+1}: <span style="color:var(--text);font-weight:500;">${reps}</span> × <span style="color:#60a5fa;">${w != null ? dispW(w) : '—'}</span></span>`;
+              }).join('')}
+            </div>`
+          : '';
       return `<div style="margin-bottom:${hasWeights?'0.4':'0.15'}rem;">
         <div style="display:flex;gap:0.5rem;align-items:baseline;">
           <span style="font-family:'Bebas Neue';font-size:0.95rem;color:#60a5fa;min-width:72px;flex-shrink:0;">${repsStr}${unitStr}</span>
@@ -6518,7 +6588,7 @@ function strengthCardHTML(s) {
         <span class="str-compact-date">${formatDate(s.date)}</span>
         <span class="tag" style="flex-shrink:0;background:rgba(96,165,250,0.15);color:#60a5fa;border-color:rgba(96,165,250,0.4);">${_formatEmomInterval(em.interval||60)}</span>
         <span class="str-compact-name">${compactName}</span>
-        <span class="str-compact-top" style="color:#60a5fa;">×${em.rounds||'?'}</span>
+        <span class="str-compact-top" style="color:#60a5fa;">${(() => { const mx = (em.movements||[]).find(m=>m.isMaxReps&&m.repsSeq?.length); return mx ? mx.repsSeq.reduce((a,b)=>a+b,0)+' reps' : '×'+(em.rounds||'?'); })()}</span>
       </div>
       <div class="str-detail">
         <div class="strength-header">
@@ -8292,6 +8362,316 @@ function toggleLbEntry(id) {
   if (chev) chev.style.transform = open ? '' : 'rotate(180deg)';
 }
 
+// ===== BENCHMARK TAGGING =====
+function _allBenchmarkNames() {
+  const names = [];
+  ['girls','hero'].forEach(cat => (BENCHMARK_WODS[cat]||[]).forEach(w => names.push(w.name)));
+  (BENCHMARK_WODS.open||[]).forEach(w => names.push(w.name));
+  // Also include any previously used benchmarks from local state
+  state.wods.forEach(w => { if (w.benchmark && !names.includes(w.benchmark)) names.push(w.benchmark); });
+  return names;
+}
+
+function filterBenchmarkDropdown() {
+  const input = document.getElementById('wodBenchmark');
+  const dd = document.getElementById('benchmarkDropdown');
+  if (!input || !dd) return;
+  const q = input.value.toLowerCase().trim();
+  const all = _allBenchmarkNames();
+  const matches = q ? all.filter(n => n.toLowerCase().includes(q)) : all.slice(0, 20);
+  if (!matches.length) { dd.style.display = 'none'; return; }
+  dd.style.display = 'block';
+  dd.innerHTML = matches.map(n => `
+    <div onmousedown="event.preventDefault();document.getElementById('wodBenchmark').value='${n.replace(/'/g,"\\'")}';hideBenchmarkDropdown();"
+      style="padding:0.5rem 0.85rem;cursor:pointer;font-size:0.88rem;border-bottom:1px solid var(--border);"
+      onmouseover="this.style.background='var(--card2)'" onmouseout="this.style.background=''">
+      ${n}
+    </div>`).join('');
+}
+
+function hideBenchmarkDropdown() {
+  const dd = document.getElementById('benchmarkDropdown');
+  if (dd) dd.style.display = 'none';
+}
+
+function showBenchmarkHistory(name) {
+  if (!name || !name.trim()) { showToast('Enter a benchmark name first'); return; }
+  name = name.trim();
+  const results = state.wods
+    .filter(w => w.benchmark && w.benchmark.toLowerCase() === name.toLowerCase())
+    .sort((a,b) => a.date.localeCompare(b.date));
+
+  // Find official desc
+  let officialDesc = '';
+  for (const cat of ['girls','hero','open']) {
+    const found = (BENCHMARK_WODS[cat]||[]).find(w => w.name.toLowerCase() === name.toLowerCase());
+    if (found) { officialDesc = found.desc || ''; break; }
+  }
+
+  const u = profile.unit || 'kg';
+  const rows = results.length
+    ? results.map(w => `
+        <div style="display:flex;align-items:center;gap:0.6rem;padding:0.5rem 0;border-bottom:1px solid var(--border);">
+          <span style="font-size:0.8rem;color:var(--muted);min-width:72px;flex-shrink:0;">${formatDate(w.date)}</span>
+          <span style="font-family:'Bebas Neue';font-size:1.05rem;color:#60a5fa;flex:1;">${w.score || '—'}</span>
+          <span style="font-size:0.75rem;color:var(--muted);">${(w.rx||'rx').toUpperCase()}</span>
+          ${w.notes ? `<span style="font-size:0.75rem;color:#777;">💬 ${w.notes}</span>` : ''}
+        </div>`).join('')
+    : `<div style="color:var(--muted);text-align:center;padding:1.2rem 0;font-size:0.88rem;">No results logged yet for ${name}</div>`;
+
+  const pr = results.filter(w => w.score).reduce((best, w) => {
+    // Simple string compare — works for times and rounds
+    if (!best) return w;
+    return w.score < best.score ? w : best; // lower = better for time
+  }, null);
+
+  _openGenericModal(`🏆 ${name}`, `
+    ${officialDesc ? `<div style="white-space:pre-line;font-size:0.82rem;font-family:monospace;background:var(--card2);padding:0.6rem 0.85rem;border-radius:6px;border:1px solid var(--border);margin-bottom:1rem;color:var(--muted);">${officialDesc}</div>` : ''}
+    <div style="font-family:'Barlow Condensed';font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:0.5rem;">${results.length} result${results.length!==1?'s':''}</div>
+    ${rows}
+  `);
+}
+
+// ===== COPY LAST STRENGTH SESSION =====
+function copyLastStrengthSession() {
+  const ex = document.getElementById('strExercise')?.value.trim();
+  if (!ex) { showToast('Type a movement name first'); return; }
+  const prev = [...state.strength]
+    .filter(s => s.exercise && s.exercise.toLowerCase() === ex.toLowerCase() && s.sets?.length)
+    .sort((a,b) => b.date.localeCompare(a.date));
+  if (!prev.length) { showToast('No previous session found for ' + ex); return; }
+  const last = prev[0];
+  // Clear existing rows and pre-fill
+  document.getElementById('setsContainer').innerHTML = '';
+  last.sets.forEach(st => {
+    setRowCount++;
+    const id = setRowCount;
+    const u = profile.unit || 'kg';
+    const dispW = st.weight != null ? (u === 'lbs' ? Math.round(st.weight * KG_TO_LBS * 10) / 10 : st.weight) : '';
+    const row = document.createElement('div');
+    row.className = 'set-row';
+    row.id = 'set-row-' + id;
+    row.dataset.setId = id;
+    row.innerHTML = `
+      <div class="set-row-label">S?</div>
+      <input type="number" id="sw-${id}" placeholder="kg" step="0.5" min="0" value="${dispW}">
+      <input type="number" id="sr-${id}" placeholder="reps" min="1" value="${st.reps||''}">
+      <input type="number" id="se-${id}" placeholder="1-10" min="1" max="10" step="0.5" value="${st.rpe||''}">
+      <button class="del-set-btn" onclick="removeSetRow(${id})">✕</button>
+    `;
+    document.getElementById('setsContainer').appendChild(row);
+  });
+  renumberSetRows();
+  showToast('Copied from ' + formatDate(last.date));
+}
+
+// ===== PROGRESS CHARTS =====
+function showProgressModal(exercise, source) {
+  if (!exercise) return;
+  const u = profile.unit || 'kg';
+  const toDisp = kg => kg == null ? null : (u === 'lbs' ? Math.round(kg * KG_TO_LBS * 10) / 10 : kg);
+
+  // Collect data points from strength sessions
+  const points = [];
+  state.strength.forEach(s => {
+    const names = s.emom ? (s.emom.movements||[]).map(m=>m.exercise) :
+                  s.supersets ? s.supersets.map(ss=>ss.exercise) : [s.exercise];
+    const match = names.find(n => n && n.toLowerCase() === exercise.toLowerCase());
+    if (!match) return;
+    let topKg = null;
+    if (s.emom) {
+      const mov = (s.emom.movements||[]).find(m => m.exercise?.toLowerCase() === exercise.toLowerCase());
+      if (mov && mov.weightPerRound) topKg = Math.max(...mov.weightPerRound.filter(w=>w!=null));
+    } else if (s.supersets) {
+      const ss = (s.supersets||[]).find(x => x.exercise?.toLowerCase() === exercise.toLowerCase());
+      topKg = ss ? Math.max(...(ss.sets||[]).filter(x=>x.weight!=null).map(x=>x.weight), 0) || null : null;
+    } else {
+      const tops = (s.sets||[]).filter(x=>x.weight!=null).map(x=>x.weight);
+      topKg = tops.length ? Math.max(...tops) : null;
+    }
+    if (topKg != null && topKg > 0) points.push({ date: s.date, val: toDisp(topKg) });
+  });
+
+  // Also add PR data if source === 'pr'
+  const prPoints = [];
+  if (source === 'pr') {
+    state.prs
+      .filter(p => p.movement.toLowerCase() === exercise.toLowerCase() && p.value != null && p.date)
+      .sort((a,b) => a.date.localeCompare(b.date))
+      .forEach(p => prPoints.push({ date: p.date, val: p.value, unit: p.unit }));
+  }
+
+  points.sort((a,b) => a.date.localeCompare(b.date));
+
+  const allPoints = source === 'pr' ? prPoints : points;
+  if (!allPoints.length) {
+    _openGenericModal('📈 ' + exercise, `<div style="color:var(--muted);text-align:center;padding:2rem 0;">No data found for <strong>${exercise}</strong></div>`);
+    return;
+  }
+
+  const vals = allPoints.map(p => p.val);
+  const minV = Math.min(...vals);
+  const maxV = Math.max(...vals);
+  const range = maxV - minV || 1;
+  const W = 560, H = 200, PAD = { t:20, r:20, b:40, l:48 };
+  const cW = W - PAD.l - PAD.r, cH = H - PAD.t - PAD.b;
+
+  const xStep = allPoints.length > 1 ? cW / (allPoints.length - 1) : cW / 2;
+  const pts = allPoints.map((p, i) => {
+    const x = PAD.l + (allPoints.length > 1 ? i * xStep : cW / 2);
+    const y = PAD.t + cH - ((p.val - minV) / range) * cH;
+    return { x, y, ...p };
+  });
+
+  const polyline = pts.map(p => `${p.x},${p.y}`).join(' ');
+  const area = `M${pts[0].x},${PAD.t+cH} ` + pts.map(p=>`L${p.x},${p.y}`).join(' ') + ` L${pts[pts.length-1].x},${PAD.t+cH} Z`;
+
+  // Y axis labels
+  const yTicks = 4;
+  const yLabels = Array.from({length:yTicks+1},(_,i) => {
+    const v = minV + (range * i / yTicks);
+    const y = PAD.t + cH - (i / yTicks) * cH;
+    return `<text x="${PAD.l - 6}" y="${y}" text-anchor="end" dominant-baseline="middle" fill="var(--muted)" font-size="9" font-family="Barlow Condensed">${Math.round(v*10)/10}</text>
+    <line x1="${PAD.l}" y1="${y}" x2="${PAD.l+cW}" y2="${y}" stroke="var(--border)" stroke-width="0.5"/>`;
+  }).join('');
+
+  // X axis — show up to 6 date labels
+  const step = Math.max(1, Math.floor(allPoints.length / 6));
+  const xLabels = allPoints.map((p, i) => {
+    if (i % step !== 0 && i !== allPoints.length - 1) return '';
+    const x = pts[i].x;
+    const d = new Date(p.date + 'T00:00:00');
+    const label = d.toLocaleDateString('en-SE', { day:'numeric', month:'short' });
+    return `<text x="${x}" y="${PAD.t+cH+14}" text-anchor="middle" fill="var(--muted)" font-size="9" font-family="Barlow Condensed">${label}</text>`;
+  }).join('');
+
+  // Dots + tooltips
+  const dots = pts.map((p,i) => `
+    <circle cx="${p.x}" cy="${p.y}" r="4" fill="#60a5fa" stroke="var(--card)" stroke-width="2">
+      <title>${formatDate(p.date)}: ${p.val}${source==='pr'?(allPoints[i]?.unit||u):u}</title>
+    </circle>`).join('');
+
+  // Personal best label
+  const pb = allPoints.reduce((best,p) => p.val > best.val ? p : best, allPoints[0]);
+  const pbPt = pts[allPoints.indexOf(pb)];
+
+  const svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;border-radius:6px;background:var(--card2);">
+    <defs>
+      <linearGradient id="pgGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#60a5fa" stop-opacity="0.25"/>
+        <stop offset="100%" stop-color="#60a5fa" stop-opacity="0.02"/>
+      </linearGradient>
+    </defs>
+    ${yLabels}
+    <line x1="${PAD.l}" y1="${PAD.t}" x2="${PAD.l}" y2="${PAD.t+cH}" stroke="var(--border)" stroke-width="1"/>
+    <line x1="${PAD.l}" y1="${PAD.t+cH}" x2="${PAD.l+cW}" y2="${PAD.t+cH}" stroke="var(--border)" stroke-width="1"/>
+    <path d="${area}" fill="url(#pgGrad)"/>
+    <polyline points="${polyline}" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linejoin="round"/>
+    ${dots}
+    ${xLabels}
+    <text x="${pbPt.x}" y="${pbPt.y - 10}" text-anchor="middle" fill="#fbbf24" font-size="10" font-family="Barlow Condensed" font-weight="700">PB ${pb.val}${source==='pr'?(pb.unit||u):u}</text>
+  </svg>`;
+
+  const unitLabel = source === 'pr' ? (allPoints[0]?.unit || u) : u;
+  _openGenericModal('📈 ' + exercise, `
+    <div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.75rem;">${allPoints.length} session${allPoints.length!==1?'s':''} · Top weight per session · ${unitLabel}</div>
+    ${svg}
+  `);
+}
+
+// ===== GENERIC MODAL HELPER =====
+function _openGenericModal(title, bodyHtml) {
+  let m = document.getElementById('_genericModal');
+  if (!m) {
+    m = document.createElement('div');
+    m.id = '_genericModal';
+    m.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9000;overflow-y:auto;display:flex;align-items:flex-start;justify-content:center;padding:2rem 1rem;';
+    m.onclick = e => { if (e.target === m) m.style.display = 'none'; };
+    const box = document.createElement('div');
+    box.id = '_genericModalBox';
+    box.style.cssText = 'background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.25rem 1.5rem;width:100%;max-width:620px;';
+    m.appendChild(box);
+    document.body.appendChild(m);
+  }
+  const box = document.getElementById('_genericModalBox');
+  box.innerHTML = `
+    <div style="display:flex;align-items:center;margin-bottom:1rem;">
+      <div style="font-family:'Bebas Neue';font-size:1.3rem;letter-spacing:0.05em;flex:1;">${title}</div>
+      <button onclick="document.getElementById('_genericModal').style.display='none'" style="background:transparent;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer;padding:0.1rem 0.3rem;">✕</button>
+    </div>
+    <div>${bodyHtml}</div>
+  `;
+  m.style.display = 'flex';
+}
+
+// ===== WARM-UP GENERATOR =====
+const _WARMUP_DB = {
+  squat:    { keywords:['squat','clean','snatch','thruster','ohs','overhead squat','front squat','back squat','wall ball','goblet','pistol','lunge','step-up','step up'],
+              warmup:['Hip circles × 10 each direction','Leg swings × 10 each leg','Air Squats × 15 — slow & controlled','Goblet Squat with light KB × 10','Ankle mobility: 1 min each side','Hip flexor stretch × 45 sec/side'] },
+  pull:     { keywords:['pull-up','pullup','pull up','muscle-up','muscle up','ring','toes-to-bar','ttb','deadlift','rdl','kettlebell swing','kb swing','row','sumo'],
+              warmup:['Dead hangs × 3 × 10 sec','Scapular pull-ups × 10','Banded pull-aparts × 20','Cat-cow × 10 reps','Good mornings × 15 (empty bar)','PVC pass-throughs × 15'] },
+  push:     { keywords:['push-up','push up','pushup','press','jerk','bench','dip','handstand','hspu','push jerk','strict press','shoulder press'],
+              warmup:['Arm circles × 20 each direction','Shoulder dislocates with PVC × 15','Pike push-ups × 10','Wrist circles & extensions × 1 min','Band pull-aparts × 20','Empty bar strict press × 15'] },
+  hinge:    { keywords:['deadlift','rdl','hip thrust','good morning','kb swing','kettlebell swing','clean','snatch'],
+              warmup:['Hip hinge drill with PVC × 15','Glute bridges × 15','Bird dogs × 10/side','Romanian deadlift (empty bar) × 15','Banded hip extension × 15/side'] },
+  cardio:   { keywords:['run','row','bike','assault','echo','ski','jump rope','double under','du','burpee','box jump','cal','calorie'],
+              warmup:['Easy 2 min jog / row / bike','High knees × 20 m','Butt kicks × 20 m','Jumping jacks × 20','Single-unders × 50','Lateral shuffles × 10 m/side'] },
+  olympic:  { keywords:['snatch','clean and jerk','clean','jerk','thruster','hang power'],
+              warmup:['PVC pass-throughs × 15','PVC overhead squat × 10','Empty bar hang power clean × 10','Empty bar push press × 10','Tall muscle snatch × 8','Burgener warm-up × 1 round'] },
+  core:     { keywords:['sit-up','situp','ab','toes-to-bar','ttb','ghd','v-up','hollow','plank','l-sit'],
+              warmup:['Dead bug × 10/side','Hollow body hold × 3 × 20 sec','Bicycle crunches × 20','Superman holds × 10','Plank × 3 × 30 sec'] },
+  gymnastics:{ keywords:['handstand','hspu','muscle-up','ring','dip','rope climb','pull-up','bar muscle'],
+              warmup:['Wrist warm-up circuit × 1 min','Scapular push-ups × 10','Pike push-ups × 10','Skin-the-cats × 5 (if rings available)','Kipping swings × 10'] },
+};
+
+function generateWarmup() {
+  const desc = (document.getElementById('wodDesc')?.value || '') + ' ' + (document.getElementById('wodName')?.value || '');
+  const lower = desc.toLowerCase();
+
+  const matched = new Set();
+  const sections = [];
+
+  for (const [cat, data] of Object.entries(_WARMUP_DB)) {
+    if (data.keywords.some(kw => lower.includes(kw))) {
+      if (!matched.has(cat)) {
+        matched.add(cat);
+        sections.push({ cat, warmup: data.warmup });
+      }
+    }
+  }
+
+  // Default: always add a short general warm-up first
+  const general = [
+    'Jump rope / light row / bike · 3 min',
+    'Shoulder rolls × 10 each direction',
+    'Hip circles × 10 each direction',
+    'World's greatest stretch × 3/side',
+  ];
+
+  const catLabel = {
+    squat:'Lower Body & Squat', pull:'Pull / Posterior Chain', push:'Push / Shoulder',
+    hinge:'Hinge & Hip', cardio:'Cardio Prep', olympic:'Olympic Lifting',
+    core:'Core Activation', gymnastics:'Gymnastics & Skill',
+  };
+
+  const sectionsHtml = sections.length
+    ? sections.map(s => `
+        <div style="margin-bottom:0.85rem;">
+          <div style="font-family:'Barlow Condensed';font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:#60a5fa;margin-bottom:0.35rem;">${catLabel[s.cat]||s.cat}</div>
+          ${s.warmup.map(l=>`<div style="font-size:0.84rem;padding:0.2rem 0;border-bottom:1px solid var(--border);color:var(--text);">· ${l}</div>`).join('')}
+        </div>`).join('')
+    : `<div style="color:var(--muted);font-size:0.84rem;">No specific movements detected — add workout description first.</div>`;
+
+  _openGenericModal('🔥 Warm-up Generator', `
+    <div style="margin-bottom:0.85rem;">
+      <div style="font-family:'Barlow Condensed';font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:#fbbf24;margin-bottom:0.35rem;">General Prep · 5 min</div>
+      ${general.map(l=>`<div style="font-size:0.84rem;padding:0.2rem 0;border-bottom:1px solid var(--border);color:var(--text);">· ${l}</div>`).join('')}
+    </div>
+    ${sectionsHtml}
+    <div style="margin-top:1rem;font-size:0.75rem;color:var(--muted);">Adjust loads and volumes to your level. Total suggested time: ${5 + sections.length * 4}–${7 + sections.length * 5} min.</div>
+  `);
+}
+
 async function deleteLeaderboardEntry(id) {
   if (!profile.name) { showToast('Log in first'); return; }
   const e = (window._lbEntries || {})[id];
@@ -9726,6 +10106,7 @@ window.addEventListener('orientationchange', () => {
         <input type="text" id="strExercise" placeholder="Search movement…" autocomplete="off"
           oninput="filterStrMovementDropdown()" onfocus="filterStrMovementDropdown()" onblur="setTimeout(hideStrMovementDropdown,200)">
         <div id="strMovementDropdown" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:300;background:var(--card);border:1px solid var(--border);border-radius:4px;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>
+        <button type="button" onclick="copyLastStrengthSession()" style="margin-top:0.4rem;width:100%;font-size:0.72rem;letter-spacing:0.07em;font-family:'Barlow Condensed';font-weight:700;padding:0.22rem 0;border:1px dashed var(--border);border-radius:4px;background:transparent;color:var(--muted);cursor:pointer;text-transform:uppercase;">📋 COPY LAST SESSION</button>
       </div>
     </div>
 
@@ -9766,6 +10147,7 @@ window.addEventListener('orientationchange', () => {
           oninput="onStrEmomIntervalChange()">
         <label style="font-size:0.75rem;color:var(--muted);margin:0 0 0 0.4rem;">× Rounds</label>
         <input type="number" id="strEmomRounds" min="1" max="50" value="5"
+          oninput="onStrEmomRoundsChange()"
           style="width:48px;padding:0.3rem 0.4rem;font-size:0.85rem;border:1px solid var(--border);border-radius:4px;background:var(--input);color:var(--text);">
       </div>
       <div style="display:grid;grid-template-columns:1fr 90px 58px auto;gap:0.35rem;margin-bottom:0.25rem;padding:0 0.1rem;">
