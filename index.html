@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -2427,7 +2427,10 @@ const DASH_SECTIONS = {
       ${dateNav}
       ${hasWod ? `
       <div style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
-        <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:var(--text);margin-bottom:0.75rem;">Workout of the Day</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+          <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:var(--text);">Workout of the Day</div>
+          <button type="button" onclick="generateWarmupFromProg(decodeURIComponent('${encodeURIComponent(((prog.strength||'') + ' ' + (prog.workout||'')).trim())}'))" style="font-size:0.72rem;letter-spacing:0.07em;font-family:'Barlow Condensed';font-weight:700;padding:0.22rem 0.65rem;border:1px dashed var(--border);border-radius:4px;background:transparent;color:var(--muted);cursor:pointer;text-transform:uppercase;">🔥 Warm-up</button>
+        </div>
         ${prog.strength ? `
         <div style="margin-bottom:0.75rem;">
           <div class="program-section-label">💪 Strength</div>
@@ -8646,7 +8649,7 @@ function generateWarmup() {
     'Jump rope / light row / bike · 3 min',
     'Shoulder rolls × 10 each direction',
     'Hip circles × 10 each direction',
-    'World\u2019s greatest stretch \u00d7 3/side',
+    'Perfect Stretch \u00d7 3/side',
   ];
 
   const catLabel = {
@@ -8670,6 +8673,45 @@ function generateWarmup() {
     </div>
     ${sectionsHtml}
     <div style="margin-top:1rem;font-size:0.75rem;color:var(--muted);">Adjust loads and volumes to your level. Total suggested time: ${5 + sections.length * 4}–${7 + sections.length * 5} min.</div>
+  `);
+}
+
+// ===== PROGRAM WARM-UP (Programming section, capped at ~10 min) =====
+function generateWarmupFromProg(text) {
+  const lower = text.toLowerCase();
+  const sections = [];
+  const matched = new Set();
+  for (const [cat, data] of Object.entries(_WARMUP_DB)) {
+    if (data.keywords.some(kw => lower.includes(kw)) && !matched.has(cat)) {
+      matched.add(cat); sections.push({ cat, warmup: data.warmup });
+    }
+  }
+  const limited = sections.slice(0, 1);
+  const catLabel = {
+    squat:'Lower Body & Squat', pull:'Pull / Posterior Chain', push:'Push / Shoulder',
+    hinge:'Hinge & Hip', cardio:'Cardio Prep', olympic:'Olympic Lifting',
+    core:'Core Activation', gymnastics:'Gymnastics & Skill',
+  };
+  const general = [
+    'Jump rope / light row / bike · 3 min',
+    'Shoulder rolls × 10 each direction',
+    'Hip circles × 10 each direction',
+    'Perfect Stretch \u00d7 3/side',
+  ];
+  const sectionsHtml = limited.length
+    ? limited.map(s => `
+        <div style="margin-bottom:0.85rem;">
+          <div style="font-family:'Barlow Condensed';font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:#60a5fa;margin-bottom:0.35rem;">${catLabel[s.cat]||s.cat}</div>
+          ${s.warmup.map(l=>`<div style="font-size:0.84rem;padding:0.2rem 0;border-bottom:1px solid var(--border);color:var(--text);">· ${l}</div>`).join('')}
+        </div>`).join('')
+    : `<div style="color:var(--muted);font-size:0.84rem;padding:0.5rem 0;">No specific movements detected in today’s program.</div>`;
+  _openGenericModal('🔥 Warm-up Generator', `
+    <div style="margin-bottom:0.85rem;">
+      <div style="font-family:'Barlow Condensed';font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:#fbbf24;margin-bottom:0.35rem;">General Prep · 5 min</div>
+      ${general.map(l=>`<div style="font-size:0.84rem;padding:0.2rem 0;border-bottom:1px solid var(--border);color:var(--text);">· ${l}</div>`).join('')}
+    </div>
+    ${sectionsHtml}
+    <div style="margin-top:1rem;font-size:0.75rem;color:var(--muted);">Total: ~${limited.length ? '8–10' : '5'} min · Under 10 min</div>
   `);
 }
 
