@@ -5188,8 +5188,8 @@ function renderMovements() {
             <span style="font-size:clamp(0.72rem,2.5vw,0.85rem);line-height:1.2;flex:1;min-width:0;color:${hasPr ? '#4ade80' : 'var(--text)'};">${m}</span>
             ${hasPr ? `<span style="font-family:'Bebas Neue';font-size:1rem;color:#4ade80;flex-shrink:0;white-space:nowrap;" title="1RM">${dispVal}</span>` : '<span style="color:var(--border);font-size:0.75rem;flex-shrink:0;">—</span>'}
           </div>
-          <button onclick="openPRModalFor('${m.replace(/'/g,"\\'")}');event.stopPropagation();" style="flex-shrink:0;margin-left:0.4rem;font-size:0.7rem;padding:0.2rem 0.45rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.08em;text-transform:uppercase;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:3px;cursor:pointer;" title="Log PR for ${m}">+ PR</button>
-          <button onclick="event.stopPropagation();showProgressModal(decodeURIComponent('${encodeURIComponent(m)}'))" style="flex-shrink:0;margin-left:0.2rem;font-size:0.82rem;padding:0.15rem 0.25rem;background:transparent;border:none;cursor:pointer;color:var(--muted);" title="Progress chart for ${m}">📈</button>
+          <button onclick="openPRModalFor('${m.replace(/'/g,"\\'")}');event.stopPropagation();" style="flex-shrink:0;margin-left:0.5rem;font-size:0.7rem;padding:0.22rem 0.5rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.08em;text-transform:uppercase;background:transparent;color:#aaa;border:1px solid #555;border-radius:3px;cursor:pointer;" title="Log PR for ${m}">+ PR</button>
+          <button onclick="event.stopPropagation();showProgressModal(decodeURIComponent('${encodeURIComponent(m)}'))" style="flex-shrink:0;margin-left:0.25rem;font-size:0.82rem;padding:0.15rem 0.3rem;background:transparent;border:1px solid #555;border-radius:3px;cursor:pointer;color:#aaa;" title="Progress chart for ${m}">📈</button>
         </div>`;
       }).join('')}
     </div>
