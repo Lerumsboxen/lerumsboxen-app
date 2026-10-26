@@ -6021,7 +6021,7 @@ function timerStartStop() {
     if (!isResume) {
       initTimer();
       // 10s countdown before starting (not for stopwatch)
-      if (startCountdownEnabled && timerMode !== 'stopwatch') {
+      if (startCountdownEnabled) {
         timerCountingDown = true;
         let countdown = 10;
         document.getElementById('timerDisplay').textContent = '00:' + String(countdown).padStart(2,'0');
