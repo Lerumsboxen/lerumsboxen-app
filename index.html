@@ -7107,8 +7107,15 @@ function saveStrengthSession() {
 }
 
 function checkAndAutoSavePR(session) {
-  // Skip supersets — bench + pull-ups etc. are separate movements, not a PR-able complex
-  if (session.supersets) return;
+  // For supersets: check each movement independently (never as a combined PR)
+  if (session.supersets) {
+    session.supersets.forEach(s => {
+      if (s.exercise && s.sets?.length) {
+        checkAndAutoSavePR({ ...session, exercise: s.exercise, sets: s.sets, supersets: undefined });
+      }
+    });
+    return;
+  }
 
   // Group sets by reps count, find max weight per rep count
   const byReps = {};
