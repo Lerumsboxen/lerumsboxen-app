@@ -10367,6 +10367,109 @@ const REP_BADGE_MOVEMENTS = [
     kw:['reverse lunge','walking lunge','lunge'] },
 ];
 
+const CARDIO_BADGE_MOVEMENTS = [
+  { key:'running', label:'Running',  emoji:'🏃', distUnit:'m', displayUnit:'km',
+    mins:[5000,42195,100000,500000,1000000],
+    kw:['run'] },
+  { key:'rowing',  label:'Rowing',   emoji:'🚣', distUnit:'m', displayUnit:'km',
+    mins:[5000,50000,200000,1000000,2000000],
+    kw:['row'] },
+  { key:'skiing',  label:'Ski-Erg',  emoji:'⛷️', distUnit:'m', displayUnit:'km',
+    mins:[5000,25000,100000,500000,1000000],
+    kw:['ski'] },
+  { key:'airbike', label:'Air Bike', emoji:'💨', distUnit:'cal', displayUnit:'cal',
+    mins:[100,500,2000,5000,15000],
+    kw:['air bike','air-bike','airbike'] },
+  { key:'bikeerg', label:'Bike-Erg', emoji:'🚴', distUnit:'cal', displayUnit:'cal',
+    mins:[100,500,2000,5000,15000],
+    kw:['bike-erg','bike erg','bikeerg'] },
+];
+
+function _cardioDisplay(val, displayUnit) {
+  if (displayUnit === 'km') {
+    const km = val / 1000;
+    return km >= 100 ? km.toFixed(0) + ' km' : km.toFixed(1) + ' km';
+  }
+  return val.toLocaleString() + ' cal';
+}
+
+function _extractCardioFromLines(lines, keywords, distUnit) {
+  let total = 0, roundMult = 1;
+  for (const raw of lines) {
+    const line = raw.trim().toLowerCase().replace(/(\d)\s+(\d)/g, '$1$2'); // "2 000" → "2000"
+    if (!line) continue;
+    const rdMatch = line.match(/^(\d+)\s*(?:rounds?|rds?)\b/);
+    if (rdMatch) { roundMult = parseInt(rdMatch[1]); continue; }
+    for (const kw of keywords) {
+      if (!line.includes(kw)) continue;
+      if (distUnit === 'm') {
+        const kmM = line.match(/(\d+(?:\.\d+)?)\s*km\b/);
+        const mM  = line.match(/(\d+)\s*m\b/);
+        if (kmM) total += parseFloat(kmM[1]) * 1000 * roundMult;
+        else if (mM) total += parseInt(mM[1]) * roundMult;
+      } else {
+        const calM = line.match(/(\d+)\s*cal\b/);
+        if (calM) total += parseInt(calM[1]) * roundMult;
+      }
+      break;
+    }
+  }
+  return total;
+}
+
+function computeCardioDistances() {
+  const dist = {};
+  CARDIO_BADGE_MOVEMENTS.forEach(m => dist[m.key] = 0);
+
+  // Strength sessions — exercise name may encode distance: "Row 2000 m", "Run 400 m"
+  (state.strength || []).forEach(s => {
+    const ex = (s.exercise || '').toLowerCase().replace(/(\d)\s+(\d)/g, '$1$2');
+    CARDIO_BADGE_MOVEMENTS.forEach(m => {
+      if (!m.kw.some(kw => ex.includes(kw))) return;
+      const allSets = s.supersets ? s.supersets.flatMap(ss => ss.sets || []) : (s.sets || []);
+      const reps = allSets.reduce((sum, st) => sum + (st.reps || 1), 0) || 1;
+      if (m.distUnit === 'm') {
+        const kmM = ex.match(/(\d+(?:\.\d+)?)\s*km/);
+        const mM  = ex.match(/(\d+)\s*m\b/);
+        if (kmM) dist[m.key] += parseFloat(kmM[1]) * 1000 * reps;
+        else if (mM) dist[m.key] += parseInt(mM[1]) * reps;
+      } else {
+        const calM = ex.match(/(\d+)\s*cal/);
+        if (calM) dist[m.key] += parseInt(calM[1]) * reps;
+      }
+    });
+  });
+
+  // WODs
+  (state.wods || []).forEach(w => {
+    if (w.amrapResult) {
+      const { rounds, movements } = w.amrapResult;
+      (movements || []).forEach(mov => {
+        const name = (mov.movement || '').toLowerCase();
+        CARDIO_BADGE_MOVEMENTS.forEach(m => {
+          if (!m.kw.some(kw => name.includes(kw))) return;
+          const unit = (mov.unit || '').toLowerCase();
+          let val = (mov.target || 0) * (rounds || 0) + (mov.done || 0);
+          if (m.distUnit === 'm') {
+            if (unit === 'km') val *= 1000;
+            else if (unit !== 'm') return;
+          } else {
+            if (unit !== 'cal') return;
+          }
+          dist[m.key] += val;
+        });
+      });
+    } else if (w.desc) {
+      const lines = w.desc.split(/\n+/);
+      CARDIO_BADGE_MOVEMENTS.forEach(m => {
+        dist[m.key] += _extractCardioFromLines(lines, m.kw, m.distUnit);
+      });
+    }
+  });
+
+  return dist;
+}
+
 function _countKwInDesc(desc, keywords) {
   if (!desc) return 0;
   const lines = desc.split(/\n+/);
@@ -10465,6 +10568,7 @@ function renderBadgesSection() {
   const el = document.getElementById('dash-badges');
   if (!el) return;
   const counts = computeRepBadges();
+  const cardioDist = computeCardioDistances();
   const totalSessions = (state.wods?.length || 0) + (state.strength?.length || 0) + (state.conditioning?.length || 0);
   const totalPRs = state.prs?.length || 0;
 
@@ -10497,13 +10601,45 @@ function renderBadgesSection() {
   const sessionCard = _milestoneCard('🏟️', 'Total Sessions', 'WODs · Strength · Conditioning', totalSessions, 'sessions', SESSION_BADGE_TIERS);
   const prCard      = _milestoneCard('🏆', 'Personal Records', 'All logged PRs', totalPRs, 'PRs', PR_BADGE_TIERS);
 
-  if (!Object.values(counts).some(v => v > 0) && totalSessions === 0 && totalPRs === 0) {
+  if (!Object.values(counts).some(v => v > 0) && !Object.values(cardioDist).some(v => v > 0) && totalSessions === 0 && totalPRs === 0) {
     el.innerHTML = `<div style="text-align:center;padding:2.5rem 1rem;color:var(--muted);font-family:'Barlow Condensed';font-size:0.9rem;letter-spacing:0.05em;">Log some workouts to start earning badges!<br><span style="font-size:2.5rem;margin-top:1rem;display:block;">🏅</span></div>`;
     return;
   }
 
+  const _sectionLabel = txt => `<div style="font-family:'Bebas Neue';font-size:0.85rem;letter-spacing:0.12em;color:var(--muted);margin:0.9rem 0 0.45rem;padding-bottom:0.3rem;border-bottom:1px solid var(--border);">${txt}</div>`;
+
+  const cardioCards = CARDIO_BADGE_MOVEMENTS.map(m => {
+    const val = cardioDist[m.key] || 0;
+    const ti = _badgeTierIdx(val, m.mins);
+    const tier = ti >= 0 ? REP_BADGE_TIERS[ti] : null;
+    const nextMeta = REP_BADGE_TIERS[ti + 1] || null;
+    const nextMin = m.mins[ti + 1] || null;
+    const prevMin = ti >= 0 ? m.mins[ti] : 0;
+    const pct = nextMin ? Math.min(100, ((val - prevMin) / (nextMin - prevMin)) * 100) : 100;
+    const barColor = tier ? tier.color : 'var(--muted)';
+    const dispVal = _cardioDisplay(val, m.displayUnit);
+    const dispNext = nextMin ? _cardioDisplay(nextMin, m.displayUnit) : '';
+    const badgeHtml = tier
+      ? `<span style="font-size:1rem;">${tier.emoji}</span><span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.76rem;letter-spacing:0.08em;text-transform:uppercase;color:${barColor};">${tier.label}</span>`
+      : `<span style="font-family:'Barlow Condensed';font-size:0.76rem;color:var(--muted);letter-spacing:0.06em;">NO BADGE YET</span>`;
+    const nextHtml = nextMeta
+      ? `<span style="font-family:'Barlow Condensed';font-size:0.73rem;color:var(--muted);">${nextMeta.emoji} ${dispNext}</span>`
+      : `<span style="font-family:'Barlow Condensed';font-size:0.73rem;color:${REP_BADGE_TIERS[REP_BADGE_TIERS.length-1].color};">MAX TIER 👑</span>`;
+    return `<div style="display:grid;grid-template-columns:2.2rem 1fr;align-items:center;gap:0.6rem;padding:0.6rem 0.75rem;background:var(--card);border:1px solid var(--border);${tier?`border-left:3px solid ${barColor};`:''}border-radius:7px;margin-bottom:0.45rem;">
+      <div style="text-align:center;font-size:1.4rem;line-height:1;">${m.emoji}</div>
+      <div>
+        <div style="display:flex;align-items:baseline;gap:0.45rem;margin-bottom:0.22rem;">
+          <span style="font-family:'Bebas Neue';font-size:0.98rem;letter-spacing:0.06em;">${m.label}</span>
+          <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.82rem;color:var(--text);margin-left:auto;">${dispVal}</span>
+        </div>
+        <div style="height:4px;background:var(--border);border-radius:2px;margin-bottom:0.22rem;overflow:hidden;"><div style="height:100%;width:${pct.toFixed(1)}%;background:${barColor};border-radius:2px;"></div></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.4rem;">${badgeHtml}${nextHtml}</div>
+      </div>
+    </div>`;
+  }).join('');
+
   const sorted = [...REP_BADGE_MOVEMENTS].sort((a, b) => (counts[b.key] || 0) - (counts[a.key] || 0));
-  el.innerHTML = sessionCard + prCard + sorted.map(m => {
+  el.innerHTML = sessionCard + prCard + _sectionLabel('CARDIO') + cardioCards + _sectionLabel('REPS') + sorted.map(m => {
     const reps = counts[m.key] || 0;
     const ti = _badgeTierIdx(reps, m.mins);
     const tier = ti >= 0 ? REP_BADGE_TIERS[ti] : null;
@@ -10535,6 +10671,7 @@ function renderBadgesSection() {
 
 function checkBadgeAchievements() {
   const counts = computeRepBadges();
+  const cardioDist = computeCardioDistances();
   const prev = JSON.parse(localStorage.getItem('lerums_badge_state') || '{}');
   let newBadge = null;
 
@@ -10542,6 +10679,13 @@ function checkBadgeAchievements() {
   REP_BADGE_MOVEMENTS.forEach(m => {
     const prevTi = _badgeTierIdx(prev[m.key] || 0, m.mins);
     const curTi  = _badgeTierIdx(counts[m.key] || 0, m.mins);
+    if (curTi > prevTi && curTi >= 0) newBadge = { label: m.label, tier: REP_BADGE_TIERS[curTi] };
+  });
+
+  // Check cardio badges
+  CARDIO_BADGE_MOVEMENTS.forEach(m => {
+    const prevTi = _badgeTierIdx(prev['c_' + m.key] || 0, m.mins);
+    const curTi  = _badgeTierIdx(cardioDist[m.key] || 0, m.mins);
     if (curTi > prevTi && curTi >= 0) newBadge = { label: m.label, tier: REP_BADGE_TIERS[curTi] };
   });
 
@@ -10559,6 +10703,7 @@ function checkBadgeAchievements() {
 
   const snap = {};
   REP_BADGE_MOVEMENTS.forEach(m => snap[m.key] = counts[m.key] || 0);
+  CARDIO_BADGE_MOVEMENTS.forEach(m => snap['c_' + m.key] = cardioDist[m.key] || 0);
   snap._sessions = totalSessions;
   snap._prs = totalPRs;
   localStorage.setItem('lerums_badge_state', JSON.stringify(snap));
