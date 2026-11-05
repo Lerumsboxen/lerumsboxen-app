@@ -10303,18 +10303,17 @@ const REP_BADGE_TIERS = [
 ];
 // mins: [bronze, silver, gold, diamond, elite]
 const REP_BADGE_MOVEMENTS = [
-  // ── Elite Skills
-  { key:'ringmu',    label:'Ring Muscle-Ups',      emoji:'💍', group:'Elite Skills',    mins:[10,50,150,500,1000],
-    kw:['ring muscle-up','ring muscle up','rmu'] },
-  { key:'barmu',     label:'Bar Muscle-Ups',       emoji:'💫', group:'Elite Skills',    mins:[10,50,150,500,1000],
-    kw:['bar muscle-up','bar muscle up','bmu','muscle-up','muscle up'] },
-  { key:'ropeclimb', label:'Rope Climbs',          emoji:'🧗', group:'Elite Skills',    mins:[10,50,150,500,1000],
-    kw:['legless rope climb','rope climb'] },
-  { key:'wallwalks', label:'Wall Walks',           emoji:'🧱', group:'Elite Skills',    mins:[10,50,150,500,1000],
-    kw:['wall walk'] },
-  { key:'hsw',       label:'Handstand Walk',       emoji:'🙃', group:'Elite Skills',    mins:[50,200,500,2000,5000],
-    kw:['handstand walk','hsw'], unit:'m' },
   // ── Gymnastics
+  { key:'ringmu',    label:'Ring Muscle-Ups',      emoji:'💍', group:'Gymnastics',      mins:[10,50,150,500,1000],
+    kw:['ring muscle-up','ring muscle up','rmu'] },
+  { key:'barmu',     label:'Bar Muscle-Ups',       emoji:'💫', group:'Gymnastics',      mins:[10,50,150,500,1000],
+    kw:['bar muscle-up','bar muscle up','bmu','muscle-up','muscle up'] },
+  { key:'ropeclimb', label:'Rope Climbs',          emoji:'🧗', group:'Gymnastics',      mins:[10,50,150,500,1000],
+    kw:['legless rope climb','rope climb'] },
+  { key:'wallwalks', label:'Wall Walks',           emoji:'🧱', group:'Gymnastics',      mins:[10,50,150,500,1000],
+    kw:['wall walk'] },
+  { key:'hsw',       label:'Handstand Walk',       emoji:'🙃', group:'Gymnastics',      mins:[50,200,500,2000,5000],
+    kw:['handstand walk','hsw'], unit:'m' },
   { key:'hspu',      label:'Handstand Push-Ups',   emoji:'🤸', group:'Gymnastics',      mins:[25,100,300,1000,2500],
     kw:['handstand push-up','handstand push up','handstand pushup','hspu'] },
   { key:'ringdips',  label:'Ring Dips',            emoji:'🔵', group:'Gymnastics',      mins:[25,100,300,1000,3000],
@@ -10333,9 +10332,9 @@ const REP_BADGE_MOVEMENTS = [
   { key:'snatches',  label:'Snatches',             emoji:'🏋️', group:'Olympic Lifting', mins:[50,250,750,2500,5000],
     kw:['power snatch','hang snatch','squat snatch','snatch'] },
   { key:'cleans',    label:'Cleans',               emoji:'💪', group:'Olympic Lifting', mins:[50,250,750,2500,5000],
-    kw:['clean and jerk','clean & jerk','power clean','hang clean','squat clean','clean'] },
-  { key:'thrusters', label:'Thrusters',            emoji:'🚀', group:'Olympic Lifting', mins:[50,250,750,2500,5000],
-    kw:['thruster'] },
+    kw:['power clean','hang clean','squat clean','clean'] },
+  { key:'cleanjerk', label:'Clean & Jerk',         emoji:'🏅', group:'Olympic Lifting', mins:[25,100,300,1000,2500],
+    kw:['clean and jerk','clean & jerk'] },
   // ── Barbell
   { key:'squats',    label:'Squats',               emoji:'🦵', group:'Barbell',         mins:[100,500,1500,5000,10000],
     kw:['air squat','back squat','front squat','overhead squat','goblet squat','ohs'] },
@@ -10347,6 +10346,12 @@ const REP_BADGE_MOVEMENTS = [
     kw:['strict press','shoulder press','ohp'] },
   { key:'pushpress', label:'Push Press',           emoji:'⬆️', group:'Barbell',         mins:[50,250,750,2500,5000],
     kw:['push press'] },
+  { key:'pushjerk',  label:'Push Jerk',            emoji:'⚡', group:'Barbell',         mins:[50,250,750,2500,5000],
+    kw:['push jerk'] },
+  { key:'splitjerk', label:'Split Jerk',           emoji:'🎯', group:'Barbell',         mins:[50,250,750,2500,5000],
+    kw:['split jerk'] },
+  { key:'thrusters', label:'Thrusters',            emoji:'🚀', group:'Barbell',         mins:[50,250,750,2500,5000],
+    kw:['thruster'] },
   // ── Conditioning
   { key:'burpees',   label:'Burpees',              emoji:'🔥', group:'Conditioning',    mins:[50,250,750,2500,5000],
     kw:['bar-facing burpee','bar facing burpee','burpee'] },
@@ -10637,7 +10642,7 @@ function renderBadgesSection() {
     </div>`;
   }).join('');
 
-  const REP_GROUPS = ['Elite Skills', 'Gymnastics', 'Olympic Lifting', 'Barbell', 'Conditioning'];
+  const REP_GROUPS = ['Gymnastics', 'Olympic Lifting', 'Barbell', 'Conditioning'];
   const repGroupsHtml = REP_GROUPS.map(grp => {
     const moves = REP_BADGE_MOVEMENTS.filter(m => m.group === grp);
     return _sectionLabel(grp.toUpperCase()) + moves.map(m => {
