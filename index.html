@@ -7908,9 +7908,14 @@ function enrichProgramText(text) {
     const rmReps = rmMatch ? parseInt(rmMatch[1]) : 1;
 
     // Find the matched PR for this line
+    // Track the first (longest) movement found in the text — don't fall through to shorter
+    // movements that are substrings of it (e.g. "clean" inside "clean & jerk").
     let matchedPR = null;
+    let firstFoundMv = null;
     for (const mv of sortedMovements) {
       if (searchText.toLowerCase().includes(mv.toLowerCase())) {
+        if (!firstFoundMv) firstFoundMv = mv;
+        else if (firstFoundMv.toLowerCase().includes(mv.toLowerCase())) continue; // substring of longer match — skip
         const pr = getBestPR(mv, rmReps);
         if (pr) { matchedPR = pr; break; }
       }
@@ -7918,6 +7923,7 @@ function enrichProgramText(text) {
     if (!matchedPR) {
       const words = searchText.replace(/[^a-zA-ZåäöÅÄÖ\s]/g, ' ').split(/\s+/).filter(w => w.length > 3);
       for (const word of words) {
+        if (firstFoundMv && firstFoundMv.toLowerCase().includes(word.toLowerCase())) continue; // substring of already-identified movement
         const pr = getBestPR(word, rmReps);
         if (pr) { matchedPR = pr; break; }
       }
