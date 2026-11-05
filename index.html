@@ -2827,11 +2827,7 @@ const DASH_SECTIONS = {
         <div style="font-family:'Barlow Condensed';font-size:0.78rem;color:var(--muted);letter-spacing:0.05em;text-align:right;">Counts reps from strength<br>sessions &amp; structured WODs</div>
       </div>
       <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
-        ${['🥉 100','🥈 500','🥇 1K','💎 5K','👑 10K'].map((t,i)=>{
-          const [e,n] = t.split(' ');
-          const colors = ['#cd7f32','#b0b8c8','#fbbf24','#7dd3fc','#f43f5e'];
-          return `<span style="font-family:'Barlow Condensed';font-size:0.75rem;padding:0.2rem 0.55rem;border:1px solid ${colors[i]};border-radius:3px;color:${colors[i]};">${e} ${n}</span>`;
-        }).join('')}
+        ${REP_BADGE_TIERS.map((t,i)=>`<span style="font-family:'Barlow Condensed';font-size:0.75rem;padding:0.2rem 0.55rem;border:1px solid ${t.color};border-radius:3px;color:${t.color};">${t.emoji} ${t.label}</span>`).join('')}
       </div>
       <div id="dash-badges"></div>`
   }
@@ -10297,28 +10293,65 @@ function renderMembersList() {
 }
 
 // ── Rep Badge System ─────────────────────────────────────────────────────────
+// Tier metadata — thresholds live per-movement in `mins`
 const REP_BADGE_TIERS = [
-  { label: 'Bronze',  min: 100,   emoji: '🥉', color: '#cd7f32' },
-  { label: 'Silver',  min: 500,   emoji: '🥈', color: '#b0b8c8' },
-  { label: 'Gold',    min: 1000,  emoji: '🥇', color: '#fbbf24' },
-  { label: 'Diamond', min: 5000,  emoji: '💎', color: '#7dd3fc' },
-  { label: 'Elite',   min: 10000, emoji: '👑', color: '#f43f5e' },
+  { label: 'Bronze',  emoji: '🥉', color: '#cd7f32' },
+  { label: 'Silver',  emoji: '🥈', color: '#b0b8c8' },
+  { label: 'Gold',    emoji: '🥇', color: '#fbbf24' },
+  { label: 'Diamond', emoji: '💎', color: '#7dd3fc' },
+  { label: 'Elite',   emoji: '👑', color: '#f43f5e' },
 ];
+// mins: [bronze, silver, gold, diamond, elite]
 const REP_BADGE_MOVEMENTS = [
-  { key:'squats',    label:'Squats',              emoji:'🦵', kw:['air squat','back squat','front squat','overhead squat','ohs','goblet squat','squat'] },
-  { key:'snatches',  label:'Snatches',            emoji:'🏋️', kw:['power snatch','hang snatch','squat snatch','snatch'] },
-  { key:'cleans',    label:'Cleans',              emoji:'💪', kw:['clean and jerk','clean & jerk','power clean','hang clean','squat clean','clean'] },
-  { key:'hspu',      label:'Handstand Push-Ups',  emoji:'🤸', kw:['handstand push-up','handstand push up','handstand pushup','hspu'] },
-  { key:'ttb',       label:'Toes to Bar',         emoji:'🧗', kw:['toes-to-bar','toes to bar','ttb'] },
-  { key:'pullups',   label:'Pull-Ups',            emoji:'⬆️', kw:['chest-to-bar','chest to bar','c2b','ctb','pull-up','pull up','pullup'] },
-  { key:'musclups',  label:'Muscle-Ups',          emoji:'💫', kw:['ring muscle-up','bar muscle-up','muscle-up','muscle up','rmu','bmu'] },
-  { key:'deadlifts', label:'Deadlifts',           emoji:'⬛', kw:['sumo deadlift','deadlift','rdl'] },
-  { key:'thrusters', label:'Thrusters',           emoji:'🚀', kw:['thruster'] },
-  { key:'wallballs', label:'Wall Balls',          emoji:'🏀', kw:['wall ball','wallball'] },
-  { key:'burpees',   label:'Burpees',             emoji:'🔥', kw:['bar-facing burpee','bar facing burpee','burpee'] },
-  { key:'boxjumps',  label:'Box Jumps',           emoji:'📦', kw:['box jump step over','box step over','box jump','box step'] },
-  { key:'du',        label:'Double Unders',       emoji:'🪢', kw:['double under','double-under'] },
-  { key:'kbs',       label:'KB Swings',           emoji:'🔔', kw:['kettlebell swing','kb swing','american swing','russian swing','kbs'] },
+  // ── Elite skills (low rep volume per session)
+  { key:'ringmu',    label:'Ring Muscle-Ups',      emoji:'💍', mins:[10,50,150,500,1000],
+    kw:['ring muscle-up','ring muscle up','rmu'] },
+  { key:'barmu',     label:'Bar Muscle-Ups',       emoji:'💫', mins:[10,50,150,500,1000],
+    kw:['bar muscle-up','bar muscle up','bmu','muscle-up','muscle up'] },
+  { key:'wallwalks', label:'Wall Walks',           emoji:'🧱', mins:[10,50,150,500,1000],
+    kw:['wall walk'] },
+  { key:'hsw',       label:'Handstand Walk',       emoji:'🙃', mins:[50,200,500,2000,5000],
+    kw:['handstand walk','hsw'], unit:'m' },
+  // ── Advanced gymnastics
+  { key:'hspu',      label:'Handstand Push-Ups',   emoji:'🤸', mins:[25,100,300,1000,2500],
+    kw:['handstand push-up','handstand push up','handstand pushup','hspu'] },
+  { key:'ringdips',  label:'Ring Dips',            emoji:'🔵', mins:[25,100,300,1000,3000],
+    kw:['ring dip'] },
+  { key:'ttb',       label:'Toes to Bar',          emoji:'🧗', mins:[50,250,750,2500,5000],
+    kw:['toes-to-bar','toes to bar','ttb'] },
+  { key:'kte',       label:'Knees to Elbow',       emoji:'🦵', mins:[50,250,750,2500,5000],
+    kw:['knees-to-elbow','knees to elbow','knees-to-elbows','k2e','kte'] },
+  { key:'pullups',   label:'Pull-Ups',             emoji:'⬆️', mins:[50,250,750,2500,5000],
+    kw:['chest-to-bar','chest to bar','c2b','ctb','pull-up','pull up','pullup'] },
+  // ── Olympic lifting
+  { key:'snatches',  label:'Snatches',             emoji:'🏋️', mins:[50,250,750,2500,5000],
+    kw:['power snatch','hang snatch','squat snatch','snatch'] },
+  { key:'cleans',    label:'Cleans',               emoji:'💪', mins:[50,250,750,2500,5000],
+    kw:['clean and jerk','clean & jerk','power clean','hang clean','squat clean','clean'] },
+  { key:'thrusters', label:'Thrusters',            emoji:'🚀', mins:[50,250,750,2500,5000],
+    kw:['thruster'] },
+  // ── Barbell strength
+  { key:'squats',    label:'Squats',               emoji:'🦵', mins:[100,500,1500,5000,10000],
+    kw:['air squat','back squat','front squat','overhead squat','goblet squat','ohs'] },
+  { key:'deadlifts', label:'Deadlifts',            emoji:'⬛', mins:[50,250,750,2500,5000],
+    kw:['sumo deadlift','deadlift','rdl'] },
+  { key:'bench',     label:'Bench Press',          emoji:'🏋️‍♂️', mins:[50,250,750,2500,5000],
+    kw:['bench press','bench'] },
+  { key:'press',     label:'Strict Press',         emoji:'🔼', mins:[50,250,750,2500,5000],
+    kw:['strict press','shoulder press','ohp'] },
+  { key:'pushpress', label:'Push Press',           emoji:'⬆️', mins:[50,250,750,2500,5000],
+    kw:['push press'] },
+  // ── Conditioning gymnastics
+  { key:'burpees',   label:'Burpees',              emoji:'🔥', mins:[50,250,750,2500,5000],
+    kw:['bar-facing burpee','bar facing burpee','burpee'] },
+  { key:'boxjumps',  label:'Box Jumps',            emoji:'📦', mins:[100,500,1500,5000,10000],
+    kw:['box jump step over','box step over','box jump','box step'] },
+  { key:'wallballs', label:'Wall Balls',           emoji:'🏀', mins:[100,500,1500,5000,10000],
+    kw:['wall ball','wallball'] },
+  { key:'kbs',       label:'KB Swings',            emoji:'🔔', mins:[100,500,1500,5000,10000],
+    kw:['kettlebell swing','kb swing','american swing','russian swing','kbs'] },
+  { key:'du',        label:'Double Unders',        emoji:'🪢', mins:[500,2000,5000,15000,30000],
+    kw:['double under','double-under'] },
 ];
 
 function _countKwInDesc(desc, keywords) {
@@ -10393,9 +10426,9 @@ function computeRepBadges() {
   return counts;
 }
 
-function _badgeTierIdx(reps) {
-  for (let i = REP_BADGE_TIERS.length - 1; i >= 0; i--)
-    if (reps >= REP_BADGE_TIERS[i].min) return i;
+function _badgeTierIdx(reps, mins) {
+  for (let i = mins.length - 1; i >= 0; i--)
+    if (reps >= mins[i]) return i;
   return -1;
 }
 
@@ -10459,23 +10492,26 @@ function renderBadgesSection() {
   const sorted = [...REP_BADGE_MOVEMENTS].sort((a, b) => (counts[b.key] || 0) - (counts[a.key] || 0));
   el.innerHTML = sessionCard + prCard + sorted.map(m => {
     const reps = counts[m.key] || 0;
-    const ti = _badgeTierIdx(reps);
+    const ti = _badgeTierIdx(reps, m.mins);
     const tier = ti >= 0 ? REP_BADGE_TIERS[ti] : null;
-    const next = REP_BADGE_TIERS[ti + 1] || null;
-    const pct = next ? Math.min(100, ((reps - (tier?.min || 0)) / (next.min - (tier?.min || 0))) * 100) : 100;
+    const nextTierMeta = REP_BADGE_TIERS[ti + 1] || null;
+    const nextMin = m.mins[ti + 1] || null;
+    const prevMin = ti >= 0 ? m.mins[ti] : 0;
+    const pct = nextMin ? Math.min(100, ((reps - prevMin) / (nextMin - prevMin)) * 100) : 100;
     const barColor = tier ? tier.color : 'var(--muted)';
+    const unit = m.unit || 'reps';
     const badgeHtml = tier
       ? `<span style="font-size:1rem;">${tier.emoji}</span><span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.76rem;letter-spacing:0.08em;text-transform:uppercase;color:${tier.color};">${tier.label}</span>`
       : `<span style="font-family:'Barlow Condensed';font-size:0.76rem;color:var(--muted);letter-spacing:0.06em;">NO BADGE YET</span>`;
-    const nextHtml = next
-      ? `<span style="font-family:'Barlow Condensed';font-size:0.73rem;color:var(--muted);">${next.emoji} ${next.min.toLocaleString()}</span>`
+    const nextHtml = nextTierMeta
+      ? `<span style="font-family:'Barlow Condensed';font-size:0.73rem;color:var(--muted);">${nextTierMeta.emoji} ${nextMin.toLocaleString()} ${unit}</span>`
       : `<span style="font-family:'Barlow Condensed';font-size:0.73rem;color:${REP_BADGE_TIERS[REP_BADGE_TIERS.length-1].color};">MAX TIER 👑</span>`;
     return `<div style="display:grid;grid-template-columns:2.2rem 1fr;align-items:center;gap:0.6rem;padding:0.6rem 0.75rem;background:var(--card);border:1px solid var(--border);${tier?`border-left:3px solid ${barColor};`:''}border-radius:7px;margin-bottom:0.45rem;">
       <div style="text-align:center;font-size:1.4rem;line-height:1;">${m.emoji}</div>
       <div>
         <div style="display:flex;align-items:baseline;gap:0.45rem;margin-bottom:0.22rem;">
           <span style="font-family:'Bebas Neue';font-size:0.98rem;letter-spacing:0.06em;">${m.label}</span>
-          <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.82rem;color:var(--text);margin-left:auto;">${reps.toLocaleString()} reps</span>
+          <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.82rem;color:var(--text);margin-left:auto;">${reps.toLocaleString()} ${unit}</span>
         </div>
         <div style="height:4px;background:var(--border);border-radius:2px;margin-bottom:0.22rem;overflow:hidden;"><div style="height:100%;width:${pct.toFixed(1)}%;background:${barColor};border-radius:2px;"></div></div>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:0.4rem;">${badgeHtml}${nextHtml}</div>
@@ -10491,8 +10527,8 @@ function checkBadgeAchievements() {
 
   // Check rep badges
   REP_BADGE_MOVEMENTS.forEach(m => {
-    const prevTi = _badgeTierIdx(prev[m.key] || 0);
-    const curTi  = _badgeTierIdx(counts[m.key] || 0);
+    const prevTi = _badgeTierIdx(prev[m.key] || 0, m.mins);
+    const curTi  = _badgeTierIdx(counts[m.key] || 0, m.mins);
     if (curTi > prevTi && curTi >= 0) newBadge = { label: m.label, tier: REP_BADGE_TIERS[curTi] };
   });
 
