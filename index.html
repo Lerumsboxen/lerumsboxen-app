@@ -10398,16 +10398,52 @@ function _badgeTierIdx(reps) {
   return -1;
 }
 
+const SESSION_BADGE_TIERS = [
+  { label: 'Beginner',  min: 10,  emoji: '🌱', color: '#86efac' },
+  { label: 'Regular',   min: 50,  emoji: '⚡', color: '#fbbf24' },
+  { label: 'Dedicated', min: 100, emoji: '🔥', color: '#f97316' },
+  { label: 'Veteran',   min: 250, emoji: '💎', color: '#7dd3fc' },
+  { label: 'Legend',    min: 500, emoji: '👑', color: '#f43f5e' },
+];
+
 function renderBadgesSection() {
   const el = document.getElementById('dash-badges');
   if (!el) return;
   const counts = computeRepBadges();
-  if (!Object.values(counts).some(v => v > 0)) {
-    el.innerHTML = `<div style="text-align:center;padding:2.5rem 1rem;color:var(--muted);font-family:'Barlow Condensed';font-size:0.9rem;letter-spacing:0.05em;">Log some workouts to start earning rep badges!<br><span style="font-size:2.5rem;margin-top:1rem;display:block;">🏅</span></div>`;
+  const totalSessions = (state.wods?.length || 0) + (state.strength?.length || 0) + (state.conditioning?.length || 0);
+
+  // Sessions milestone card
+  const sti = (() => { for (let i = SESSION_BADGE_TIERS.length - 1; i >= 0; i--) if (totalSessions >= SESSION_BADGE_TIERS[i].min) return i; return -1; })();
+  const stier = sti >= 0 ? SESSION_BADGE_TIERS[sti] : null;
+  const snext = SESSION_BADGE_TIERS[sti + 1] || null;
+  const spct  = snext ? Math.min(100, ((totalSessions - (stier?.min || 0)) / (snext.min - (stier?.min || 0))) * 100) : 100;
+  const sColor = stier ? stier.color : 'var(--muted)';
+  const sessionCard = `<div style="padding:0.85rem 1rem;background:var(--card);border:1px solid var(--border);${stier?`border-left:3px solid ${sColor};`:''}border-radius:7px;margin-bottom:1rem;">
+    <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.5rem;">
+      <span style="font-size:1.6rem;line-height:1;">🏟️</span>
+      <div style="flex:1;">
+        <div style="display:flex;align-items:baseline;gap:0.45rem;">
+          <span style="font-family:'Bebas Neue';font-size:1.05rem;letter-spacing:0.06em;">Total Sessions</span>
+          <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.9rem;color:var(--text);margin-left:auto;">${totalSessions.toLocaleString()}</span>
+        </div>
+        <div style="font-family:'Barlow Condensed';font-size:0.73rem;color:var(--muted);">WODs · Strength · Conditioning</div>
+      </div>
+      ${stier ? `<div style="text-align:center;"><div style="font-size:1.5rem;">${stier.emoji}</div><div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.7rem;letter-spacing:0.07em;color:${sColor};text-transform:uppercase;">${stier.label}</div></div>` : ''}
+    </div>
+    <div style="height:5px;background:var(--border);border-radius:2px;margin-bottom:0.3rem;overflow:hidden;"><div style="height:100%;width:${spct.toFixed(1)}%;background:${sColor};border-radius:2px;"></div></div>
+    <div style="display:flex;justify-content:space-between;font-family:'Barlow Condensed';font-size:0.73rem;color:var(--muted);">
+      ${stier ? `<span>${stier.emoji} ${stier.label}</span>` : '<span>—</span>'}
+      ${snext ? `<span>${snext.emoji} ${snext.label} at ${snext.min}</span>` : `<span style="color:${SESSION_BADGE_TIERS[SESSION_BADGE_TIERS.length-1].color};">MAX TIER 👑</span>`}
+    </div>
+  </div>`;
+
+  if (!Object.values(counts).some(v => v > 0) && totalSessions === 0) {
+    el.innerHTML = `<div style="text-align:center;padding:2.5rem 1rem;color:var(--muted);font-family:'Barlow Condensed';font-size:0.9rem;letter-spacing:0.05em;">Log some workouts to start earning badges!<br><span style="font-size:2.5rem;margin-top:1rem;display:block;">🏅</span></div>`;
     return;
   }
+
   const sorted = [...REP_BADGE_MOVEMENTS].sort((a, b) => (counts[b.key] || 0) - (counts[a.key] || 0));
-  el.innerHTML = sorted.map(m => {
+  el.innerHTML = sessionCard + sorted.map(m => {
     const reps = counts[m.key] || 0;
     const ti = _badgeTierIdx(reps);
     const tier = ti >= 0 ? REP_BADGE_TIERS[ti] : null;
@@ -10438,13 +10474,23 @@ function checkBadgeAchievements() {
   const counts = computeRepBadges();
   const prev = JSON.parse(localStorage.getItem('lerums_badge_state') || '{}');
   let newBadge = null;
+
+  // Check rep badges
   REP_BADGE_MOVEMENTS.forEach(m => {
     const prevTi = _badgeTierIdx(prev[m.key] || 0);
     const curTi  = _badgeTierIdx(counts[m.key] || 0);
     if (curTi > prevTi && curTi >= 0) newBadge = { label: m.label, tier: REP_BADGE_TIERS[curTi] };
   });
+
+  // Check session badge
+  const totalSessions = (state.wods?.length || 0) + (state.strength?.length || 0) + (state.conditioning?.length || 0);
+  const prevSti = (() => { for (let i = SESSION_BADGE_TIERS.length - 1; i >= 0; i--) if ((prev._sessions || 0) >= SESSION_BADGE_TIERS[i].min) return i; return -1; })();
+  const curSti  = (() => { for (let i = SESSION_BADGE_TIERS.length - 1; i >= 0; i--) if (totalSessions >= SESSION_BADGE_TIERS[i].min) return i; return -1; })();
+  if (curSti > prevSti && curSti >= 0) newBadge = { label: 'Total Sessions', tier: SESSION_BADGE_TIERS[curSti] };
+
   const snap = {};
   REP_BADGE_MOVEMENTS.forEach(m => snap[m.key] = counts[m.key] || 0);
+  snap._sessions = totalSessions;
   localStorage.setItem('lerums_badge_state', JSON.stringify(snap));
   if (newBadge) setTimeout(() => _showBadgeCelebration(newBadge.label, newBadge.tier), 600);
 }
