@@ -7107,6 +7107,9 @@ function saveStrengthSession() {
 }
 
 function checkAndAutoSavePR(session) {
+  // Skip supersets — bench + pull-ups etc. are separate movements, not a PR-able complex
+  if (session.supersets) return;
+
   // Group sets by reps count, find max weight per rep count
   const byReps = {};
   session.sets.forEach(set => {
@@ -7835,9 +7838,9 @@ function getBestPR(movementName, reps) {
 
   let candidates = state.prs.filter(p => p.movement.toLowerCase() === name);
   if (!candidates.length) {
-    candidates = state.prs.filter(p =>
-      p.movement.toLowerCase().includes(name) || name.includes(p.movement.toLowerCase())
-    );
+    // Only match if the stored PR movement *contains* the search name (e.g. "Power Clean" found when searching "clean").
+    // The reverse direction (search name contains PR name) is intentionally excluded to avoid "Clean & Jerk" matching a "Clean" PR.
+    candidates = state.prs.filter(p => p.movement.toLowerCase().includes(name));
   }
   return candidates.length ? matchingPRs(candidates) : null;
 }
