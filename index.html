@@ -10303,67 +10303,66 @@ const REP_BADGE_TIERS = [
 ];
 // mins: [bronze, silver, gold, diamond, elite]
 const REP_BADGE_MOVEMENTS = [
-  // ── Elite skills (low rep volume per session)
-  { key:'ringmu',    label:'Ring Muscle-Ups',      emoji:'💍', mins:[10,50,150,500,1000],
+  // ── Elite Skills
+  { key:'ringmu',    label:'Ring Muscle-Ups',      emoji:'💍', group:'Elite Skills',    mins:[10,50,150,500,1000],
     kw:['ring muscle-up','ring muscle up','rmu'] },
-  { key:'barmu',     label:'Bar Muscle-Ups',       emoji:'💫', mins:[10,50,150,500,1000],
+  { key:'barmu',     label:'Bar Muscle-Ups',       emoji:'💫', group:'Elite Skills',    mins:[10,50,150,500,1000],
     kw:['bar muscle-up','bar muscle up','bmu','muscle-up','muscle up'] },
-  { key:'wallwalks', label:'Wall Walks',           emoji:'🧱', mins:[10,50,150,500,1000],
-    kw:['wall walk'] },
-  { key:'hsw',       label:'Handstand Walk',       emoji:'🙃', mins:[50,200,500,2000,5000],
-    kw:['handstand walk','hsw'], unit:'m' },
-  // ── Advanced gymnastics
-  { key:'hspu',      label:'Handstand Push-Ups',   emoji:'🤸', mins:[25,100,300,1000,2500],
-    kw:['handstand push-up','handstand push up','handstand pushup','hspu'] },
-  { key:'ringdips',  label:'Ring Dips',            emoji:'🔵', mins:[25,100,300,1000,3000],
-    kw:['ring dip'] },
-  { key:'ttb',       label:'Toes to Bar',          emoji:'🧗', mins:[50,250,750,2500,5000],
-    kw:['toes-to-bar','toes to bar','ttb'] },
-  { key:'kte',       label:'Knees to Elbow',       emoji:'🦵', mins:[50,250,750,2500,5000],
-    kw:['knees-to-elbow','knees to elbow','knees-to-elbows','k2e','kte'] },
-  { key:'pullups',   label:'Pull-Ups',             emoji:'⬆️', mins:[50,250,750,2500,5000],
-    kw:['chest-to-bar','chest to bar','c2b','ctb','pull-up','pull up','pullup'] },
-  // ── Olympic lifting
-  { key:'snatches',  label:'Snatches',             emoji:'🏋️', mins:[50,250,750,2500,5000],
-    kw:['power snatch','hang snatch','squat snatch','snatch'] },
-  { key:'cleans',    label:'Cleans',               emoji:'💪', mins:[50,250,750,2500,5000],
-    kw:['clean and jerk','clean & jerk','power clean','hang clean','squat clean','clean'] },
-  { key:'thrusters', label:'Thrusters',            emoji:'🚀', mins:[50,250,750,2500,5000],
-    kw:['thruster'] },
-  // ── Barbell strength
-  { key:'squats',    label:'Squats',               emoji:'🦵', mins:[100,500,1500,5000,10000],
-    kw:['air squat','back squat','front squat','overhead squat','goblet squat','ohs'] },
-  { key:'deadlifts', label:'Deadlifts',            emoji:'⬛', mins:[50,250,750,2500,5000],
-    kw:['sumo deadlift','deadlift','rdl'] },
-  { key:'bench',     label:'Bench Press',          emoji:'🏋️‍♂️', mins:[50,250,750,2500,5000],
-    kw:['bench press','bench'] },
-  { key:'press',     label:'Strict Press',         emoji:'🔼', mins:[50,250,750,2500,5000],
-    kw:['strict press','shoulder press','ohp'] },
-  { key:'pushpress', label:'Push Press',           emoji:'⬆️', mins:[50,250,750,2500,5000],
-    kw:['push press'] },
-  // ── Conditioning gymnastics
-  { key:'burpees',   label:'Burpees',              emoji:'🔥', mins:[50,250,750,2500,5000],
-    kw:['bar-facing burpee','bar facing burpee','burpee'] },
-  { key:'boxjumps',  label:'Box Jumps',            emoji:'📦', mins:[100,500,1500,5000,10000],
-    kw:['box jump step over','box step over','box jump','box step'] },
-  { key:'wallballs', label:'Wall Balls',           emoji:'🏀', mins:[100,500,1500,5000,10000],
-    kw:['wall ball','wallball'] },
-  { key:'kbs',       label:'KB Swings',            emoji:'🔔', mins:[100,500,1500,5000,10000],
-    kw:['kettlebell swing','kb swing','american swing','russian swing','kbs'] },
-  { key:'du',        label:'Double Unders',        emoji:'🪢', mins:[500,2000,5000,15000,30000],
-    kw:['double under','double-under'] },
-  // ── From custom movements
-  { key:'pushups',   label:'Push-Ups',             emoji:'🤜', mins:[100,500,1500,5000,10000],
-    kw:['push-up','push up','pushup'] },
-  { key:'ghd',       label:'GHD Sit-Ups',          emoji:'🪑', mins:[50,250,750,2500,5000],
-    kw:['ghd sit-up','ghd sit up','ghd situp','ghd'] },
-  { key:'pistol',    label:'Pistol Squats',        emoji:'🦵', mins:[25,100,300,1000,3000],
-    kw:['pistol squat','alt. pistol squat','pistol'] },
-  { key:'ropeclimb', label:'Rope Climbs',          emoji:'🧗', mins:[10,50,150,500,1000],
+  { key:'ropeclimb', label:'Rope Climbs',          emoji:'🧗', group:'Elite Skills',    mins:[10,50,150,500,1000],
     kw:['legless rope climb','rope climb'] },
-  { key:'devilpress',label:"Devil's Press",        emoji:'😈', mins:[25,100,300,1000,2500],
+  { key:'wallwalks', label:'Wall Walks',           emoji:'🧱', group:'Elite Skills',    mins:[10,50,150,500,1000],
+    kw:['wall walk'] },
+  { key:'hsw',       label:'Handstand Walk',       emoji:'🙃', group:'Elite Skills',    mins:[50,200,500,2000,5000],
+    kw:['handstand walk','hsw'], unit:'m' },
+  // ── Gymnastics
+  { key:'hspu',      label:'Handstand Push-Ups',   emoji:'🤸', group:'Gymnastics',      mins:[25,100,300,1000,2500],
+    kw:['handstand push-up','handstand push up','handstand pushup','hspu'] },
+  { key:'ringdips',  label:'Ring Dips',            emoji:'🔵', group:'Gymnastics',      mins:[25,100,300,1000,3000],
+    kw:['ring dip'] },
+  { key:'ttb',       label:'Toes to Bar',          emoji:'🧗', group:'Gymnastics',      mins:[50,250,750,2500,5000],
+    kw:['toes-to-bar','toes to bar','ttb'] },
+  { key:'kte',       label:'Knees to Elbow',       emoji:'🦵', group:'Gymnastics',      mins:[50,250,750,2500,5000],
+    kw:['knees-to-elbow','knees to elbow','knees-to-elbows','k2e','kte'] },
+  { key:'pullups',   label:'Pull-Ups',             emoji:'⬆️', group:'Gymnastics',      mins:[50,250,750,2500,5000],
+    kw:['chest-to-bar','chest to bar','c2b','ctb','pull-up','pull up','pullup'] },
+  { key:'pushups',   label:'Push-Ups',             emoji:'🤜', group:'Gymnastics',      mins:[100,500,1500,5000,10000],
+    kw:['push-up','push up','pushup'] },
+  { key:'pistol',    label:'Pistol Squats',        emoji:'🦵', group:'Gymnastics',      mins:[25,100,300,1000,3000],
+    kw:['pistol squat','alt. pistol squat','pistol'] },
+  // ── Olympic Lifting
+  { key:'snatches',  label:'Snatches',             emoji:'🏋️', group:'Olympic Lifting', mins:[50,250,750,2500,5000],
+    kw:['power snatch','hang snatch','squat snatch','snatch'] },
+  { key:'cleans',    label:'Cleans',               emoji:'💪', group:'Olympic Lifting', mins:[50,250,750,2500,5000],
+    kw:['clean and jerk','clean & jerk','power clean','hang clean','squat clean','clean'] },
+  { key:'thrusters', label:'Thrusters',            emoji:'🚀', group:'Olympic Lifting', mins:[50,250,750,2500,5000],
+    kw:['thruster'] },
+  // ── Barbell
+  { key:'squats',    label:'Squats',               emoji:'🦵', group:'Barbell',         mins:[100,500,1500,5000,10000],
+    kw:['air squat','back squat','front squat','overhead squat','goblet squat','ohs'] },
+  { key:'deadlifts', label:'Deadlifts',            emoji:'⬛', group:'Barbell',         mins:[50,250,750,2500,5000],
+    kw:['sumo deadlift','deadlift','rdl'] },
+  { key:'bench',     label:'Bench Press',          emoji:'🏋️‍♂️', group:'Barbell',         mins:[50,250,750,2500,5000],
+    kw:['bench press','bench'] },
+  { key:'press',     label:'Strict Press',         emoji:'🔼', group:'Barbell',         mins:[50,250,750,2500,5000],
+    kw:['strict press','shoulder press','ohp'] },
+  { key:'pushpress', label:'Push Press',           emoji:'⬆️', group:'Barbell',         mins:[50,250,750,2500,5000],
+    kw:['push press'] },
+  // ── Conditioning
+  { key:'burpees',   label:'Burpees',              emoji:'🔥', group:'Conditioning',    mins:[50,250,750,2500,5000],
+    kw:['bar-facing burpee','bar facing burpee','burpee'] },
+  { key:'boxjumps',  label:'Box Jumps',            emoji:'📦', group:'Conditioning',    mins:[100,500,1500,5000,10000],
+    kw:['box jump step over','box step over','box jump','box step'] },
+  { key:'wallballs', label:'Wall Balls',           emoji:'🏀', group:'Conditioning',    mins:[100,500,1500,5000,10000],
+    kw:['wall ball','wallball'] },
+  { key:'kbs',       label:'KB Swings',            emoji:'🔔', group:'Conditioning',    mins:[100,500,1500,5000,10000],
+    kw:['kettlebell swing','kb swing','american swing','russian swing','kbs'] },
+  { key:'du',        label:'Double Unders',        emoji:'🪢', group:'Conditioning',    mins:[500,2000,5000,15000,30000],
+    kw:['double under','double-under'] },
+  { key:'ghd',       label:'GHD Sit-Ups',          emoji:'🪑', group:'Conditioning',    mins:[50,250,750,2500,5000],
+    kw:['ghd sit-up','ghd sit up','ghd situp','ghd'] },
+  { key:'devilpress',label:"Devil's Press",        emoji:'😈', group:'Conditioning',    mins:[25,100,300,1000,2500],
     kw:["devil's press","devils press","devil press"] },
-  { key:'lunges',    label:'Lunges',               emoji:'🏃', mins:[100,500,1500,5000,10000],
+  { key:'lunges',    label:'Lunges',               emoji:'🏃', group:'Conditioning',    mins:[100,500,1500,5000,10000],
     kw:['reverse lunge','walking lunge','lunge'] },
 ];
 
@@ -10638,8 +10637,10 @@ function renderBadgesSection() {
     </div>`;
   }).join('');
 
-  const sorted = [...REP_BADGE_MOVEMENTS].sort((a, b) => (counts[b.key] || 0) - (counts[a.key] || 0));
-  el.innerHTML = sessionCard + prCard + _sectionLabel('CARDIO') + cardioCards + _sectionLabel('REPS') + sorted.map(m => {
+  const REP_GROUPS = ['Elite Skills', 'Gymnastics', 'Olympic Lifting', 'Barbell', 'Conditioning'];
+  const repGroupsHtml = REP_GROUPS.map(grp => {
+    const moves = REP_BADGE_MOVEMENTS.filter(m => m.group === grp);
+    return _sectionLabel(grp.toUpperCase()) + moves.map(m => {
     const reps = counts[m.key] || 0;
     const ti = _badgeTierIdx(reps, m.mins);
     const tier = ti >= 0 ? REP_BADGE_TIERS[ti] : null;
@@ -10666,7 +10667,9 @@ function renderBadgesSection() {
         <div style="display:flex;align-items:center;justify-content:space-between;gap:0.4rem;">${badgeHtml}${nextHtml}</div>
       </div>
     </div>`;
+    }).join('');
   }).join('');
+  el.innerHTML = sessionCard + prCard + _sectionLabel('CARDIO') + cardioCards + repGroupsHtml;
 }
 
 function checkBadgeAchievements() {
