@@ -3238,49 +3238,96 @@ function renderSessionsPerMonth() {
   }).reverse();
   const weekMax = Math.max(...weekCounts.map(w => w.count), 1);
 
+  // SVG area chart
+  const chartW = 300, chartH = 56;
+  const n = months.length;
+  const pts = months.map((m, i) => ({
+    x: n > 1 ? (i / (n - 1)) * chartW : chartW / 2,
+    y: chartH - Math.max((m.count / max) * chartH, 0)
+  }));
+  let linePath = `M ${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
+  for (let i = 1; i < pts.length; i++) {
+    const cp1x = pts[i-1].x + (pts[i].x - pts[i-1].x) * 0.4;
+    const cp2x = pts[i].x - (pts[i].x - pts[i-1].x) * 0.4;
+    linePath += ` C ${cp1x.toFixed(1)},${pts[i-1].y.toFixed(1)} ${cp2x.toFixed(1)},${pts[i].y.toFixed(1)} ${pts[i].x.toFixed(1)},${pts[i].y.toFixed(1)}`;
+  }
+  const areaPath = linePath + ` L ${pts[n-1].x.toFixed(1)},${chartH} L 0,${chartH} Z`;
+  const goalY = goal > 0 ? chartH - Math.min((goal / max) * chartH, chartH) : null;
+
+  // Goal badge pill
+  const goalBadge = goal ? (() => {
+    const pct = Math.round(goalPct);
+    const bc = goalPct >= 100 ? '#22c55e' : goalPct >= 60 ? '#fbbf24' : '#ff3d1a';
+    const bg = goalPct >= 100 ? 'rgba(34,197,94,0.15)' : goalPct >= 60 ? 'rgba(251,191,36,0.12)' : 'rgba(255,61,26,0.12)';
+    const arrow = goalPct >= 100 ? ' ✓' : '';
+    return `<span style="font-family:'Barlow Condensed';font-size:0.65rem;font-weight:700;letter-spacing:0.06em;background:${bg};color:${bc};border-radius:20px;padding:0.12rem 0.5rem;border:1px solid ${bc}33;">${pct}% of goal${arrow}</span>`;
+  })() : '';
+
+  // Week trend
+  const thisWeek = weekCounts[weekCounts.length - 1].count;
+  const prevWeek = weekCounts[weekCounts.length - 2]?.count || 0;
+  const weekTrend = thisWeek > prevWeek ? '↑' : thisWeek < prevWeek ? '↓' : '—';
+  const weekTrendColor = thisWeek > prevWeek ? '#22c55e' : thisWeek < prevWeek ? '#ff3d1a' : 'var(--muted)';
+
   el.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem;flex-wrap:wrap;gap:0.3rem;">
-      <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);">Sessions per month</div>
-      <div style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap;">
-        ${goal ? `
-        <div style="display:flex;align-items:center;gap:0.35rem;">
-          <span style="font-family:'Bebas Neue';font-size:1.1rem;color:${goalColor};">${thisMonth.count}/${goal}</span>
-          <div style="width:56px;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;">
-            <div style="width:${goalPct}%;height:100%;background:${goalColor};border-radius:3px;"></div>
-          </div>
-        </div>` : `
-        <span style="font-family:'Bebas Neue';font-size:1.2rem;color:var(--red);">${thisMonth.count}<span style="font-size:0.7rem;font-family:'Barlow Condensed';color:var(--muted);font-weight:400;"> this month</span></span>`}
-        <span style="font-size:0.72rem;color:var(--muted);font-family:'Barlow Condensed';">${totalAllTime} total</span>
-        <button onclick="editSessionGoal()" style="font-size:0.65rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.07em;text-transform:uppercase;padding:0.15rem 0.45rem;border:1px solid var(--border);border-radius:3px;background:transparent;color:var(--muted);cursor:pointer;">${goal ? '✎ GOAL' : '+ GOAL'}</button>
+    <div style="display:flex;gap:0.5rem;margin-bottom:0.85rem;">
+      <div style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-top-color:rgba(255,255,255,0.14);border-radius:10px;padding:0.55rem 0.65rem;">
+        <div style="font-size:0.58rem;color:var(--muted);font-family:'Barlow Condensed';letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.2rem;">This month</div>
+        <div style="font-family:'Bebas Neue';font-size:1.6rem;line-height:1;color:var(--text);">${thisMonth.count}</div>
+        ${goalBadge ? `<div style="margin-top:0.25rem;">${goalBadge}</div>` : ''}
+      </div>
+      <div style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-top-color:rgba(255,255,255,0.14);border-radius:10px;padding:0.55rem 0.65rem;">
+        <div style="font-size:0.58rem;color:var(--muted);font-family:'Barlow Condensed';letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.2rem;">All time</div>
+        <div style="font-family:'Bebas Neue';font-size:1.6rem;line-height:1;color:var(--text);">${totalAllTime}</div>
+      </div>
+      <div style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-top-color:rgba(255,255,255,0.14);border-radius:10px;padding:0.55rem 0.65rem;">
+        <div style="font-size:0.58rem;color:var(--muted);font-family:'Barlow Condensed';letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.2rem;">This week</div>
+        <div style="font-family:'Bebas Neue';font-size:1.6rem;line-height:1;color:var(--text);">${thisWeek} <span style="font-size:1rem;color:${weekTrendColor};">${weekTrend}</span></div>
       </div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:0.28rem;margin-bottom:0.65rem;">
-      ${months.map(m => {
-        const isThis = m.ym === thisMonth.ym;
-        const pct = max > 0 ? Math.max((m.count / max) * 100, m.count > 0 ? 3 : 0) : 0;
-        const goalLinePct = goal > 0 ? Math.min((goal / max) * 100, 100) : null;
-        return `<div style="display:grid;grid-template-columns:36px 1fr 26px;align-items:center;gap:0.45rem;">
-          <span style="font-size:0.7rem;color:${isThis ? 'var(--text)' : 'var(--muted)'};text-align:right;font-family:'Barlow Condensed';font-weight:${isThis ? 700 : 400};letter-spacing:0.05em;">${m.label}</span>
-          <div style="position:relative;background:rgba(255,255,255,0.06);border-radius:2px;height:9px;overflow:visible;">
-            <div style="background:${isThis ? 'var(--red)' : 'var(--muted)'};height:100%;width:${pct}%;border-radius:2px;opacity:${isThis ? 1 : 0.6};"></div>
-            ${goalLinePct !== null ? `<div style="position:absolute;top:-2px;bottom:-2px;left:${goalLinePct}%;width:1.5px;background:#fbbf24;opacity:0.75;border-radius:1px;"></div>` : ''}
-          </div>
-          <span style="font-size:0.75rem;color:${isThis ? 'var(--text)' : 'var(--muted)'};font-family:'Barlow Condensed';font-weight:${isThis ? 700 : 400};">${m.count}</span>
-        </div>`;
-      }).join('')}
+
+    <div style="margin-bottom:0.75rem;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.3rem;">
+        <div style="font-family:'Barlow Condensed';font-size:0.62rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);">6-month trend</div>
+        <button onclick="editSessionGoal()" style="font-size:0.6rem;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.07em;text-transform:uppercase;padding:0.1rem 0.4rem;border:1px solid var(--border);border-radius:4px;background:transparent;color:var(--muted);cursor:pointer;">${goal ? '✎ goal' : '+ goal'}</button>
+      </div>
+      <svg viewBox="0 0 ${chartW} ${chartH + 4}" style="width:100%;height:56px;overflow:visible;display:block;">
+        <defs>
+          <linearGradient id="areaGrad${Date.now()%9999}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#ff3d1a" stop-opacity="0.35"/>
+            <stop offset="100%" stop-color="#e8001d" stop-opacity="0"/>
+          </linearGradient>
+          <linearGradient id="lineGrad${Date.now()%9999}" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#ff3d1a"/>
+            <stop offset="100%" stop-color="#e8001d"/>
+          </linearGradient>
+        </defs>
+        <path d="${areaPath}" fill="rgba(255,61,26,0.18)"/>
+        <path d="${linePath}" fill="none" stroke="#ff3d1a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        ${goalY !== null ? `<line x1="0" y1="${goalY.toFixed(1)}" x2="${chartW}" y2="${goalY.toFixed(1)}" stroke="#fbbf24" stroke-width="1" stroke-dasharray="4,3" opacity="0.6"/>` : ''}
+        ${pts.map((p, i) => {
+          const isLast = i === pts.length - 1;
+          return isLast ? `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="#ff3d1a" stroke="#0b0b0d" stroke-width="2"/>` : (months[i].count > 0 ? `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.5" fill="rgba(255,61,26,0.6)"/>` : '');
+        }).join('')}
+      </svg>
+      <div style="display:flex;justify-content:space-between;margin-top:0.15rem;">
+        ${months.map(m => `<span style="font-size:0.56rem;color:var(--muted);font-family:'Barlow Condensed';">${m.label}</span>`).join('')}
+      </div>
     </div>
-    <div style="border-top:1px solid var(--border);padding-top:0.5rem;">
-      <div style="font-family:'Barlow Condensed';font-size:0.68rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:0.3rem;">Weekly load</div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.35rem;">
+
+    <div style="border-top:1px solid var(--border);padding-top:0.6rem;">
+      <div style="font-family:'Barlow Condensed';font-size:0.62rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:0.4rem;">Weekly load</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.4rem;">
         ${weekCounts.map(w => {
           const isNow = w.label === 'This wk';
-          const h = weekMax > 0 ? Math.max((w.count / weekMax) * 100, w.count > 0 ? 12 : 0) : 0;
+          const h = weekMax > 0 ? Math.max((w.count / weekMax) * 100, w.count > 0 ? 10 : 0) : 0;
+          const barColor = isNow ? 'linear-gradient(180deg,#ff3d1a,#e8001d)' : 'rgba(255,255,255,0.18)';
           return `<div style="text-align:center;">
-            <div style="background:rgba(255,255,255,0.06);border-radius:3px;height:30px;display:flex;align-items:flex-end;justify-content:center;overflow:hidden;margin-bottom:0.18rem;">
-              <div style="width:55%;border-radius:2px 2px 0 0;height:${h}%;background:${isNow ? 'var(--red)' : 'var(--muted)'};opacity:${isNow ? 1 : 0.55};"></div>
+            <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.07);border-radius:6px;height:36px;display:flex;align-items:flex-end;justify-content:center;overflow:hidden;margin-bottom:0.2rem;padding:0 4px 0;">
+              <div style="width:60%;border-radius:3px 3px 0 0;height:${h}%;background:${barColor};"></div>
             </div>
-            <div style="font-size:0.7rem;color:${isNow ? 'var(--text)' : 'var(--muted)'};font-family:'Barlow Condensed';font-weight:${isNow ? 700 : 400};">${w.count}</div>
-            <div style="font-size:0.6rem;color:var(--muted);font-family:'Barlow Condensed';">${w.label}</div>
+            <div style="font-family:'Bebas Neue';font-size:0.95rem;color:${isNow ? 'var(--text)' : 'var(--muted)'};">${w.count}</div>
+            <div style="font-size:0.56rem;color:var(--muted);font-family:'Barlow Condensed';">${w.label}</div>
           </div>`;
         }).join('')}
       </div>
