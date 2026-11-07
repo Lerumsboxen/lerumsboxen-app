@@ -10793,7 +10793,6 @@ function _showBadgeCelebration(movement, tier) {
 function renderScheduleSection() {
   const el = document.getElementById('dash-schedule');
   if (!el) return;
-  // Calculate viewport height minus top nav
   const h = Math.max(500, window.innerHeight - 160);
   el.innerHTML = `<iframe
     src="https://lerumsboxen.wondr.se/schedule"
