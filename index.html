@@ -3348,19 +3348,19 @@ function closeMoreSheet() {
   }
 }
 
+function initHeroBg() {
+  if (document.getElementById('home-hero-bg')) return;
+  const heroImg = HOME_HERO_IMAGES[Math.floor(Math.random() * HOME_HERO_IMAGES.length)];
+  const heroBg = document.createElement('div');
+  heroBg.id = 'home-hero-bg';
+  heroBg.style.backgroundImage = `url('${heroImg}')`;
+  document.body.appendChild(heroBg);
+  requestAnimationFrame(() => { heroBg.style.opacity = '0.1'; });
+}
+
 function renderHomeLanding() {
   const el = document.getElementById('dash-home');
   if (!el) return;
-  // Hero background — random each load
-  const heroImg = HOME_HERO_IMAGES[Math.floor(Math.random() * HOME_HERO_IMAGES.length)];
-  let heroBg = document.getElementById('home-hero-bg');
-  if (!heroBg) {
-    heroBg = document.createElement('div');
-    heroBg.id = 'home-hero-bg';
-    document.body.appendChild(heroBg);
-  }
-  heroBg.style.backgroundImage = `url('${heroImg}')`;
-  requestAnimationFrame(() => { heroBg.style.opacity = '0.1'; });
   const today = new Date().toISOString().split('T')[0];
   const dayName = new Date().toLocaleDateString('sv-SE', { weekday: 'long' });
   const dateStr = new Date().toLocaleDateString('sv-SE', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -3447,11 +3447,7 @@ function selectDashSection(section) {
     return;
   }
 
-  // Remove hero when leaving home
-  if (section !== 'home') {
-    const heroBg = document.getElementById('home-hero-bg');
-    if (heroBg) { heroBg.style.opacity = '0'; setTimeout(() => heroBg.remove(), 1000); }
-  }
+
   const cfg = DASH_SECTIONS[section];
   const grid = document.getElementById('homeGrid');
   const dc = document.getElementById('dash-content');
@@ -7061,6 +7057,7 @@ function updateSyncSummary() {
 
 // Restore saved settings on page load
 window.addEventListener('DOMContentLoaded', () => {
+  initHeroBg();
   // Start on home landing page
   selectDashSection('home');
 
