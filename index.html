@@ -413,36 +413,37 @@
   .wod-card.completed { border-left-color: var(--success); opacity: 0.75; }
   /* Compact row */
   .wod-compact {
-    display: flex; align-items: center; gap: 0.6rem; min-width: 0;
+    display: flex; align-items: center; gap: 0.55rem; min-width: 0;
   }
   .wod-compact-date {
-    font-family: 'Bebas Neue', sans-serif; font-size: 0.95rem;
-    color: var(--red); letter-spacing: 0.05em; white-space: nowrap; flex-shrink: 0;
+    font-family: 'Barlow Condensed', sans-serif; font-size: 0.72rem;
+    font-weight: 600; color: var(--muted); letter-spacing: 0.1em;
+    text-transform: uppercase; white-space: nowrap; flex-shrink: 0;
   }
   .wod-compact-name {
     font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
-    font-size: 0.9rem; letter-spacing: 0.05em; flex: 1; min-width: 0;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-size: 0.95rem; flex: 1; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text);
   }
   .wod-compact-score {
-    font-family: 'Barlow Condensed', sans-serif; font-size: 0.8rem;
+    font-family: 'Barlow Condensed', sans-serif; font-size: 0.8rem; font-weight: 700;
     color: var(--success); white-space: nowrap; flex-shrink: 0;
   }
   /* Expanded detail */
   .wod-card.expanded .wod-compact { display: none; }
-  .wod-detail { display: none; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border); }
+  .wod-detail { display: none; margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px solid var(--border); }
   .wod-card.expanded .wod-detail { display: block; }
   .wod-meta {
     display: flex; align-items: center; gap: 0.75rem;
     flex-wrap: wrap; margin-bottom: 0.5rem;
   }
   .wod-date {
-    font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem;
-    letter-spacing: 0.06em; color: var(--red);
+    font-family: 'Barlow Condensed', sans-serif; font-size: 0.72rem;
+    font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
   }
-  .wod-name { font-family: 'Bebas Neue', sans-serif; font-size: 1.35rem; letter-spacing: 0.05em; margin-bottom: 0.25rem; }
-  .wod-desc { font-size: 0.85rem; color: #aaa; line-height: 1.5; }
-  .wod-score { font-family: 'Barlow Condensed', sans-serif; font-size: 0.9rem; font-weight: 600; color: var(--success); margin-top: 0.5rem; }
+  .wod-name { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 1.15rem; letter-spacing: 0.03em; margin-bottom: 0.3rem; color: var(--text); }
+  .wod-desc { font-size: 0.83rem; color: var(--muted); line-height: 1.55; white-space: pre-wrap; }
+  .wod-score { font-family: 'Barlow Condensed', sans-serif; font-size: 0.9rem; font-weight: 700; color: var(--success); margin-top: 0.4rem; }
   .wod-actions {
     display: flex; gap: 0.4rem; margin-top: 0.75rem;
     opacity: 0; transition: opacity 0.2s;
@@ -613,23 +614,23 @@
   .strength-card:hover { background: var(--card2); box-shadow: 0 2px 12px rgba(240,240,240,0.08); }
   .strength-card.expanded { padding: 1rem 1.25rem; }
   /* Compact row */
-  .str-compact { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
-  .str-compact-date { font-family:'Bebas Neue',sans-serif; font-size:0.95rem; color:#e0e0e0; letter-spacing:0.05em; white-space:nowrap; flex-shrink:0; }
-  .str-compact-name { font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:0.9rem; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .str-compact-top { font-family:'Barlow Condensed',sans-serif; font-size:0.8rem; color:var(--muted); white-space:nowrap; flex-shrink:0; }
+  .str-compact { display: flex; align-items: center; gap: 0.55rem; min-width: 0; }
+  .str-compact-date { font-family:'Barlow Condensed',sans-serif; font-size:0.72rem; font-weight:600; color:var(--muted); letter-spacing:0.1em; text-transform:uppercase; white-space:nowrap; flex-shrink:0; }
+  .str-compact-name { font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:0.95rem; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text); }
+  .str-compact-top { font-family:'Barlow Condensed',sans-serif; font-size:0.82rem; font-weight:700; color:var(--muted); white-space:nowrap; flex-shrink:0; }
   /* Expanded detail */
   .strength-card.expanded .str-compact { display:none; }
-  .str-detail { display:none; margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid var(--border); }
+  .str-detail { display:none; margin-top:0.6rem; padding-top:0.6rem; border-top:1px solid var(--border); }
   .strength-card.expanded .str-detail { display:block; }
-  .strength-header { display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap; margin-bottom:0.75rem; }
-  .strength-title { font-family:'Bebas Neue',sans-serif; font-size:1.35rem; letter-spacing:0.05em; }
-  .strength-date { font-family:'Bebas Neue',sans-serif; font-size:1.1rem; color:#e0e0e0; letter-spacing:0.06em; }
-  .sets-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(110px,1fr)); gap:0.5rem; margin-top:0.5rem; }
-  .set-bubble { background:var(--black); border:1px solid var(--border); border-radius:3px; padding:0.45rem 0.6rem; text-align:center; font-size:0.78rem; }
-  .set-bubble .set-num { font-family:'Barlow Condensed',sans-serif; font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); margin-bottom:0.15rem; }
-  .set-bubble .set-weight { font-family:'Bebas Neue',sans-serif; font-size:1.15rem; color:#e0e0e0; letter-spacing:0.04em; line-height:1; }
-  .set-bubble .set-reps { color:var(--muted); font-size:0.75rem; margin-top:0.1rem; }
-  .set-bubble .set-rpe { color:#fbbf24; font-size:0.65rem; }
+  .strength-header { display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap; margin-bottom:0.6rem; }
+  .strength-title { font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:1.1rem; letter-spacing:0.04em; color:var(--text); }
+  .strength-date { font-family:'Barlow Condensed',sans-serif; font-size:0.72rem; font-weight:600; color:var(--muted); letter-spacing:0.1em; text-transform:uppercase; }
+  .sets-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(90px,1fr)); gap:0.4rem; margin-top:0.5rem; }
+  .set-bubble { background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:6px; padding:0.4rem 0.5rem; text-align:center; }
+  .set-bubble .set-num { font-family:'Barlow Condensed',sans-serif; font-size:0.6rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); margin-bottom:0.1rem; }
+  .set-bubble .set-weight { font-family:'Bebas Neue',sans-serif; font-size:1.1rem; color:var(--text); letter-spacing:0.04em; line-height:1; }
+  .set-bubble .set-reps { color:var(--muted); font-size:0.72rem; margin-top:0.1rem; }
+  .set-bubble .set-rpe { color:#fbbf24; font-size:0.62rem; margin-top:0.1rem; }
   .strength-actions {
     display:flex; gap:0.4rem; margin-top:0.75rem;
     opacity:0; transition:opacity 0.2s;
@@ -1113,6 +1114,17 @@
     font-weight: 700; font-size: 0.62rem;
     letter-spacing: 0.1em; text-transform: uppercase;
     color: var(--muted); text-align: center; line-height: 1.2;
+  }
+
+  /* Hero background */
+  #home-hero-bg {
+    position: fixed; inset: 0;
+    background-size: cover;
+    background-position: center 25%;
+    opacity: 0;
+    pointer-events: none;
+    z-index: -1;
+    transition: opacity 1s ease;
   }
 
   /* Home landing */
@@ -2823,6 +2835,11 @@ function showPage(id, goingBack) {
 // ===== DASHBOARD SECTION SELECTOR =====
 let currentDashSection = null;
 
+const HOME_HERO_IMAGES = [
+  'hero/01.jpg','hero/02.jpg','hero/03.jpg','hero/04.jpg','hero/05.jpg',
+  'hero/06.jpg','hero/07.jpg','hero/08.jpg','hero/09.jpg','hero/10.jpg','hero/11.jpg'
+];
+
 const DASH_SECTIONS = {
   log: {
     render: () => { renderDashLogTab(); },
@@ -3278,6 +3295,16 @@ function closeMoreSheet() {
 function renderHomeLanding() {
   const el = document.getElementById('dash-home');
   if (!el) return;
+  // Hero background — random each load
+  const heroImg = HOME_HERO_IMAGES[Math.floor(Math.random() * HOME_HERO_IMAGES.length)];
+  let heroBg = document.getElementById('home-hero-bg');
+  if (!heroBg) {
+    heroBg = document.createElement('div');
+    heroBg.id = 'home-hero-bg';
+    document.body.appendChild(heroBg);
+  }
+  heroBg.style.backgroundImage = `url('${heroImg}')`;
+  requestAnimationFrame(() => { heroBg.style.opacity = '0.1'; });
   const today = new Date().toISOString().split('T')[0];
   const dayName = new Date().toLocaleDateString('sv-SE', { weekday: 'long' });
   const dateStr = new Date().toLocaleDateString('sv-SE', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -3364,6 +3391,11 @@ function selectDashSection(section) {
     return;
   }
 
+  // Remove hero when leaving home
+  if (section !== 'home') {
+    const heroBg = document.getElementById('home-hero-bg');
+    if (heroBg) { heroBg.style.opacity = '0'; setTimeout(() => heroBg.remove(), 1000); }
+  }
   const cfg = DASH_SECTIONS[section];
   const grid = document.getElementById('homeGrid');
   const dc = document.getElementById('dash-content');
@@ -3914,7 +3946,6 @@ function wodCardHTML(w, showActions=false) {
   return `<div class="wod-card" onclick="toggleCard(this)">
     <div class="wod-compact">
       <span class="wod-compact-date">${formatDate(w.date)}</span>
-      <span class="tag ${type}" style="flex-shrink:0;">${typeLabel}</span>
       <span class="wod-compact-name">${w.name || 'Unnamed WOD'}</span>
       ${benchmarkTag}
       ${scoreText ? `<span class="wod-compact-score">${scoreText}</span>` : ''}
@@ -7932,7 +7963,6 @@ function strengthCardHTML(s) {
     return `<div class="strength-card" onclick="toggleCard(this)">
       <div class="str-compact">
         <span class="str-compact-date">${formatDate(s.date)}</span>
-        <span class="tag" style="flex-shrink:0;background:rgba(96,165,250,0.15);color:#60a5fa;border-color:rgba(96,165,250,0.4);">${_formatEmomInterval(em.interval||60)}</span>
         <span class="str-compact-name">${compactName}</span>
         <span class="str-compact-top" style="color:#60a5fa;">${(() => { const mx = (em.movements||[]).find(m=>m.isMaxReps&&m.repsSeq?.length); return mx ? mx.repsSeq.reduce((a,b)=>a+b,0)+' reps' : '×'+(em.rounds||'?'); })()}</span>
       </div>
@@ -7965,7 +7995,6 @@ function strengthCardHTML(s) {
     return `<div class="strength-card" onclick="toggleCard(this)">
       <div class="str-compact">
         <span class="str-compact-date">${formatDate(s.date)}</span>
-        <span class="tag strength" style="flex-shrink:0;background:rgba(167,139,250,0.15);color:#a78bfa;border-color:rgba(167,139,250,0.4);">SS</span>
         <span class="str-compact-name">${compactName}</span>
         ${topOverall ? `<span class="str-compact-top">${dispW(topOverall.weight)} × ${topOverall.reps||'?'}</span>` : ''}
       </div>
@@ -7986,7 +8015,6 @@ function strengthCardHTML(s) {
   return `<div class="strength-card" onclick="toggleCard(this)">
     <div class="str-compact">
       <span class="str-compact-date">${formatDate(s.date)}</span>
-      <span class="tag strength" style="flex-shrink:0;">STR</span>
       <span class="str-compact-name">${s.exercise}</span>
       ${topText ? `<span class="str-compact-top">${topText}</span>` : ''}
     </div>
@@ -8329,11 +8357,10 @@ function condCardHTML(s) {
       </div>
     </div>` : '';
 
-  return `<div class="strength-card" onclick="toggleCard(this)">
+  return `<div class="strength-card" onclick="toggleCard(this)" style="border-left-color:${cfg.color};">
     <div class="str-compact">
       <span class="str-compact-date">${formatDate(s.date)}</span>
-      ${tag}
-      <span class="str-compact-name">${typeLabel}</span>
+      <span class="str-compact-name">${cfg.label} · ${typeLabel}</span>
       ${pace !== '—' ? `<span class="str-compact-top" style="color:${cfg.color};">${pace}</span>` : ''}
     </div>
     <div class="str-detail">
