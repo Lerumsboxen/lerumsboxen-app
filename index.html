@@ -2843,12 +2843,22 @@ const DASH_SECTIONS = {
   },
   schedule: {
     render: () => { renderScheduleSection(); },
-    build: () => `
+    build: () => {
+      const ua = navigator.userAgent;
+      const isAndroid = /Android/i.test(ua);
+      const isIOS = /iPhone|iPad|iPod/i.test(ua);
+      const wondrLink = isAndroid
+        ? 'intent://lerumsboxen.wondr.se/schedule#Intent;scheme=https;package=com.wondr.app;S.browser_fallback_url=https%3A%2F%2Flerumsboxen.wondr.se%2Fschedule;end'
+        : isIOS
+        ? 'https://lerumsboxen.wondr.se/wondr/schedule'
+        : 'https://lerumsboxen.wondr.se/schedule';
+      return `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.75rem;">
         <div class="section-title" style="margin:0;flex:1;">Schema</div>
-        <a href="https://lerumsboxen.wondr.se/wondr/schedule" target="_blank" rel="noopener" style="font-family:'Barlow Condensed';font-size:0.8rem;color:var(--accent);text-decoration:none;letter-spacing:0.05em;">ÖPPNA I WONDR ↗</a>
+        <a href="${wondrLink}" target="_blank" rel="noopener" style="font-family:'Barlow Condensed';font-size:0.8rem;color:var(--accent);text-decoration:none;letter-spacing:0.05em;">ÖPPNA I WONDR ↗</a>
       </div>
-      <div id="dash-schedule"></div>`
+      <div id="dash-schedule"></div>`;
+    }
   }
 };
 
