@@ -17,17 +17,18 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@300;400;600;700&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --black: #0a0a0a;
-    --dark: #111111;
-    --card: #181818;
-    --card2: #1f1f1f;
+    --black: #0b0b0d;
+    --dark: #101013;
+    --card: #16161a;
+    --card2: #1d1d22;
     --red: #e8001d;
     --red-dark: #b0001a;
-    --red-glow: rgba(232,0,29,0.18);
-    --text: #f0f0f0;
-    --muted: #888;
-    --border: #2a2a2a;
+    --red-glow: rgba(232,0,29,0.16);
+    --text: #f2f2f4;
+    --muted: #808088;
+    --border: #232328;
     --success: #22c55e;
+    --accent: var(--red);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -214,12 +215,12 @@
   .card {
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 4px;
+    border-radius: 10px;
     padding: 1.5rem;
     margin-bottom: 1rem;
     transition: border-color 0.2s, box-shadow 0.2s;
   }
-  .card:hover { border-color: #333; }
+  .card:hover { border-color: #303035; }
   .card.highlight { border-color: var(--red); box-shadow: 0 0 20px var(--red-glow); }
 
   /* STAT GRID */
@@ -660,7 +661,7 @@
   @keyframes toast-in { from { transform: translateY(20px); opacity: 0; } }
   @keyframes toast-out { to { transform: translateY(20px); opacity: 0; } }
 
-  /* HALLOWEEN THEME — active Oct 25 – Nov 7 */
+  /* HALLOWEEN THEME — active Oct 29 – Nov 2 */
   body.halloween {
     --red: #f97316;
     --red-dark: #c2590e;
@@ -678,8 +679,9 @@
   }
   body.halloween .home-btn:hover,
   body.halloween .home-btn.active {
-    border-color: #f97316;
-    background: rgba(249,115,22,0.1);
+    border-color: var(--red);
+    background: var(--card2);
+    box-shadow: 0 0 0 1px var(--red), 0 4px 16px var(--red-glow);
   }
   /* Spider web corners */
   #hweb-tl, #hweb-tr {
@@ -839,8 +841,8 @@
   }
   .home-btn {
     background: var(--card);
-    border: 1.5px solid var(--border);
-    border-radius: 10px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
     cursor: pointer;
     display: flex;
     flex-direction: column;
@@ -849,8 +851,8 @@
     outline: none;
     position: relative;
     overflow: hidden;
-    transition: all 0.25s ease;
-    padding: 0.6rem 0.4rem 0.55rem;
+    transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+    padding: 0.65rem 0.4rem 0.6rem;
   }
   /* Last two buttons share the final row in 4-col compact grid */
   #hbtn-schedule { grid-column: 1 / -1; width: 100%; }
@@ -871,12 +873,13 @@
   }
   .home-btn.active {
     border-color: var(--red);
-    background: rgba(232,0,29,0.1);
-    box-shadow: 0 2px 12px rgba(232,0,29,0.2);
+    background: var(--card2);
+    box-shadow: 0 0 0 1px var(--red), 0 4px 16px var(--red-glow);
   }
   .home-btn:hover {
     border-color: var(--red);
-    background: rgba(232,0,29,0.07);
+    background: var(--card2);
+    box-shadow: 0 2px 10px var(--red-glow);
   }
   .home-btn:active { transform: scale(0.97); }
   .home-btn-icon {
@@ -3265,8 +3268,8 @@ function initSeasonalTheme() {
 
   let theme=null, emoji='', title='';
 
-  // Halloween: Oct 25 – Nov 7
-  if ((m===10&&d>=25)||(m===11&&d<=7)) {
+  // Halloween: Oct 29 – Nov 2
+  if ((m===10&&d>=29)||(m===11&&d<=2)) {
     theme='halloween'; emoji='🎃'; title='Spooky season!';
   }
   // Christmas: Dec 1–31
@@ -10794,7 +10797,7 @@ function renderScheduleSection() {
   const h = Math.max(500, window.innerHeight - 160);
   el.innerHTML = `<iframe
     src="https://lerumsboxen.wondr.se/schedule"
-    style="width:100%;height:${h}px;border:none;border-radius:8px;background:var(--surface);"
+    style="width:100%;height:${h}px;border:none;border-radius:10px;background:var(--black);"
     title="Lerumsboxen Schema"
     loading="lazy"
   ></iframe>`;
