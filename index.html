@@ -1015,20 +1015,30 @@
     line-height: 1;
   }
 
-  /* Mobility chips */
+  /* Mobility chips — 2-column grid */
+  .mobility-chips-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem;
+    margin-bottom: 0.5rem;
+  }
   .mobility-chip {
     font-family: 'Barlow Condensed', sans-serif;
     font-weight: 700;
     font-size: 0.75rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    padding: 0.4rem 0.75rem;
-    border-radius: 20px;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
     border: 1px solid var(--border);
     background: rgba(255,255,255,0.03);
     color: var(--muted);
     cursor: pointer;
     transition: all 0.18s;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
   }
   .mobility-chip.active {
     background: rgba(232,0,29,0.14);
@@ -1040,9 +1050,99 @@
     border: 1px solid var(--border);
     border-top-color: rgba(255,255,255,0.1);
     border-radius: 10px;
-    padding: 1rem 1.1rem;
+    padding: 0.85rem 1rem;
     margin-bottom: 0.6rem;
     box-shadow: 0 2px 8px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.05);
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  .mobility-pose-svg {
+    flex-shrink: 0;
+    width: 68px;
+    height: 48px;
+    color: var(--red);
+    opacity: 0.9;
+  }
+  .mobility-pose-body { flex: 1; min-width: 0; }
+
+  /* Bottom sheet (More) */
+  #more-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 699;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.28s;
+  }
+  #more-backdrop.open { opacity: 1; pointer-events: auto; }
+  #more-sheet {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 700;
+    background: #131318;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px 20px 0 0;
+    padding: 0 1.25rem calc(5rem + env(safe-area-inset-bottom, 0px));
+    transform: translateY(100%);
+    transition: transform 0.32s cubic-bezier(0.32,0.72,0,1);
+    max-height: 82vh;
+    overflow-y: auto;
+  }
+  #more-sheet.open { transform: translateY(0); }
+  .sheet-handle {
+    width: 36px; height: 4px;
+    background: rgba(255,255,255,0.18);
+    border-radius: 2px;
+    margin: 0.75rem auto 1rem;
+  }
+  .sheet-btn {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 0.4rem;
+    padding: 0.85rem 0.4rem;
+    border: 1px solid var(--border);
+    border-top-color: rgba(255,255,255,0.08);
+    border-radius: 10px;
+    background: linear-gradient(160deg, #1c1c21 0%, #16161a 100%);
+    cursor: pointer; transition: all 0.18s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .sheet-btn:active { background: linear-gradient(160deg,#22222a,#1c1c20); }
+  .sheet-btn-icon { width: 1.4rem; height: 1.4rem; color: rgba(255,255,255,0.7); }
+  .sheet-btn-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700; font-size: 0.62rem;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted); text-align: center; line-height: 1.2;
+  }
+
+  /* Home landing */
+  .home-stat-pill {
+    flex: 1;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-top-color: rgba(255,255,255,0.14);
+    border-radius: 10px;
+    padding: 0.55rem 0.65rem;
+  }
+  .home-quick-btn {
+    width: 100%; padding: 0.9rem 0.5rem;
+    border: 1px solid var(--border);
+    border-top-color: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    background: linear-gradient(160deg,#1c1c21 0%,#16161a 100%);
+    color: var(--text); cursor: pointer;
+    display: flex; flex-direction: column;
+    align-items: center; gap: 0.35rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05);
+    transition: all 0.18s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .home-quick-btn svg { width: 1.5rem; height: 1.5rem; color: rgba(255,255,255,0.7); }
+  .home-quick-btn span {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700; font-size: 0.7rem;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted);
   }
 
   /* Body padding for bottom nav */
@@ -2292,9 +2392,27 @@ function json(obj) {
 
 </main>
 
+<!-- MORE SHEET -->
+<div id="more-backdrop" onclick="closeMoreSheet()"></div>
+<div id="more-sheet">
+  <div class="sheet-handle"></div>
+  <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.78rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);margin-bottom:0.85rem;">Sections</div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.55rem;">
+    <button class="sheet-btn" onclick="closeMoreSheet();selectDashSection('programming')"><svg class="sheet-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="10" y2="14"/><line x1="8" y1="18" x2="14" y2="18"/></svg><span class="sheet-btn-label">Programming</span></button>
+    <button class="sheet-btn" onclick="closeMoreSheet();selectDashSection('timer')"><svg class="sheet-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><polyline points="12 9 12 13 14.5 15.5"/><path d="M9 3h6"/><path d="M12 3v2"/></svg><span class="sheet-btn-label">Timer</span></button>
+    <button class="sheet-btn" onclick="closeMoreSheet();selectDashSection('prs')"><svg class="sheet-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg><span class="sheet-btn-label">PRs</span></button>
+    <button class="sheet-btn" onclick="closeMoreSheet();selectDashSection('movements')"><svg class="sheet-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="10" width="3" height="4" rx="1"/><rect x="19" y="10" width="3" height="4" rx="1"/><line x1="7" y1="12" x2="17" y2="12"/></svg><span class="sheet-btn-label">Movements</span></button>
+    <button class="sheet-btn" onclick="closeMoreSheet();selectDashSection('leaderboard')"><svg class="sheet-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg><span class="sheet-btn-label">Leaderboard</span></button>
+    <button class="sheet-btn" onclick="closeMoreSheet();selectDashSection('challenges')"><svg class="sheet-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg><span class="sheet-btn-label">Challenges</span></button>
+    <button class="sheet-btn" onclick="closeMoreSheet();selectDashSection('members')"><svg class="sheet-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="sheet-btn-label">Box Buddies</span></button>
+    <button class="sheet-btn" onclick="closeMoreSheet();selectDashSection('feed')"><svg class="sheet-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span class="sheet-btn-label">Activity Feed</span></button>
+    <button class="sheet-btn" onclick="closeMoreSheet();selectDashSection('badges')"><svg class="sheet-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg><span class="sheet-btn-label">Badges</span></button>
+  </div>
+</div>
+
 <!-- BOTTOM NAVIGATION -->
 <nav id="bottom-nav">
-  <button class="bnav-btn" id="bnav-home" onclick="selectDashSection('programming')">
+  <button class="bnav-btn" id="bnav-home" onclick="selectDashSection('home')">
     <svg class="bnav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
     <span class="bnav-label">Home</span>
   </button>
@@ -3013,6 +3131,10 @@ const DASH_SECTIONS = {
         <span style="font-family:'Barlow Condensed';font-size:0.7rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;">Yin yoga</span>
       </div>
       <div id="dash-mobility"></div>`
+  },
+  home: {
+    render: () => { renderHomeLanding(); },
+    build: () => `<div id="dash-home"></div>`
   }
 };
 
@@ -3021,40 +3143,40 @@ let mobilitySelectedGroups = [];
 
 const MOBILITY_POSES = {
   hips:      { label: 'Höfter', icon: '🦋', poses: [
-    { name: 'Dragon',          hold: '3–5 min / sida', sides: true,  desc: 'Låg utfallsposition. Bakre knä på golvet, sjunk framåt och ner.' },
-    { name: 'Sleeping Swan',   hold: '3–5 min / sida', sides: true,  desc: 'Liggande duva. Fremre benet korslagd, bakre utsträckt. Fäll framåt.' },
-    { name: 'Butterfly',       hold: '3–5 min',        sides: false, desc: 'Fotsulorna mot varandra. Böj mjukt framåt med rundad rygg.' },
-    { name: 'Frog',            hold: '3–5 min',        sides: false, desc: 'Knäna brett ut på golvet, fotsulorna mot varandra. Sjunk ner.' },
-    { name: 'Square Pose',     hold: '3–5 min / sida', sides: true,  desc: 'Underbenet parallellt framför dig. Luta framåt med rak eller rundad rygg.' },
+    { name: 'Dragon',          hold: '3–5 min / sida', sides: true,  svgKey:'dragon',        desc: 'Låg utfallsposition. Bakre knä på golvet, sjunk framåt och ner.' },
+    { name: 'Sleeping Swan',   hold: '3–5 min / sida', sides: true,  svgKey:'swan',          desc: 'Liggande duva. Fremre benet korslagd, bakre utsträckt. Fäll framåt.' },
+    { name: 'Butterfly',       hold: '3–5 min',        sides: false, svgKey:'butterfly',     desc: 'Fotsulorna mot varandra. Böj mjukt framåt med rundad rygg.' },
+    { name: 'Frog',            hold: '3–5 min',        sides: false, svgKey:'frog',          desc: 'Knäna brett ut på golvet, fotsulorna mot varandra. Sjunk ner.' },
+    { name: 'Square Pose',     hold: '3–5 min / sida', sides: true,  svgKey:'square',        desc: 'Underbenet parallellt framför dig. Luta framåt med rak eller rundad rygg.' },
   ]},
   hamstrings:{ label: 'Baklår', icon: '🦵', poses: [
-    { name: 'Caterpillar',     hold: '3–5 min',        sides: false, desc: 'Sittandes med utsträckta ben. Fäll mjukt framåt med rundad rygg.' },
-    { name: 'Half Butterfly',  hold: '3–5 min / sida', sides: true,  desc: 'En sträckt, en böjd. Luta mot det sträckta benet.' },
-    { name: 'Shoelace',        hold: '3–5 min / sida', sides: true,  desc: 'Knäna staplade, stortårna ihop. Fäll framåt med rundad rygg.' },
+    { name: 'Caterpillar',     hold: '3–5 min',        sides: false, svgKey:'caterpillar',   desc: 'Sittandes med utsträckta ben. Fäll mjukt framåt med rundad rygg.' },
+    { name: 'Half Butterfly',  hold: '3–5 min / sida', sides: true,  svgKey:'halfButterfly', desc: 'En sträckt, en böjd. Luta mot det sträckta benet.' },
+    { name: 'Shoelace',        hold: '3–5 min / sida', sides: true,  svgKey:'shoelace',      desc: 'Knäna staplade, stortårna ihop. Fäll framåt med rundad rygg.' },
   ]},
   back:      { label: 'Rygg', icon: '🌊', poses: [
-    { name: "Child's Pose",    hold: '3–5 min',        sides: false, desc: 'Knäna brett, stortårna mot varandra. Armarna framåt eller längs kroppen.' },
-    { name: 'Twisted Roots',   hold: '3–5 min / sida', sides: true,  desc: 'Liggandes. Dra knäna mot bröstet, lägg dem åt sidan. Armarna ut.' },
-    { name: 'Sphinx',          hold: '3–5 min',        sides: false, desc: 'Liggandes på magen. Propa upp överkroppen på underarmarna.' },
-    { name: 'Snail',           hold: '2–3 min',        sides: false, desc: 'Rulla upp i skulderstand, fötterna bakom huvudet. Stöd höfterna med händerna.' },
+    { name: "Child's Pose",    hold: '3–5 min',        sides: false, svgKey:'childsPose',    desc: 'Knäna brett, stortårna mot varandra. Armarna framåt eller längs kroppen.' },
+    { name: 'Twisted Roots',   hold: '3–5 min / sida', sides: true,  svgKey:'twistedRoots',  desc: 'Liggandes. Dra knäna mot bröstet, lägg dem åt sidan. Armarna ut.' },
+    { name: 'Sphinx',          hold: '3–5 min',        sides: false, svgKey:'sphinx',        desc: 'Liggandes på magen. Propa upp överkroppen på underarmarna.' },
+    { name: 'Snail',           hold: '2–3 min',        sides: false, svgKey:'snail',         desc: 'Rulla upp i skulderstand, fötterna bakom huvudet. Stöd höfterna med händerna.' },
   ]},
   shoulders: { label: 'Axlar & Bröst', icon: '🙆', poses: [
-    { name: 'Melting Heart',   hold: '3–5 min',        sides: false, desc: 'På alla fyra. Gå framåt med händerna, sjunk bröstet mot golvet.' },
-    { name: 'Thread the Needle',hold:'3–5 min / sida', sides: true,  desc: 'Från alla fyra. För en arm under kroppen. Vila kinden mot golvet.' },
-    { name: 'Supported Fish',  hold: '3–5 min',        sides: false, desc: 'Block eller rulle under skulderbladen. Öppna bröstet mot taket.' },
+    { name: 'Melting Heart',    hold: '3–5 min',        sides: false, svgKey:'meltingHeart',  desc: 'På alla fyra. Gå framåt med händerna, sjunk bröstet mot golvet.' },
+    { name: 'Thread the Needle',hold: '3–5 min / sida', sides: true,  svgKey:'threadNeedle',  desc: 'Från alla fyra. För en arm under kroppen. Vila kinden mot golvet.' },
+    { name: 'Supported Fish',   hold: '3–5 min',        sides: false, svgKey:'supportedFish', desc: 'Block eller rulle under skulderbladen. Öppna bröstet mot taket.' },
   ]},
   quads:     { label: 'Framlår', icon: '⚡', poses: [
-    { name: 'Saddle',          hold: '3–5 min',        sides: false, desc: 'Knäsittandes, luta bakåt. Stöd på händer, armbågar eller ligg ner.' },
-    { name: 'Dragon High',     hold: '3–5 min / sida', sides: true,  desc: 'Utfallsposition med rak överkropp och händer på knäet.' },
-    { name: 'Reclining Hero',  hold: '2–5 min',        sides: false, desc: 'Knäsittandes med föterna vid höfterna. Luta bakåt stegvis.' },
+    { name: 'Saddle',          hold: '3–5 min',        sides: false, svgKey:'saddle',        desc: 'Knäsittandes, luta bakåt. Stöd på händer, armbågar eller ligg ner.' },
+    { name: 'Dragon High',     hold: '3–5 min / sida', sides: true,  svgKey:'dragonHigh',    desc: 'Utfallsposition med rak överkropp och händer på knäet.' },
+    { name: 'Reclining Hero',  hold: '2–5 min',        sides: false, svgKey:'recliningHero', desc: 'Knäsittandes med föterna vid höfterna. Luta bakåt stegvis.' },
   ]},
   hipflexors:{ label: 'Höftböjare', icon: '🏹', poses: [
-    { name: 'Sleeping Dragon', hold: '3–5 min / sida', sides: true,  desc: 'Låg utfallsposition. Sänk höfterna mot golvet, bakre knä på mattan.' },
-    { name: 'Dragon Low',      hold: '3–5 min / sida', sides: true,  desc: 'Utfall med händerna innanför foten. Propa på underarmar.' },
+    { name: 'Sleeping Dragon', hold: '3–5 min / sida', sides: true,  svgKey:'sleepingDragon',desc: 'Låg utfallsposition. Sänk höfterna mot golvet, bakre knä på mattan.' },
+    { name: 'Dragon Low',      hold: '3–5 min / sida', sides: true,  svgKey:'dragonLow',     desc: 'Utfall med händerna innanför foten. Propa på underarmar.' },
   ]},
   calves:    { label: 'Vader & Anklar', icon: '🦶', poses: [
-    { name: 'Legs Up the Wall',hold: '3–5 min',        sides: false, desc: 'Liggandes nära en vägg, benen uppe mot väggen. Flexa och spänna fötterna.' },
-    { name: 'Foot Massage',    hold: '2–3 min / sida', sides: true,  desc: 'Sittandes på hälarna med tårna böjda mot golvet. Pressa ner.' },
+    { name: 'Legs Up the Wall',hold: '3–5 min',        sides: false, svgKey:'legsUpWall',    desc: 'Liggandes nära en vägg, benen uppe mot väggen. Flexa och spänna fötterna.' },
+    { name: 'Foot Massage',    hold: '2–3 min / sida', sides: true,  svgKey:'footMassage',   desc: 'Sittandes på hälarna med tårna böjda mot golvet. Pressa ner.' },
   ]},
 };
 
@@ -3064,6 +3186,31 @@ function toggleMobilityGroup(key) {
   else mobilitySelectedGroups.splice(idx, 1);
   renderMobility();
 }
+
+const POSE_SVGS = {
+  dragon:`<svg viewBox="0 0 80 56" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="16" cy="8" r="4.5" fill="currentColor" opacity="0.8"/><polyline points="16,12 22,27 48,38 48,56"/><line x1="22" y1="27" x2="6" y2="52"/><polyline points="16,19 33,30 34,46"/></svg>`,
+  swan:`<svg viewBox="0 0 80 56" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="38" r="4.5" fill="currentColor" opacity="0.8"/><path d="M12,43 Q32,46 52,36"/><path d="M20,46 Q32,54 46,46"/><line x1="52" y1="36" x2="74" y2="52"/></svg>`,
+  butterfly:`<svg viewBox="0 0 80 56" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="40" cy="8" r="4.5" fill="currentColor" opacity="0.8"/><line x1="40" y1="13" x2="40" y2="32"/><path d="M40,22 Q22,30 15,47 Q28,54 40,50"/><path d="M40,22 Q58,30 65,47 Q52,54 40,50"/></svg>`,
+  frog:`<svg viewBox="0 0 80 56" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="40" cy="6" r="4.5" fill="currentColor" opacity="0.8"/><line x1="40" y1="11" x2="40" y2="26"/><line x1="20" y1="26" x2="60" y2="26"/><path d="M20,26 Q12,38 14,50"/><path d="M60,26 Q68,38 66,50"/><line x1="14" y1="50" x2="66" y2="50"/></svg>`,
+  square:`<svg viewBox="0 0 80 56" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="40" cy="8" r="4.5" fill="currentColor" opacity="0.8"/><line x1="40" y1="13" x2="40" y2="30"/><line x1="40" y1="30" x2="40" y2="38"/><rect x="18" y="38" width="44" height="12" rx="3"/></svg>`,
+  caterpillar:`<svg viewBox="0 0 80 56" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="58" cy="14" r="4.5" fill="currentColor" opacity="0.8"/><path d="M58,19 Q46,24 36,34 Q28,42 28,50"/><line x1="8" y1="50" x2="72" y2="50"/></svg>`,
+  halfButterfly:`<svg viewBox="0 0 80 56" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="56" cy="18" r="4.5" fill="currentColor" opacity="0.8"/><path d="M56,23 Q42,30 32,44"/><line x1="8" y1="50" x2="72" y2="50"/><path d="M38,50 Q52,38 66,50"/></svg>`,
+  shoelace:`<svg viewBox="0 0 80 56" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="40" cy="8" r="4.5" fill="currentColor" opacity="0.8"/><line x1="40" y1="13" x2="40" y2="30"/><path d="M40,30 Q28,34 22,46"/><path d="M40,30 Q52,34 58,46"/><line x1="28" y1="42" x2="52" y2="42"/></svg>`,
+  childsPose:`<svg viewBox="0 0 80 56" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="66" cy="40" r="4.5" fill="currentColor" opacity="0.8"/><path d="M64,40 Q48,38 32,36 Q18,34 8,38"/><line x1="66" y1="40" x2="70" y2="54"/><line x1="66" y1="40" x2="60" y2="54"/></svg>`,
+  twistedRoots:`<svg viewBox="0 0 80 56" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="22" r="4.5" fill="currentColor" opacity="0.8"/><line x1="10" y1="27" x2="56" y2="38"/><line x1="10" y1="12" x2="10" y2="32"/><line x1="56" y1="38" x2="74" y2="38"/><path d="M36,28 Q46,20 56,30 Q48,38 36,36Z"/></svg>`,
+  sphinx:`<svg viewBox="0 0 80 56" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="22" r="4.5" fill="currentColor" opacity="0.8"/><line x1="12" y1="27" x2="72" y2="44"/><line x1="20" y1="30" x2="20" y2="50"/><line x1="30" y1="34" x2="30" y2="52"/><line x1="20" y1="50" x2="30" y2="52"/></svg>`,
+  snail:`<svg viewBox="0 0 80 56" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="40" cy="50" r="4.5" fill="currentColor" opacity="0.8"/><path d="M40,46 Q40,30 36,20 Q32,10 40,6 Q48,2 52,10"/><line x1="30" y1="6" x2="50" y2="6"/></svg>`,
+  meltingHeart:`<svg viewBox="0 0 80 56" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="66" cy="10" r="4.5" fill="currentColor" opacity="0.8"/><path d="M66,15 Q52,22 36,34 Q22,44 16,46"/><line x1="66" y1="15" x2="66" y2="40"/><line x1="52" y1="40" x2="80" y2="40"/></svg>`,
+  threadNeedle:`<svg viewBox="0 0 80 56" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="66" cy="20" r="4.5" fill="currentColor" opacity="0.8"/><line x1="66" y1="25" x2="66" y2="46"/><path d="M66,25 Q50,22 34,24 Q18,26 8,40"/><circle cx="8" cy="40" r="3.5" fill="currentColor" opacity="0.5"/><line x1="52" y1="46" x2="80" y2="46"/></svg>`,
+  supportedFish:`<svg viewBox="0 0 80 56" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="20" r="4.5" fill="currentColor" opacity="0.8"/><path d="M12,25 Q32,10 55,16 Q68,20 72,34"/><line x1="6" y1="42" x2="78" y2="42"/><rect x="28" y="34" width="22" height="8" rx="2" stroke-width="2"/></svg>`,
+  saddle:`<svg viewBox="0 0 80 56" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="40" cy="8" r="4.5" fill="currentColor" opacity="0.8"/><path d="M40,13 Q42,30 46,44"/><path d="M46,44 Q34,54 20,54"/><path d="M46,44 Q58,54 72,54"/></svg>`,
+  dragonHigh:`<svg viewBox="0 0 80 56" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="38" cy="6" r="4.5" fill="currentColor" opacity="0.8"/><line x1="38" y1="11" x2="38" y2="28"/><polyline points="38,28 54,40 54,56"/><line x1="38" y1="28" x2="22" y2="56"/><line x1="38" y1="18" x2="28" y2="8"/><line x1="38" y1="18" x2="48" y2="8"/></svg>`,
+  recliningHero:`<svg viewBox="0 0 80 56" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="40" cy="8" r="4.5" fill="currentColor" opacity="0.8"/><path d="M40,13 Q42,28 46,42"/><line x1="20" y1="42" x2="72" y2="42"/><polyline points="20,24 10,20 6,30"/><polyline points="72,24 78,20 76,30"/></svg>`,
+  sleepingDragon:`<svg viewBox="0 0 80 56" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="12" r="4.5" fill="currentColor" opacity="0.8"/><path d="M18,17 Q28,28 44,36"/><polyline points="44,36 58,28 58,54"/><line x1="44" y1="36" x2="8" y2="54"/><polyline points="18,22 32,32 32,44"/></svg>`,
+  dragonLow:`<svg viewBox="0 0 80 56" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="22" r="4.5" fill="currentColor" opacity="0.8"/><path d="M12,27 Q26,32 44,38"/><line x1="12" y1="32" x2="28" y2="36"/><line x1="12" y1="40" x2="22" y2="36"/><polyline points="44,38 60,30 60,56"/><line x1="44" y1="38" x2="6" y2="56"/></svg>`,
+  legsUpWall:`<svg viewBox="0 0 80 56" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="38" r="4.5" fill="currentColor" opacity="0.8"/><line x1="12" y1="43" x2="52" y2="43"/><line x1="52" y1="43" x2="52" y2="6"/><line x1="44" y1="6" x2="60" y2="6"/><line x1="72" y1="2" x2="72" y2="56" stroke-width="3"/></svg>`,
+  footMassage:`<svg viewBox="0 0 80 56" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="40" cy="8" r="4.5" fill="currentColor" opacity="0.8"/><line x1="40" y1="13" x2="40" y2="38"/><path d="M40,38 Q28,40 20,44"/><path d="M40,38 Q52,40 60,44"/><line x1="16" y1="44" x2="64" y2="44"/><path d="M20,44 Q18,54 24,54"/><path d="M60,44 Q62,54 56,54"/></svg>`,
+};
 
 function renderMobility() {
   const el = document.getElementById('dash-mobility');
@@ -3080,41 +3227,105 @@ function renderMobility() {
     sel.forEach(key => {
       const g = MOBILITY_POSES[key];
       posesHTML += `<div class="section-title" style="margin-top:1.25rem;">${g.icon} ${g.label}</div>`;
-      posesHTML += g.poses.map(p => `
-        <div class="mobility-pose-card">
-          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem;">
-            <div style="flex:1;">
-              <div style="font-family:'Barlow Condensed';font-weight:700;font-size:1rem;letter-spacing:0.06em;color:var(--text);margin-bottom:0.3rem;">${p.name}</div>
-              <div style="font-size:0.8rem;color:var(--muted);line-height:1.5;">${p.desc}</div>
+      posesHTML += g.poses.map(p => {
+        const svg = p.svgKey && POSE_SVGS[p.svgKey] ? `<div class="mobility-pose-svg">${POSE_SVGS[p.svgKey]}</div>` : '';
+        return `<div class="mobility-pose-card">
+          ${svg}
+          <div class="mobility-pose-body">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:0.5rem;margin-bottom:0.25rem;">
+              <div style="font-family:'Barlow Condensed';font-weight:700;font-size:1rem;letter-spacing:0.06em;color:var(--text);">${p.name}</div>
+              <div style="text-align:right;flex-shrink:0;">
+                <div style="font-family:'Bebas Neue';font-size:1rem;color:var(--red);line-height:1;">${p.hold.replace(' / sida','')}</div>
+                ${p.sides ? '<div style="font-size:0.52rem;color:var(--muted);font-family:\'Barlow Condensed\';letter-spacing:0.1em;text-transform:uppercase;">Per sida</div>' : ''}
+              </div>
             </div>
-            <div style="text-align:right;flex-shrink:0;">
-              <div style="font-family:'Bebas Neue';font-size:1.05rem;color:var(--red);line-height:1.1;">${p.hold.replace(' / sida','')}</div>
-              ${p.sides ? '<div style="font-size:0.56rem;color:var(--muted);font-family:\'Barlow Condensed\';letter-spacing:0.1em;text-transform:uppercase;margin-top:0.15rem;">Per sida</div>' : ''}
-            </div>
+            <div style="font-size:0.78rem;color:var(--muted);line-height:1.5;">${p.desc}</div>
           </div>
-        </div>`).join('');
+        </div>`;
+      }).join('');
     });
   }
   el.innerHTML = `
     <div style="font-size:0.78rem;color:var(--muted);line-height:1.6;margin-bottom:0.9rem;">
       Håll varje position i 2–5 minuter. Andas djupt och låt kroppen sjunka in i positionen.
     </div>
-    <div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:0.5rem;">${chips}</div>
+    <div class="mobility-chips-grid">${chips}</div>
     ${posesHTML}
   `;
 }
 
 function showMoreMenu() {
-  const grid = document.getElementById('homeGrid');
-  const dc = document.getElementById('dash-content');
-  grid.style.display = '';
-  grid.classList.add('expanded');
-  dc.classList.add('hidden');
-  currentDashSection = null;
+  document.getElementById('more-sheet').classList.add('open');
+  document.getElementById('more-backdrop').classList.add('open');
   document.querySelectorAll('.bnav-btn').forEach(b => b.classList.remove('active'));
   const btn = document.getElementById('bnav-more');
   if (btn) btn.classList.add('active');
-  window.scrollTo(0, 0);
+}
+
+function closeMoreSheet() {
+  document.getElementById('more-sheet').classList.remove('open');
+  document.getElementById('more-backdrop').classList.remove('open');
+  // Restore active state to current section
+  const SECTION_BNAV = { programming: 'home', home: 'home', log: 'log', schedule: 'schedule', mobility: 'mobility' };
+  document.querySelectorAll('.bnav-btn').forEach(b => b.classList.remove('active'));
+  if (currentDashSection) {
+    const id = 'bnav-' + (SECTION_BNAV[currentDashSection] || 'more');
+    const b = document.getElementById(id);
+    if (b) b.classList.add('active');
+  }
+}
+
+function renderHomeLanding() {
+  const el = document.getElementById('dash-home');
+  if (!el) return;
+  const today = new Date().toISOString().split('T')[0];
+  const dayName = new Date().toLocaleDateString('sv-SE', { weekday: 'long' });
+  const dateStr = new Date().toLocaleDateString('sv-SE', { day: 'numeric', month: 'long', year: 'numeric' });
+  const ym = today.slice(0, 7);
+  const thisMonthTotal = [
+    ...(state.wods || []), ...(state.strength || []), ...(state.conditioning || [])
+  ].filter(x => x.date && x.date.startsWith(ym)).length;
+  const totalAll = (state.wods?.length || 0) + (state.strength?.length || 0) + (state.conditioning?.length || 0);
+  const prsCount = state.prs?.length || 0;
+  const prog = state.dailyProgram?.[today];
+  const progCard = prog ? `
+    <div class="card" style="margin-bottom:1rem;">
+      <div class="section-title" style="margin-bottom:0.75rem;">Today's Program</div>
+      ${prog.title ? `<div style="font-family:'Barlow Condensed';font-weight:700;font-size:1rem;letter-spacing:0.06em;color:var(--text);margin-bottom:0.4rem;">${prog.title}</div>` : ''}
+      ${prog.wod ? `<div style="font-size:0.8rem;color:var(--muted);line-height:1.6;white-space:pre-line;">${prog.wod.substring(0, 160)}${prog.wod.length > 160 ? '…' : ''}</div>` : '<div style="font-size:0.8rem;color:var(--muted);">See full program for details.</div>'}
+      <button class="btn btn-ghost btn-sm" style="margin-top:0.75rem;" onclick="selectDashSection('programming')">View full program →</button>
+    </div>` : `
+    <div class="card" style="margin-bottom:1rem;text-align:center;padding:1.5rem;">
+      <div style="font-size:1.5rem;margin-bottom:0.5rem;">📋</div>
+      <div style="font-size:0.8rem;color:var(--muted);">No program synced yet.</div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:0.6rem;" onclick="fetchDailyProgram()">Sync program</button>
+    </div>`;
+  el.innerHTML = `
+    <div style="margin-bottom:1.5rem;">
+      <div style="font-family:'Bebas Neue';font-size:2.6rem;line-height:1;color:var(--text);text-transform:capitalize;">${dayName}</div>
+      <div style="font-family:'Barlow Condensed';font-size:0.72rem;color:var(--muted);letter-spacing:0.14em;text-transform:uppercase;margin-top:0.1rem;">${dateStr}</div>
+    </div>
+    <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem;">
+      <div class="home-stat-pill">
+        <div style="font-size:0.56rem;color:var(--muted);font-family:'Barlow Condensed';letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.15rem;">This month</div>
+        <div style="font-family:'Bebas Neue';font-size:1.6rem;line-height:1;color:var(--text);">${thisMonthTotal}</div>
+      </div>
+      <div class="home-stat-pill">
+        <div style="font-size:0.56rem;color:var(--muted);font-family:'Barlow Condensed';letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.15rem;">Total</div>
+        <div style="font-family:'Bebas Neue';font-size:1.6rem;line-height:1;color:var(--text);">${totalAll}</div>
+      </div>
+      <div class="home-stat-pill">
+        <div style="font-size:0.56rem;color:var(--muted);font-family:'Barlow Condensed';letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.15rem;">PRs</div>
+        <div style="font-family:'Bebas Neue';font-size:1.6rem;line-height:1;color:var(--text);">${prsCount}</div>
+      </div>
+    </div>
+    ${progCard}
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;margin-top:0.25rem;">
+      <button class="home-quick-btn" onclick="openWodModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>Log WOD</span></button>
+      <button class="home-quick-btn" onclick="openStrengthModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="10" width="3" height="4" rx="1"/><rect x="19" y="10" width="3" height="4" rx="1"/><line x1="7" y1="12" x2="17" y2="12"/></svg><span>Strength</span></button>
+      <button class="home-quick-btn" onclick="selectDashSection('schedule')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Book class</span></button>
+      <button class="home-quick-btn" onclick="selectDashSection('timer')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><polyline points="12 9 12 13 14.5 15.5"/><path d="M9 3h6"/></svg><span>Timer</span></button>
+    </div>`;
 }
 
 function openTimerOverlay() {
@@ -6763,9 +6974,8 @@ function updateSyncSummary() {
 
 // Restore saved settings on page load
 window.addEventListener('DOMContentLoaded', () => {
-  // Set "More" as active in bottom nav on initial load (homeGrid is shown by default)
-  const bnavMore = document.getElementById('bnav-more');
-  if (bnavMore) bnavMore.classList.add('active');
+  // Start on home landing page
+  selectDashSection('home');
 
   const saved = localStorage.getItem('lerums_sheets_url');
   const el = document.getElementById('sheetsUrl');
