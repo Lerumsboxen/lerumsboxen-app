@@ -853,8 +853,10 @@
     padding: 0.6rem 0.4rem 0.55rem;
   }
   /* Last two buttons share the final row in 4-col compact grid */
+  #hbtn-schedule { grid-column: 1 / -1; width: 100%; }
   #hbtn-feed   { grid-column: 1 / 3; width: 100%; }
   #hbtn-badges { grid-column: 3 / 5; width: 100%; }
+  .home-grid.expanded #hbtn-schedule,
   .home-grid.expanded #hbtn-feed,
   .home-grid.expanded #hbtn-badges { grid-column: 1 / -1; }
   /* Big state — all buttons uniform in 2-col grid */
@@ -1260,6 +1262,11 @@
         <span class="home-btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
         <span class="home-btn-label">Box Buddies</span>
         <span class="home-btn-sub">Box members & their PRs</span>
+      </button>
+      <button class="home-btn" id="hbtn-schedule" onclick="selectDashSection('schedule')">
+        <span class="home-btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+        <span class="home-btn-label">Schema</span>
+        <span class="home-btn-sub">Passa på att boka</span>
       </button>
       <button class="home-btn" id="hbtn-feed" onclick="selectDashSection('feed')">
         <span class="home-btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span>
@@ -2830,6 +2837,15 @@ const DASH_SECTIONS = {
         ${REP_BADGE_TIERS.map((t,i)=>`<span style="font-family:'Barlow Condensed';font-size:0.75rem;padding:0.2rem 0.55rem;border:1px solid ${t.color};border-radius:3px;color:${t.color};">${t.emoji} ${t.label}</span>`).join('')}
       </div>
       <div id="dash-badges"></div>`
+  },
+  schedule: {
+    render: () => { renderScheduleSection(); },
+    build: () => `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.75rem;">
+        <div class="section-title" style="margin:0;flex:1;">Schema</div>
+        <a href="https://lerumsboxen.wondr.se/schedule" target="_blank" rel="noopener" style="font-family:'Barlow Condensed';font-size:0.8rem;color:var(--accent);text-decoration:none;letter-spacing:0.05em;">ÖPPNA I WONDR ↗</a>
+      </div>
+      <div id="dash-schedule"></div>`
   }
 };
 
@@ -10768,6 +10784,20 @@ function _showBadgeCelebration(movement, tier) {
     <div class="pr-cel-val">${tier.min.toLocaleString()}+ reps</div>`;
   document.body.appendChild(el);
   setTimeout(() => { if (el.parentNode) el.remove(); }, 3100);
+}
+
+// ===== WONDR SCHEDULE =====
+function renderScheduleSection() {
+  const el = document.getElementById('dash-schedule');
+  if (!el) return;
+  // Calculate viewport height minus top nav
+  const h = Math.max(500, window.innerHeight - 160);
+  el.innerHTML = `<iframe
+    src="https://lerumsboxen.wondr.se/schedule"
+    style="width:100%;height:${h}px;border:none;border-radius:8px;background:var(--surface);"
+    title="Lerumsboxen Schema"
+    loading="lazy"
+  ></iframe>`;
 }
 
 function renderActivityFeed() {
