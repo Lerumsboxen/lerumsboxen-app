@@ -887,20 +887,33 @@
   .home-btn-icon {
     font-size: 1.3rem;
     line-height: 1;
-    transition: font-size 0.25s ease;
+    transition: font-size 0.25s ease, background 0.2s ease, color 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #ffffff;
+    color: rgba(255,255,255,0.72);
+    background: rgba(255,255,255,0.07);
+    border-radius: 12px;
+    padding: 0.55rem;
+    margin-bottom: 0.15rem;
   }
   .home-btn-icon svg {
     width: 1em; height: 1em;
     display: block;
     flex-shrink: 0;
   }
-  .home-btn.active .home-btn-icon { color: var(--red); }
+  .home-btn.active .home-btn-icon {
+    color: var(--red);
+    background: var(--red-glow);
+  }
+  .home-btn:hover .home-btn-icon {
+    background: rgba(255,255,255,0.11);
+    color: rgba(255,255,255,0.9);
+  }
   .home-grid.expanded .home-btn-icon {
-    font-size: 2.2rem;
+    font-size: 1.8rem;
+    border-radius: 14px;
+    padding: 0.65rem;
   }
   .home-btn-label {
     font-family: 'Bebas Neue', sans-serif;
@@ -910,21 +923,20 @@
     transition: font-size 0.25s ease;
   }
   .home-grid.expanded .home-btn-label {
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     line-height: 1.2;
     text-align: center;
   }
   .home-btn-sub {
     font-family: 'Barlow Condensed', sans-serif;
     font-size: 0.6rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    letter-spacing: 0.04em;
     color: var(--muted);
     display: none;
   }
   .home-grid.expanded .home-btn-sub {
     display: block;
-    font-size: 0.72rem;
+    font-size: 0.7rem;
   }
   /* Dashboard content panel */
   #dash-content {
