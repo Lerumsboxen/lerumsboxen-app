@@ -2861,13 +2861,10 @@ const DASH_SECTIONS = {
       const ua = navigator.userAgent;
       const isAndroid = /Android/i.test(ua);
       const isIOS = /iPhone|iPad|iPod/i.test(ua);
-      const intentUrl = 'intent://lerumsboxen.wondr.se/schedule#Intent;scheme=https;package=com.wondr.app;S.browser_fallback_url=https%3A%2F%2Flerumsboxen.wondr.se%2Fschedule;end';
       const wondrLink = isIOS
         ? 'https://lerumsboxen.wondr.se/wondr/schedule'
         : 'https://lerumsboxen.wondr.se/schedule';
-      const openBtn = isAndroid
-        ? `<a href="#" onclick="event.preventDefault();window.location.href='${intentUrl}'" style="font-family:'Barlow Condensed';font-size:0.8rem;color:var(--accent);text-decoration:none;letter-spacing:0.05em;cursor:pointer;">OPEN IN WONDR ↗</a>`
-        : `<a href="${wondrLink}" target="_blank" rel="noopener" style="font-family:'Barlow Condensed';font-size:0.8rem;color:var(--accent);text-decoration:none;letter-spacing:0.05em;">OPEN IN WONDR ↗</a>`;
+      const openBtn = `<a href="${wondrLink}" target="_blank" rel="noopener" style="font-family:'Barlow Condensed';font-size:0.8rem;color:var(--accent);text-decoration:none;letter-spacing:0.05em;">OPEN IN WONDR ↗</a>`;
       return `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.75rem;">
         <div class="section-title" style="margin:0;flex:1;">Schedule</div>
