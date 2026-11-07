@@ -1127,6 +1127,24 @@
     transition: opacity 1s ease;
   }
 
+  /* Pose video modal */
+  #pose-video-modal {
+    position: fixed; inset: 0; z-index: 850;
+    background: rgba(0,0,0,0.96);
+    display: flex; flex-direction: column; align-items: stretch;
+    padding: calc(env(safe-area-inset-top,0px) + 1rem) 1.25rem calc(1rem + env(safe-area-inset-bottom,0px));
+    opacity: 0; pointer-events: none; transition: opacity 0.22s;
+  }
+  #pose-video-modal.open { opacity: 1; pointer-events: auto; }
+  .pvm-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; }
+  .pvm-title { font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:1.25rem; letter-spacing:0.06em; color:var(--text); text-transform:uppercase; }
+  .pvm-close { background:rgba(255,255,255,0.07); border:1px solid var(--border); border-radius:6px; width:2.1rem; height:2.1rem; display:flex; align-items:center; justify-content:center; color:var(--muted); cursor:pointer; flex-shrink:0; }
+  .pvm-container { width:100%; border-radius:10px; overflow:hidden; position:relative; padding-top:56.25%; background:#000; }
+  .pvm-container iframe { position:absolute; inset:0; width:100%; height:100%; border:none; }
+  .pvm-hold { font-family:'Barlow Condensed',sans-serif; font-size:0.82rem; color:var(--muted); letter-spacing:0.1em; text-transform:uppercase; text-align:center; margin-top:0.85rem; }
+  .pvm-watch-btn { display:flex; align-items:center; gap:0.3rem; font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:0.65rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--red); background:rgba(232,0,29,0.1); border:1px solid rgba(232,0,29,0.3); border-radius:4px; padding:0.28rem 0.5rem; cursor:pointer; -webkit-tap-highlight-color:transparent; flex-shrink:0; }
+  .pvm-watch-btn:active { background:rgba(232,0,29,0.22); }
+
   /* Home landing */
   .home-stat-pill {
     flex: 1;
@@ -3159,41 +3177,41 @@ let currentDashLogTab = 'all';
 let mobilitySelectedGroups = [];
 
 const MOBILITY_POSES = {
-  hips:      { label: 'Höfter', icon: '🦋', poses: [
-    { name: 'Dragon',          hold: '3–5 min / sida', sides: true,  svgKey:'dragon',        desc: 'Låg utfallsposition. Bakre knä på golvet, sjunk framåt och ner.' },
-    { name: 'Sleeping Swan',   hold: '3–5 min / sida', sides: true,  svgKey:'swan',          desc: 'Liggande duva. Fremre benet korslagd, bakre utsträckt. Fäll framåt.' },
-    { name: 'Butterfly',       hold: '3–5 min',        sides: false, svgKey:'butterfly',     desc: 'Fotsulorna mot varandra. Böj mjukt framåt med rundad rygg.' },
-    { name: 'Frog',            hold: '3–5 min',        sides: false, svgKey:'frog',          desc: 'Knäna brett ut på golvet, fotsulorna mot varandra. Sjunk ner.' },
-    { name: 'Square Pose',     hold: '3–5 min / sida', sides: true,  svgKey:'square',        desc: 'Underbenet parallellt framför dig. Luta framåt med rak eller rundad rygg.' },
+  hips:      { label: 'Hips', icon: '🦋', poses: [
+    { name: 'Dragon',          hold: '3–5 min / side', sides: true,  svgKey:'dragon',        videoId:'wfP8Oj_WuBc', desc: 'Low lunge. Back knee on the floor, sink forward and down.' },
+    { name: 'Sleeping Swan',   hold: '3–5 min / side', sides: true,  svgKey:'swan',          videoId:'z_nvCq_geBY', desc: 'Sleeping pigeon. Front leg crossed, back leg extended. Fold forward.' },
+    { name: 'Butterfly',       hold: '3–5 min',        sides: false, svgKey:'butterfly',     videoId:'tbLdc999v4s', desc: 'Soles of feet together. Gently fold forward with a rounded back.' },
+    { name: 'Frog',            hold: '3–5 min',        sides: false, svgKey:'frog',          videoId:'q_0e0bgjWWM', desc: 'Knees wide on the floor, soles facing each other. Sink down.' },
+    { name: 'Square Pose',     hold: '3–5 min / side', sides: true,  svgKey:'square',        videoId:'zhrrVNNLL78', desc: 'Shin parallel in front of you. Lean forward with a straight or rounded back.' },
   ]},
-  hamstrings:{ label: 'Baklår', icon: '🦵', poses: [
-    { name: 'Caterpillar',     hold: '3–5 min',        sides: false, svgKey:'caterpillar',   desc: 'Sittandes med utsträckta ben. Fäll mjukt framåt med rundad rygg.' },
-    { name: 'Half Butterfly',  hold: '3–5 min / sida', sides: true,  svgKey:'halfButterfly', desc: 'En sträckt, en böjd. Luta mot det sträckta benet.' },
-    { name: 'Shoelace',        hold: '3–5 min / sida', sides: true,  svgKey:'shoelace',      desc: 'Knäna staplade, stortårna ihop. Fäll framåt med rundad rygg.' },
+  hamstrings:{ label: 'Hamstrings', icon: '🦵', poses: [
+    { name: 'Caterpillar',     hold: '3–5 min',        sides: false, svgKey:'caterpillar',   videoId:'eebNqc8VZIc', desc: 'Seated with legs extended. Gently fold forward with a rounded back.' },
+    { name: 'Half Butterfly',  hold: '3–5 min / side', sides: true,  svgKey:'halfButterfly', videoId:'iLWT2sJ9hM8', desc: 'One leg extended, one bent. Lean toward the extended leg.' },
+    { name: 'Shoelace',        hold: '3–5 min / side', sides: true,  svgKey:'shoelace',      videoId:'MVqJagM5bq8', desc: 'Knees stacked, big toes together. Fold forward with a rounded back.' },
   ]},
-  back:      { label: 'Rygg', icon: '🌊', poses: [
-    { name: "Child's Pose",    hold: '3–5 min',        sides: false, svgKey:'childsPose',    desc: 'Knäna brett, stortårna mot varandra. Armarna framåt eller längs kroppen.' },
-    { name: 'Twisted Roots',   hold: '3–5 min / sida', sides: true,  svgKey:'twistedRoots',  desc: 'Liggandes. Dra knäna mot bröstet, lägg dem åt sidan. Armarna ut.' },
-    { name: 'Sphinx',          hold: '3–5 min',        sides: false, svgKey:'sphinx',        desc: 'Liggandes på magen. Propa upp överkroppen på underarmarna.' },
-    { name: 'Snail',           hold: '2–3 min',        sides: false, svgKey:'snail',         desc: 'Rulla upp i skulderstand, fötterna bakom huvudet. Stöd höfterna med händerna.' },
+  back:      { label: 'Back', icon: '🌊', poses: [
+    { name: "Child's Pose",    hold: '3–5 min',        sides: false, svgKey:'childsPose',    videoId:'swvLhYZuwGw', desc: 'Knees wide, big toes touching. Arms forward or alongside the body.' },
+    { name: 'Twisted Roots',   hold: '3–5 min / side', sides: true,  svgKey:'twistedRoots',  videoId:'A9x1KnINlDQ', desc: 'Lying down. Draw knees to chest, let them fall to one side. Arms out wide.' },
+    { name: 'Sphinx',          hold: '3–5 min',        sides: false, svgKey:'sphinx',        videoId:'F0Jhzf0zSws', desc: 'Lying on your stomach. Prop up the upper body on your forearms.' },
+    { name: 'Snail',           hold: '2–3 min',        sides: false, svgKey:'snail',         videoId:'Hb2AbGL-QDA', desc: 'Roll up into shoulder stand, feet behind the head. Support hips with hands.' },
   ]},
-  shoulders: { label: 'Axlar & Bröst', icon: '🙆', poses: [
-    { name: 'Melting Heart',    hold: '3–5 min',        sides: false, svgKey:'meltingHeart',  desc: 'På alla fyra. Gå framåt med händerna, sjunk bröstet mot golvet.' },
-    { name: 'Thread the Needle',hold: '3–5 min / sida', sides: true,  svgKey:'threadNeedle',  desc: 'Från alla fyra. För en arm under kroppen. Vila kinden mot golvet.' },
-    { name: 'Supported Fish',   hold: '3–5 min',        sides: false, svgKey:'supportedFish', desc: 'Block eller rulle under skulderbladen. Öppna bröstet mot taket.' },
+  shoulders: { label: 'Shoulders & Chest', icon: '🙆', poses: [
+    { name: 'Melting Heart',    hold: '3–5 min',        sides: false, svgKey:'meltingHeart',  videoId:'pVnVRpxA8Aw', desc: 'On all fours. Walk hands forward, sink chest toward the floor.' },
+    { name: 'Thread the Needle',hold: '3–5 min / side', sides: true,  svgKey:'threadNeedle',  videoId:'xGJdP6EN4Ic', desc: 'From all fours. Thread one arm under the body. Rest cheek on the floor.' },
+    { name: 'Supported Fish',   hold: '3–5 min',        sides: false, svgKey:'supportedFish', videoId:'qfqQoETLmAE', desc: 'Block or bolster under the shoulder blades. Open chest toward the ceiling.' },
   ]},
-  quads:     { label: 'Framlår', icon: '⚡', poses: [
-    { name: 'Saddle',          hold: '3–5 min',        sides: false, svgKey:'saddle',        desc: 'Knäsittandes, luta bakåt. Stöd på händer, armbågar eller ligg ner.' },
-    { name: 'Dragon High',     hold: '3–5 min / sida', sides: true,  svgKey:'dragonHigh',    desc: 'Utfallsposition med rak överkropp och händer på knäet.' },
-    { name: 'Reclining Hero',  hold: '2–5 min',        sides: false, svgKey:'recliningHero', desc: 'Knäsittandes med föterna vid höfterna. Luta bakåt stegvis.' },
+  quads:     { label: 'Quads', icon: '⚡', poses: [
+    { name: 'Saddle',          hold: '3–5 min',        sides: false, svgKey:'saddle',        videoId:'pWwAY5rs3w0', desc: 'Kneeling, lean back. Support on hands, elbows, or lie fully down.' },
+    { name: 'Dragon High',     hold: '3–5 min / side', sides: true,  svgKey:'dragonHigh',    videoId:'wfP8Oj_WuBc', desc: 'Lunge position with upright torso and hands on the front knee.' },
+    { name: 'Reclining Hero',  hold: '2–5 min',        sides: false, svgKey:'recliningHero', videoId:'Q1oFOJ8pfNg', desc: 'Kneeling with feet beside hips. Lean back gradually.' },
   ]},
-  hipflexors:{ label: 'Höftböjare', icon: '🏹', poses: [
-    { name: 'Sleeping Dragon', hold: '3–5 min / sida', sides: true,  svgKey:'sleepingDragon',desc: 'Låg utfallsposition. Sänk höfterna mot golvet, bakre knä på mattan.' },
-    { name: 'Dragon Low',      hold: '3–5 min / sida', sides: true,  svgKey:'dragonLow',     desc: 'Utfall med händerna innanför foten. Propa på underarmar.' },
+  hipflexors:{ label: 'Hip Flexors', icon: '🏹', poses: [
+    { name: 'Sleeping Dragon', hold: '3–5 min / side', sides: true,  svgKey:'sleepingDragon',videoId:'gEvkkr9VCro', desc: 'Low lunge. Lower hips toward the floor, back knee on the mat.' },
+    { name: 'Dragon Low',      hold: '3–5 min / side', sides: true,  svgKey:'dragonLow',     videoId:'wfP8Oj_WuBc', desc: 'Lunge with hands inside the front foot. Rest on forearms.' },
   ]},
-  calves:    { label: 'Vader & Anklar', icon: '🦶', poses: [
-    { name: 'Legs Up the Wall',hold: '3–5 min',        sides: false, svgKey:'legsUpWall',    desc: 'Liggandes nära en vägg, benen uppe mot väggen. Flexa och spänna fötterna.' },
-    { name: 'Foot Massage',    hold: '2–3 min / sida', sides: true,  svgKey:'footMassage',   desc: 'Sittandes på hälarna med tårna böjda mot golvet. Pressa ner.' },
+  calves:    { label: 'Calves & Ankles', icon: '🦶', poses: [
+    { name: 'Legs Up the Wall',hold: '3–5 min',        sides: false, svgKey:'legsUpWall',    videoId:'uzjo1qTNj0M', desc: 'Lying close to a wall, legs resting up against it. Flex and point the feet.' },
+    { name: 'Toe Stretch',     hold: '2–3 min',        sides: false, svgKey:'footMassage',   videoId:null,          desc: 'Sit on your heels with toes curled under. Press down gently for a plantar fascia stretch.' },
   ]},
 };
 
@@ -3239,21 +3257,25 @@ function renderMobility() {
   }).join('');
   let posesHTML = '';
   if (sel.length === 0) {
-    posesHTML = `<div class="empty-state" style="margin-top:1.5rem;"><div class="empty-icon">🧘</div><p>Välj en eller flera muskelgrupper ovan för att se rekommenderade övningar.</p></div>`;
+    posesHTML = `<div class="empty-state" style="margin-top:1.5rem;"><div class="empty-icon">🧘</div><p>Select one or more muscle groups above to see recommended poses.</p></div>`;
   } else {
     sel.forEach(key => {
       const g = MOBILITY_POSES[key];
       posesHTML += `<div class="section-title" style="margin-top:1.25rem;">${g.icon} ${g.label}</div>`;
       posesHTML += g.poses.map(p => {
         const svg = p.svgKey && POSE_SVGS[p.svgKey] ? `<div class="mobility-pose-svg">${POSE_SVGS[p.svgKey]}</div>` : '';
+        const videoBtn = p.videoId ? `<button class="pvm-watch-btn" onclick="event.stopPropagation();openPoseVideo('${p.videoId}','${p.name.replace(/'/g,"\\'")}','${p.hold}')"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg> Watch</button>` : '';
         return `<div class="mobility-pose-card">
           ${svg}
           <div class="mobility-pose-body">
-            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:0.5rem;margin-bottom:0.25rem;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;margin-bottom:0.25rem;">
               <div style="font-family:'Barlow Condensed';font-weight:700;font-size:1rem;letter-spacing:0.06em;color:var(--text);">${p.name}</div>
-              <div style="text-align:right;flex-shrink:0;">
-                <div style="font-family:'Bebas Neue';font-size:1rem;color:var(--red);line-height:1;">${p.hold.replace(' / sida','')}</div>
-                ${p.sides ? '<div style="font-size:0.52rem;color:var(--muted);font-family:\'Barlow Condensed\';letter-spacing:0.1em;text-transform:uppercase;">Per sida</div>' : ''}
+              <div style="display:flex;align-items:center;gap:0.5rem;flex-shrink:0;">
+                ${videoBtn}
+                <div style="text-align:right;">
+                  <div style="font-family:'Bebas Neue';font-size:1rem;color:var(--red);line-height:1;">${p.hold.replace(' / side','')}</div>
+                  ${p.sides ? '<div style="font-size:0.52rem;color:var(--muted);font-family:\'Barlow Condensed\';letter-spacing:0.1em;text-transform:uppercase;">Each side</div>' : ''}
+                </div>
               </div>
             </div>
             <div style="font-size:0.78rem;color:var(--muted);line-height:1.5;">${p.desc}</div>
@@ -3264,11 +3286,45 @@ function renderMobility() {
   }
   el.innerHTML = `
     <div style="font-size:0.78rem;color:var(--muted);line-height:1.6;margin-bottom:0.9rem;">
-      Håll varje position i 2–5 minuter. Andas djupt och låt kroppen sjunka in i positionen.
+      Hold each pose for 2–5 minutes. Breathe deeply and let your body sink into the position.
     </div>
     <div class="mobility-chips-grid">${chips}</div>
     ${posesHTML}
   `;
+}
+
+function openPoseVideo(videoId, poseName, hold) {
+  let modal = document.getElementById('pose-video-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'pose-video-modal';
+    modal.innerHTML = `
+      <div class="pvm-header">
+        <div class="pvm-title" id="pvm-title"></div>
+        <button class="pvm-close" onclick="closePoseVideo()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="pvm-container">
+        <iframe id="pvm-iframe" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+      </div>
+      <div class="pvm-hold" id="pvm-hold"></div>
+    `;
+    modal.addEventListener('click', function(e) { if (e.target === modal) closePoseVideo(); });
+    document.body.appendChild(modal);
+  }
+  document.getElementById('pvm-title').textContent = poseName;
+  document.getElementById('pvm-hold').textContent = 'Hold: ' + hold;
+  document.getElementById('pvm-iframe').src = `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&playsinline=1`;
+  requestAnimationFrame(() => { modal.classList.add('open'); });
+}
+
+function closePoseVideo() {
+  const modal = document.getElementById('pose-video-modal');
+  if (!modal) return;
+  modal.classList.remove('open');
+  const iframe = document.getElementById('pvm-iframe');
+  if (iframe) setTimeout(() => { iframe.src = ''; }, 250);
 }
 
 function showMoreMenu() {
