@@ -3207,36 +3207,40 @@ let currentDashLogTab = 'all';
 let mobilitySelectedGroups = [];
 
 const MOBILITY_POSES = {
-  hips:      { label: 'Hips', icon: '🦋', poses: [
-    { name: 'Dragon',          hold: '3–5 min / side', sides: true,  svgKey:'dragon',        videoId:'wfP8Oj_WuBc', desc: 'Low lunge. Back knee on the floor, sink forward and down.' },
-    { name: 'Sleeping Swan',   hold: '3–5 min / side', sides: true,  svgKey:'swan',          videoId:'z_nvCq_geBY', desc: 'Sleeping pigeon. Front leg crossed, back leg extended. Fold forward.' },
-    { name: 'Butterfly',       hold: '3–5 min',        sides: false, svgKey:'butterfly',     videoId:'tbLdc999v4s', desc: 'Soles of feet together. Gently fold forward with a rounded back.' },
-    { name: 'Frog',            hold: '3–5 min',        sides: false, svgKey:'frog',          videoId:'q_0e0bgjWWM', desc: 'Knees wide on the floor, soles facing each other. Sink down.' },
-    { name: 'Square Pose',     hold: '3–5 min / side', sides: true,  svgKey:'square',        videoId:'zhrrVNNLL78', desc: 'Shin parallel in front of you. Lean forward with a straight or rounded back.' },
+  hips:       { label: 'Hips', icon: '🦋', poses: [
+    { name: 'Half Pigeon',   hold: '3–5 min / side', sides: true,  photo: 'https://pocketyoga.com/assets/images/full/PigeonHalf_R.png',                videoId: 'z_nvCq_geBY', desc: 'Front shin on the floor. Upright or fold forward. Best all-round hip and glute opener.' },
+    { name: 'Lizard',        hold: '3–5 min / side', sides: true,  photo: 'https://pocketyoga.com/assets/images/full/Lizard_R.png',                   videoId: 'wfP8Oj_WuBc', desc: 'Low lunge with front foot outside the hand. Option to lower forearms for a deeper stretch.' },
+    { name: 'Fire Log',      hold: '3–5 min / side', sides: true,  photo: 'https://pocketyoga.com/assets/images/full/FireLog_R.png',                  videoId: 'zhrrVNNLL78', desc: 'Shins stacked parallel. Lean forward with a long spine. Deep external hip rotation.' },
+    { name: 'Butterfly',     hold: '3–5 min',        sides: false, photo: 'https://pocketyoga.com/assets/images/full/Butterfly.png',                  videoId: 'tbLdc999v4s', desc: 'Soles of feet together. Gently fold forward with a rounded back.' },
+    { name: 'Frog',          hold: '3–5 min',        sides: false, photo: 'https://pocketyoga.com/assets/images/full/FrogTraditional.png',            videoId: 'q_0e0bgjWWM', desc: 'Knees wide, soles facing each other. Sink hips toward the floor.' },
   ]},
-  hamstrings:{ label: 'Hamstrings', icon: '🦵', poses: [
-    { name: 'Caterpillar',     hold: '3–5 min',        sides: false, svgKey:'caterpillar',   videoId:'eebNqc8VZIc', desc: 'Seated with legs extended. Gently fold forward with a rounded back.' },
-    { name: 'Half Butterfly',  hold: '3–5 min / side', sides: true,  svgKey:'halfButterfly', videoId:'iLWT2sJ9hM8', desc: 'One leg extended, one bent. Lean toward the extended leg.' },
-    { name: 'Shoelace',        hold: '3–5 min / side', sides: true,  svgKey:'shoelace',      videoId:'MVqJagM5bq8', desc: 'Knees stacked, big toes together. Fold forward with a rounded back.' },
+  hamstrings: { label: 'Hamstrings', icon: '🦵', poses: [
+    { name: 'Caterpillar',       hold: '3–5 min',        sides: false, photo: 'https://pocketyoga.com/assets/images/full/Caterpillar.png',              videoId: 'eebNqc8VZIc', desc: 'Both legs extended. Round forward with a relaxed spine and heavy head.' },
+    { name: 'Head to Knee',      hold: '3–5 min / side', sides: true,  photo: 'https://pocketyoga.com/assets/images/full/HeadToKnee_L.png',             videoId: 'iLWT2sJ9hM8', desc: 'One leg extended, one bent. Fold toward the extended leg.' },
+    { name: 'Shoelace',          hold: '3–5 min / side', sides: true,  photo: 'https://pocketyoga.com/assets/images/full/KneePile_R.png',               videoId: 'MVqJagM5bq8', desc: 'Knees stacked. Fold forward with a rounded back.' },
+    { name: 'Wide Forward Fold', hold: '3–5 min',        sides: false, photo: 'https://pocketyoga.com/assets/images/full/WideLeggedForwardBendI_R.png', videoId: null,          desc: 'Legs wide apart. Walk hands forward. Let the spine hang and gravity do the work.' },
   ]},
-  back:      { label: 'Back', icon: '🌊', poses: [
-    { name: "Child's Pose",    hold: '3–5 min',        sides: false, svgKey:'childsPose',    videoId:'swvLhYZuwGw', desc: 'Knees wide, big toes touching. Arms forward or alongside the body.' },
-    { name: 'Twisted Roots',   hold: '3–5 min / side', sides: true,  svgKey:'twistedRoots',  videoId:'A9x1KnINlDQ', desc: 'Lying down. Draw knees to chest, let them fall to one side. Arms out wide.' },
-    { name: 'Sphinx',          hold: '3–5 min',        sides: false, svgKey:'sphinx',        videoId:'F0Jhzf0zSws', desc: 'Lying on your stomach. Prop up the upper body on your forearms.' },
-    { name: 'Snail',           hold: '2–3 min',        sides: false, svgKey:'snail',         videoId:'Hb2AbGL-QDA', desc: 'Roll up into shoulder stand, feet behind the head. Support hips with hands.' },
+  back:       { label: 'Back', icon: '🌊', poses: [
+    { name: "Child's Pose",  hold: '3–5 min',        sides: false, photo: 'https://pocketyoga.com/assets/images/full/ChildTraditional.png',            videoId: 'swvLhYZuwGw', desc: 'Knees wide, big toes touching. Arms forward. Full back and hip decompression.' },
+    { name: 'Extended Puppy',hold: '3–5 min',        sides: false, photo: 'https://pocketyoga.com/assets/images/full/PuppyExtended.png',              videoId: 'pVnVRpxA8Aw', desc: 'From all fours. Walk hands forward, sink chest toward the floor. Hips stay over knees.' },
+    { name: 'Sphinx',        hold: '3–5 min',        sides: false, photo: 'https://pocketyoga.com/assets/images/full/Sphinx.png',                     videoId: 'F0Jhzf0zSws', desc: 'Lying on your stomach. Prop up on forearms. Gentle lumbar extension.' },
+    { name: 'Supine Twist',  hold: '3–5 min / side', sides: true,  photo: 'https://pocketyoga.com/assets/images/full/SupineSpinalTwist_R.png',        videoId: 'A9x1KnINlDQ', desc: 'Lying down. Knees fall to one side. Arms out wide. Thoracic decompression.' },
+    { name: 'Banana',        hold: '3–5 min / side', sides: true,  photo: 'https://pocketyoga.com/assets/images/full/Banana_L.png',                   videoId: null,          desc: 'Lying flat. Walk feet and hands to one side. Stretches the lats and lateral spine.' },
   ]},
-  shoulders: { label: 'Shoulders & Chest', icon: '🙆', poses: [
-    { name: 'Melting Heart',    hold: '3–5 min',        sides: false, svgKey:'meltingHeart',  videoId:'pVnVRpxA8Aw', desc: 'On all fours. Walk hands forward, sink chest toward the floor.' },
-    { name: 'Thread the Needle',hold: '3–5 min / side', sides: true,  svgKey:'threadNeedle',  videoId:'xGJdP6EN4Ic', desc: 'From all fours. Thread one arm under the body. Rest cheek on the floor.' },
-    { name: 'Supported Fish',   hold: '3–5 min',        sides: false, svgKey:'supportedFish', videoId:'qfqQoETLmAE', desc: 'Block or bolster under the shoulder blades. Open chest toward the ceiling.' },
+  shoulders:  { label: 'Shoulders & Chest', icon: '🙆', poses: [
+    { name: 'Thread the Needle', hold: '3–5 min / side', sides: true,  photo: 'poses/thread-needle.jpg',                                               videoId: 'xGJdP6EN4Ic', desc: 'From all fours. Thread one arm under the body. Rest cheek on the floor.' },
+    { name: 'Gate',              hold: '3–5 min / side', sides: true,  photo: 'https://pocketyoga.com/assets/images/full/Gate_L.png',                  videoId: null,          desc: 'One knee down. Side bend toward the extended leg. Lat and chest stretch.' },
+    { name: 'Supported Fish',    hold: '3–5 min',        sides: false, photo: 'https://pocketyoga.com/assets/images/full/FishPreparation.png',          videoId: 'qfqQoETLmAE', desc: 'Block or bolster under shoulder blades. Open the chest toward the ceiling.' },
   ]},
-  quads:     { label: 'Quads', icon: '⚡', poses: [
-    { name: 'Saddle',          hold: '3–5 min',        sides: false, svgKey:'saddle',        videoId:'pWwAY5rs3w0', desc: 'Kneeling, lean back. Support on hands, elbows, or lie fully down.' },
-    { name: 'Dragon High',     hold: '3–5 min / side', sides: true,  svgKey:'dragonHigh',    videoId:'wfP8Oj_WuBc', desc: 'Lunge position with upright torso and hands on the front knee.' },
-    { name: 'Reclining Hero',  hold: '2–5 min',        sides: false, svgKey:'recliningHero', videoId:'Q1oFOJ8pfNg', desc: 'Kneeling with feet beside hips. Lean back gradually.' },
+  quads:      { label: 'Quads', icon: '⚡', poses: [
+    { name: 'Low Lunge',          hold: '3–5 min / side', sides: true,  photo: 'https://pocketyoga.com/assets/images/full/WarriorIKneeling_R.png',      videoId: 'wfP8Oj_WuBc', desc: 'Back knee down. Upright torso. Quad and hip flexor stretch.' },
+    { name: 'Hero',               hold: '3–5 min',        sides: false, photo: 'https://pocketyoga.com/assets/images/full/Hero.png',                    videoId: 'Q1oFOJ8pfNg', desc: 'Kneeling, sitting between the feet. Lean back gradually to deepen.' },
+    { name: 'Little Thunderbolt', hold: '2–5 min',        sides: false, photo: 'https://pocketyoga.com/assets/images/full/LittleThunderbolt.png',        videoId: null,          desc: 'From Hero, lean back onto hands or elbows. Intense quad stretch.' },
   ]},
-  calves:    { label: 'Calves & Ankles', icon: '🦶', poses: [
-    { name: 'Legs Up the Wall',hold: '3–5 min',        sides: false, svgKey:'legsUpWall',    videoId:'uzjo1qTNj0M', desc: 'Lying close to a wall, legs resting up against it. Flex and point the feet.' },
+  calves:     { label: 'Calves & Ankles', icon: '🦶', poses: [
+    { name: 'Downward Dog',     hold: '2–3 min',  sides: false, photo: 'https://pocketyoga.com/assets/images/full/DownwardDog.png',                   videoId: null,          desc: 'Heels pressing toward the floor. Pedal the feet to warm up, then hold.' },
+    { name: 'Ankle Stretch',    hold: '2–3 min',  sides: false, photo: 'https://pocketyoga.com/assets/images/full/AnkleStretch.png',                  videoId: null,          desc: 'Sit on your heels with toes curled under. Press down gently for a plantar stretch.' },
+    { name: 'Legs Up the Wall', hold: '5–10 min', sides: false, photo: 'https://pocketyoga.com/assets/images/full/CorpseDoubleLegRaise.png',          videoId: 'uzjo1qTNj0M', desc: 'Lying close to a wall, legs resting up. Passive calf and hamstring recovery.' },
   ]},
 };
 
@@ -3325,35 +3329,8 @@ function buildMobilitySession(durationMin, groups) {
   return session;
 }
 
-const POSE_IMAGES = {
-  childsPose:    'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/Hatha_yoga_child_pose.jpg/500px-Hatha_yoga_child_pose.jpg',
-  caterpillar:   'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fb/IMG_0222_2-_Caterpillar.jpg/500px-IMG_0222_2-_Caterpillar.jpg',
-  halfButterfly: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fb/IMG_0222_2-_Caterpillar.jpg/500px-IMG_0222_2-_Caterpillar.jpg',
-  shoelace:      'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2d/Shoelace_cropped_photograph.jpg/500px-Shoelace_cropped_photograph.jpg',
-  sphinx:        'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9b/IMG_0549_2_Sphinx.jpg/500px-IMG_0549_2_Sphinx.jpg',
-  snail:         'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d3/Mr-yoga-ear-pressure-pose.jpg/500px-Mr-yoga-ear-pressure-pose.jpg',
-  twistedRoots:  'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/Waist_Rotating_Pose.jpg/500px-Waist_Rotating_Pose.jpg',
-  supportedFish: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7b/Mr-yoga-fish-pose.jpg/500px-Mr-yoga-fish-pose.jpg',
-  butterfly:     'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9a/Bhadrasana_1.JPG/500px-Bhadrasana_1.JPG',
-  swan:          'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/91/Kapotasana_-_Pigeon_pose_-Full.jpg/500px-Kapotasana_-_Pigeon_pose_-Full.jpg',
-  recliningHero: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/78/Supta_Virasana.jpg/500px-Supta_Virasana.jpg',
-  saddle:        'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f4/IMG_0438_2-1-_Saddle_pose.jpg/500px-IMG_0438_2-1-_Saddle_pose.jpg',
-  dragon:        'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/J%C3%B3ga_Anjaneyasana.jpg/500px-J%C3%B3ga_Anjaneyasana.jpg',
-  dragonHigh:    'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/J%C3%B3ga_Anjaneyasana.jpg/500px-J%C3%B3ga_Anjaneyasana.jpg',
-  legsUpWall:    'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3b/Viparita-Karani_Yoga-Asana_Nina-Mel.jpg/500px-Viparita-Karani_Yoga-Asana_Nina-Mel.jpg',
-  frog:          'poses/frog.jpg',
-  square:        'poses/square.png',
-  meltingHeart:  'poses/melting-heart.jpg',
-  threadNeedle:  'poses/thread-needle.jpg',
-};
-
 function _msPoseVisual(p) {
-  const photoUrl = POSE_IMAGES[p.svgKey];
-  if (photoUrl) {
-    const svgFallback = (p.svgKey && POSE_SVGS[p.svgKey]) ? p.svgKey : '';
-    return `<img src="${photoUrl}" alt="${p.name}" onerror="_msFallbackToSvg('${svgFallback}')">`;
-  }
-  if (p.svgKey && POSE_SVGS[p.svgKey]) return POSE_SVGS[p.svgKey];
+  if (p.photo) return `<img src="${p.photo}" alt="${p.name}">`;
   return '';
 }
 
@@ -3616,7 +3593,7 @@ function renderMobility() {
       const g = MOBILITY_POSES[key];
       posesHTML += `<div class="section-title" style="margin-top:1.25rem;">${g.label}</div>`;
       posesHTML += g.poses.map(p => {
-        const svg = p.svgKey && POSE_SVGS[p.svgKey] ? `<div class="mobility-pose-svg">${POSE_SVGS[p.svgKey]}</div>` : '';
+        const svg = p.photo ? `<div class="mobility-pose-svg" style="overflow:hidden;border-radius:6px;"><img src="${p.photo}" alt="${p.name}" style="width:50px;height:50px;object-fit:cover;display:block;"></div>` : '';
         const videoBtn = p.videoId ? `<button class="pvm-watch-btn" onclick="event.stopPropagation();openPoseVideo('${p.videoId}','${p.name.replace(/'/g,"\\'")}','${p.hold}')"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg> Watch</button>` : '';
         return `<div class="mobility-pose-card">
           ${svg}
