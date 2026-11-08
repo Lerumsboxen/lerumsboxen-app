@@ -1163,8 +1163,9 @@
   .msess-group-lbl { font-family:'Barlow Condensed',sans-serif; font-size:0.7rem; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:var(--red); margin-bottom:0.2rem; min-height:1rem; }
   .msess-pose-name { font-family:'Bebas Neue',sans-serif; font-size:2.1rem; letter-spacing:0.06em; color:var(--text); line-height:1; margin-bottom:0.15rem; }
   .msess-side { font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:0.82rem; letter-spacing:0.18em; text-transform:uppercase; color:var(--muted); margin-bottom:0.6rem; min-height:1.1rem; }
-  #msess-svg-wrap { width:min(170px,48vw); height:min(120px,34vw); flex-shrink:0; color:var(--red); opacity:0.85; margin-bottom:0.6rem; }
-  #msess-svg-wrap svg { width:100%; height:100%; }
+  #msess-svg-wrap { width:min(260px,70vw); flex-shrink:0; color:var(--red); margin-bottom:0.6rem; display:flex; align-items:center; justify-content:center; min-height:min(130px,37vw); }
+  #msess-svg-wrap img { width:100%; border-radius:10px; object-fit:cover; max-height:min(165px,47vw); display:block; }
+  #msess-svg-wrap svg { width:min(160px,45vw); height:min(115px,33vw); opacity:0.85; }
   .msess-desc { font-size:0.8rem; color:var(--muted); line-height:1.5; max-width:290px; margin-bottom:0.8rem; }
   .msess-timer { font-family:'Bebas Neue',sans-serif; font-size:5rem; color:var(--red); letter-spacing:0.03em; line-height:1; transition:color 0.3s; }
   .msess-timer.low { color:#ef4444; }
@@ -3300,6 +3301,8 @@ function suggestMobilityFromWeek() {
 
 // ── Mobility Session Player ──────────────────────────────────────────
 let _ms = null;
+const _MS_COUNTDOWN   = 5;   // seconds before first pose
+const _MS_TRANSITION  = 10;  // seconds between poses
 
 function buildMobilitySession(durationMin, groups) {
   const totalSecs = durationMin * 60;
@@ -3322,11 +3325,24 @@ function buildMobilitySession(durationMin, groups) {
   let elapsed = 0;
   for (const p of pool) {
     if (elapsed >= totalSecs) break;
-    const dur = Math.min(poseSecs(p), totalSecs - elapsed + 60);
     session.push({ ...p, durationSecs: poseSecs(p) });
     elapsed += poseSecs(p);
   }
   return session;
+}
+
+function _msPoseVisual(p) {
+  if (p.videoId) {
+    const svgFallback = (p.svgKey && POSE_SVGS[p.svgKey]) ? p.svgKey : '';
+    return `<img src="https://img.youtube.com/vi/${p.videoId}/hqdefault.jpg" alt="${p.name}" onerror="_msFallbackToSvg('${svgFallback}')">`;
+  }
+  if (p.svgKey && POSE_SVGS[p.svgKey]) return POSE_SVGS[p.svgKey];
+  return '';
+}
+
+function _msFallbackToSvg(key) {
+  const wrap = document.getElementById('msess-svg-wrap');
+  if (wrap && key && POSE_SVGS[key]) wrap.innerHTML = POSE_SVGS[key];
 }
 
 function _msEnsureOverlay() {
@@ -3338,7 +3354,7 @@ function _msEnsureOverlay() {
       <button class="msess-close" onclick="closeMobilitySession()">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="1" y1="1" x2="13" y2="13"/><line x1="13" y1="1" x2="1" y2="13"/></svg>
       </button>
-      <div class="msess-counter" id="msess-counter">1 / 1</div>
+      <div class="msess-counter" id="msess-counter"></div>
       <button class="msess-close" onclick="mobSessWatchVideo()" id="msess-vid-btn" style="display:none;color:var(--red);border-color:rgba(232,0,29,0.35);">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
       </button>
@@ -3350,13 +3366,9 @@ function _msEnsureOverlay() {
       <div class="msess-side" id="msess-side"></div>
       <div id="msess-svg-wrap"></div>
       <div class="msess-desc" id="msess-desc"></div>
-      <div class="msess-timer" id="msess-timer">3:00</div>
+      <div class="msess-timer" id="msess-timer"></div>
     </div>
-    <div class="msess-controls" id="msess-controls">
-      <button class="msess-ctrl" onclick="mobSessPrev()">Prev</button>
-      <button class="msess-ctrl" onclick="mobSessPause()" id="msess-pause-btn">Pause</button>
-      <button class="msess-ctrl red" onclick="mobSessNext()">Skip</button>
-    </div>`;
+    <div class="msess-controls" id="msess-controls"></div>`;
   document.body.appendChild(el);
 }
 
@@ -3365,7 +3377,7 @@ function startMobilitySession(durationMin) {
   const poses = buildMobilitySession(durationMin, groups);
   if (!poses.length) { showToast('No poses selected.'); return; }
   if (_ms && _ms.interval) clearInterval(_ms.interval);
-  _ms = { poses, idx: 0, secsLeft: poses[0].durationSecs, paused: false, interval: null, wakeLock: null };
+  _ms = { poses, idx: 0, phase: 'countdown', secsLeft: _MS_COUNTDOWN, paused: false, interval: null, wakeLock: null };
   _msEnsureOverlay();
   _msRender();
   requestAnimationFrame(() => document.getElementById('mob-session-overlay').classList.add('open'));
@@ -3373,42 +3385,81 @@ function startMobilitySession(durationMin) {
   if (navigator.wakeLock) navigator.wakeLock.request('screen').then(wl => { if (_ms) _ms.wakeLock = wl; }).catch(() => {});
 }
 
-function _msRender() {
-  const { poses, idx, secsLeft } = _ms;
-  const p = poses[idx];
-  document.getElementById('msess-counter').textContent = `${idx + 1} / ${poses.length}`;
-  // Segments
+function _msUpdateSegs() {
   const segsEl = document.getElementById('msess-segs');
+  if (!segsEl || !_ms) return;
+  const { poses, idx } = _ms;
   segsEl.innerHTML = poses.map((_, i) => {
     const pct = i < idx ? 100 : 0;
     return `<div style="flex:1;height:3px;background:${i < idx ? 'rgba(232,0,29,0.45)' : 'var(--border)'};border-radius:2px;overflow:hidden;"><div id="msess-seg-${i}" style="height:100%;width:${pct}%;background:var(--red);"></div></div>`;
   }).join('');
-  // Pose info
+}
+
+function _msSetPose(p, desc, timerColor) {
   document.getElementById('msess-group').textContent = p.groupLabel || '';
   document.getElementById('msess-name').textContent = p.name || '';
   document.getElementById('msess-side').textContent = p.side ? p.side + ' side' : '';
-  const svgWrap = document.getElementById('msess-svg-wrap');
-  svgWrap.innerHTML = (p.svgKey && POSE_SVGS[p.svgKey]) ? POSE_SVGS[p.svgKey] : '';
-  document.getElementById('msess-desc').textContent = p.desc || '';
-  // Video button
+  document.getElementById('msess-svg-wrap').innerHTML = _msPoseVisual(p);
+  document.getElementById('msess-desc').textContent = desc !== undefined ? desc : (p.desc || '');
+  document.getElementById('msess-timer').style.color = timerColor;
+}
+
+function _msRender() {
+  if (!_ms) return;
+  const { poses, idx, phase } = _ms;
   const vidBtn = document.getElementById('msess-vid-btn');
-  if (vidBtn) vidBtn.style.display = p.videoId ? '' : 'none';
+
+  if (phase === 'countdown') {
+    document.getElementById('msess-counter').textContent = 'GET READY';
+    document.getElementById('msess-segs').innerHTML = '';
+    _msSetPose(poses[0], poses[0].desc, 'var(--text)');
+    if (vidBtn) vidBtn.style.display = 'none';
+    document.getElementById('msess-controls').innerHTML = `
+      <button class="msess-ctrl" onclick="closeMobilitySession()">Close</button>
+      <button class="msess-ctrl red" onclick="_msSkipCountdown()">Start now</button>`;
+
+  } else if (phase === 'transition') {
+    const p = poses[idx];
+    document.getElementById('msess-counter').textContent = 'NEXT UP';
+    _msUpdateSegs();
+    _msSetPose(p, 'Get into position', 'var(--muted)');
+    if (vidBtn) vidBtn.style.display = 'none';
+    document.getElementById('msess-controls').innerHTML = `
+      <button class="msess-ctrl" onclick="mobSessPrev()">Prev</button>
+      <button class="msess-ctrl" onclick="mobSessPause()" id="msess-pause-btn">Pause</button>
+      <button class="msess-ctrl red" onclick="_msSkipTransition()">Start</button>`;
+
+  } else {
+    const p = poses[idx];
+    document.getElementById('msess-counter').textContent = `${idx + 1} / ${poses.length}`;
+    _msUpdateSegs();
+    _msSetPose(p, undefined, 'var(--red)');
+    if (vidBtn) vidBtn.style.display = p.videoId ? '' : 'none';
+    document.getElementById('msess-controls').innerHTML = `
+      <button class="msess-ctrl" onclick="mobSessPrev()">Prev</button>
+      <button class="msess-ctrl" onclick="mobSessPause()" id="msess-pause-btn">Pause</button>
+      <button class="msess-ctrl red" onclick="mobSessNext()">Skip</button>`;
+  }
   _msUpdateTimer();
 }
 
 function _msUpdateTimer() {
   if (!_ms) return;
-  const mins = Math.floor(_ms.secsLeft / 60);
-  const secs = _ms.secsLeft % 60;
   const timerEl = document.getElementById('msess-timer');
-  if (timerEl) {
+  if (!timerEl) return;
+  const { phase, secsLeft, poses, idx } = _ms;
+  if (phase === 'countdown') {
+    timerEl.textContent = secsLeft;
+    timerEl.className = 'msess-timer';
+  } else {
+    const mins = Math.floor(secsLeft / 60);
+    const secs = secsLeft % 60;
     timerEl.textContent = `${mins}:${String(secs).padStart(2, '0')}`;
-    timerEl.className = 'msess-timer' + (_ms.secsLeft <= 10 ? ' low' : '');
+    timerEl.className = 'msess-timer' + (phase === 'active' && secsLeft <= 10 ? ' low' : '');
   }
-  const seg = document.getElementById(`msess-seg-${_ms.idx}`);
-  if (seg) {
-    const pct = Math.round((1 - _ms.secsLeft / _ms.poses[_ms.idx].durationSecs) * 100);
-    seg.style.width = pct + '%';
+  if (phase === 'active') {
+    const seg = document.getElementById(`msess-seg-${idx}`);
+    if (seg) seg.style.width = Math.round((1 - secsLeft / poses[idx].durationSecs) * 100) + '%';
   }
 }
 
@@ -3417,24 +3468,45 @@ function _msStartTimer() {
   _ms.interval = setInterval(() => {
     if (!_ms || _ms.paused) return;
     _ms.secsLeft--;
-    _msUpdateTimer();
-    if (_ms.secsLeft <= 0) mobSessNext();
+    if (_ms.phase === 'countdown') {
+      if (_ms.secsLeft <= 0) { _ms.phase = 'active'; _ms.secsLeft = _ms.poses[0].durationSecs; _msRender(); }
+      else _msUpdateTimer();
+    } else if (_ms.phase === 'transition') {
+      if (_ms.secsLeft <= 0) { _ms.phase = 'active'; _ms.secsLeft = _ms.poses[_ms.idx].durationSecs; _msRender(); }
+      else _msUpdateTimer();
+    } else {
+      _msUpdateTimer();
+      if (_ms.secsLeft <= 0) {
+        if (_ms.idx >= _ms.poses.length - 1) { _msComplete(); }
+        else { _ms.idx++; _ms.phase = 'transition'; _ms.secsLeft = _MS_TRANSITION; _msRender(); }
+      }
+    }
   }, 1000);
+}
+
+function _msSkipCountdown() {
+  if (!_ms) return;
+  _ms.phase = 'active'; _ms.secsLeft = _ms.poses[0].durationSecs; _msRender();
+}
+
+function _msSkipTransition() {
+  if (!_ms) return;
+  _ms.phase = 'active'; _ms.secsLeft = _ms.poses[_ms.idx].durationSecs; _msRender();
 }
 
 function mobSessNext() {
   if (!_ms) return;
+  if (_ms.phase === 'countdown') { _msSkipCountdown(); return; }
+  if (_ms.phase === 'transition') { _msSkipTransition(); return; }
   if (_ms.idx >= _ms.poses.length - 1) { _msComplete(); return; }
-  _ms.idx++;
-  _ms.secsLeft = _ms.poses[_ms.idx].durationSecs;
-  _msRender();
+  _ms.idx++; _ms.phase = 'transition'; _ms.secsLeft = _MS_TRANSITION; _msRender();
 }
 
 function mobSessPrev() {
-  if (!_ms || _ms.idx <= 0) return;
-  _ms.idx--;
-  _ms.secsLeft = _ms.poses[_ms.idx].durationSecs;
-  _msRender();
+  if (!_ms || _ms.phase === 'countdown') return;
+  const prevIdx = _ms.phase === 'transition' ? _ms.idx - 1 : _ms.idx - 1;
+  if (prevIdx < 0) { _ms.phase = 'countdown'; _ms.secsLeft = _MS_COUNTDOWN; _msRender(); return; }
+  _ms.idx = prevIdx; _ms.phase = 'active'; _ms.secsLeft = _ms.poses[prevIdx].durationSecs; _msRender();
 }
 
 function mobSessPause() {
@@ -3455,16 +3527,16 @@ function _msComplete() {
   clearInterval(_ms.interval);
   if (_ms.wakeLock) _ms.wakeLock.release().catch(() => {});
   const total = _ms.poses.length;
+  document.getElementById('msess-counter').textContent = '✓';
+  document.getElementById('msess-segs').querySelectorAll('[id^="msess-seg-"]').forEach(d => d.style.width = '100%');
   document.getElementById('msess-group').textContent = '';
   document.getElementById('msess-name').textContent = 'Session Complete';
   document.getElementById('msess-side').textContent = `${total} pose${total !== 1 ? 's' : ''} done`;
   document.getElementById('msess-svg-wrap').innerHTML = '';
   document.getElementById('msess-desc').textContent = 'Great work. Your body will thank you.';
   document.getElementById('msess-timer').textContent = '';
-  document.getElementById('msess-counter').textContent = '✓';
   const vidBtn = document.getElementById('msess-vid-btn');
   if (vidBtn) vidBtn.style.display = 'none';
-  document.getElementById('msess-segs').querySelectorAll('[id^="msess-seg-"]').forEach(d => d.style.width = '100%');
   document.getElementById('msess-controls').innerHTML = `<div style="flex:1;display:flex;justify-content:center;"><button class="msess-ctrl red" style="flex:none;padding:0.6rem 2.5rem;font-size:0.85rem;" onclick="closeMobilitySession()">Done</button></div>`;
   _ms = null;
 }
