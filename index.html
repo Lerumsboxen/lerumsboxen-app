@@ -3216,6 +3216,40 @@ const MOBILITY_POSES = {
   ]},
 };
 
+const MOBILITY_MUSCLE_MAP = {
+  hips:       ['squat','front squat','back squat','goblet squat','clean','squat clean','power clean','snatch','squat snatch','power snatch','jerk','split jerk','thruster','wall ball','wallball','box jump','lunge','sumo','goblet','kettlebell','kb swing','swing','deadlift'],
+  hamstrings: ['deadlift','rdl','romanian','sumo deadlift','clean','snatch','swing','kb swing','good morning','hip hinge','hamstring','glute bridge'],
+  back:       ['deadlift','pull-up','pullup','chest-to-bar','ctb','barbell row','row','muscle-up','toes-to-bar','t2b','ttb','rdl','clean','snatch','good morning','back extension'],
+  shoulders:  ['press','overhead press','push press','push jerk','split jerk','thruster','handstand','hspu','handstand push','muscle-up','dip','ring dip','snatch','jerk','wall ball','wallball','overhead squat'],
+  quads:      ['squat','front squat','back squat','goblet squat','thruster','wall ball','wallball','lunge','box jump','step up','leg press','pistol'],
+  hipflexors: ['run','lunge','split jerk','clean','snatch','sprint','step up'],
+  calves:     ['run','double under','du','jump rope','box jump','calf raise','sprint'],
+};
+
+function suggestMobilityFromToday() {
+  const today = new Date().toISOString().split('T')[0];
+  const texts = [];
+  (state.wods || []).filter(w => w.date === today).forEach(w => {
+    if (w.name) texts.push(w.name.toLowerCase());
+    if (w.desc) texts.push(w.desc.toLowerCase());
+  });
+  (state.strength || []).filter(s => s.date === today).forEach(s => {
+    if (s.exercise) texts.push(s.exercise.toLowerCase());
+    (s.movements || []).forEach(m => { if (m.name) texts.push(m.name.toLowerCase()); });
+  });
+  const combined = texts.join(' ');
+  if (!combined.trim()) { showToast('No workouts logged today.'); return; }
+  const scores = {};
+  Object.entries(MOBILITY_MUSCLE_MAP).forEach(([grp, kws]) => {
+    scores[grp] = kws.filter(kw => combined.includes(kw)).length;
+  });
+  const suggested = Object.entries(scores).filter(([,s]) => s > 0).sort(([,a],[,b]) => b - a).map(([g]) => g);
+  if (!suggested.length) { showToast('Could not match movements to muscle groups.'); return; }
+  mobilitySelectedGroups = suggested.slice(0, 3);
+  renderMobility();
+  setTimeout(() => { const el = document.getElementById('dash-mobility'); if (el) el.scrollTo({top:0,behavior:'smooth'}); }, 50);
+}
+
 function toggleMobilityGroup(key) {
   const idx = mobilitySelectedGroups.indexOf(key);
   if (idx === -1) mobilitySelectedGroups.push(key);
@@ -3285,10 +3319,13 @@ function renderMobility() {
       }).join('');
     });
   }
+  const today = new Date().toISOString().split('T')[0];
+  const hasToday = [...(state.wods||[]),...(state.strength||[])].some(x => x.date === today);
   el.innerHTML = `
-    <div style="font-size:0.78rem;color:var(--muted);line-height:1.6;margin-bottom:0.9rem;">
+    <div style="font-size:0.78rem;color:var(--muted);line-height:1.6;margin-bottom:0.75rem;">
       Hold each pose for 2–5 minutes. Breathe deeply and let your body sink into the position.
     </div>
+    ${hasToday ? `<button onclick="suggestMobilityFromToday()" style="display:flex;align-items:center;gap:0.5rem;width:100%;margin-bottom:0.85rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text);background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:6px;padding:0.6rem 0.85rem;cursor:pointer;text-align:left;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2"/><path d="M12 7v5l3 3"/><path d="M9 15l-2 4"/><path d="M15 15l2 4"/><path d="M9 12H6a1 1 0 0 0-1 1v2"/><path d="M15 12h3a1 1 0 0 1 1 1v2"/></svg>Suggest from today's training</button>` : ''}
     <div class="mobility-chips-grid">${chips}</div>
     ${posesHTML}
   `;
@@ -3532,28 +3569,43 @@ function renderDashPRs() {
     return 999999;
   };
 
+  const dominated = (b, all) => all.some(a => a.id !== b.id && (a.reps||1) >= (b.reps||1) && a.value >= b.value && ((a.reps||1) > (b.reps||1) || a.value > b.value));
+
   const grouped = {};
   [...state.prs].sort((a,b) => getSortKey(a) - getSortKey(b)).forEach(p => {
     if (!grouped[p.movement]) grouped[p.movement] = [];
     grouped[p.movement].push(p);
   });
 
+  const svgEdit = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>`;
+  const svgTrash = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+
+  const prRow = (p, dim=false) => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:0.35rem 0;border-top:1px solid var(--border);gap:0.5rem;${dim ? 'opacity:0.45;' : ''}">
+      <div style="display:flex;align-items:baseline;gap:0.5rem;flex:1;min-width:0;">
+        <span style="font-family:'Bebas Neue';font-size:${dim ? '0.9' : '1.05'}rem;color:var(--text);">${p.value}${p.unit}</span>
+        <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.1em;color:var(--red);">${rmLabel(p)}</span>
+        ${p.date ? `<span style="color:var(--muted);font-size:0.75rem;">${formatDate(p.date)}</span>` : ''}
+      </div>
+      <div style="display:flex;gap:0.25rem;flex-shrink:0;">
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="editPR('${p.id}')">${svgEdit}</button>
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="deletePR('${p.id}');selectDashSection('prs')">${svgTrash}</button>
+      </div>
+    </div>`;
+
   el.innerHTML = Object.entries(grouped).map(([mv, prs]) => {
-    const sortedPrs = prs.sort((a,b) => (a.reps||1) - (b.reps||1) || b.value - a.value);
+    const best = prs.filter(p => !dominated(p, prs)).sort((a,b) => (a.reps||1) - (b.reps||1));
+    const hist = prs.filter(p => dominated(p, prs)).sort((a,b) => b.value - a.value || (b.reps||1) - (a.reps||1));
+    const uid = mv.replace(/[^a-z0-9]/gi,'_');
     return `<div class="card" style="margin-bottom:0.75rem;">
       <div style="font-family:'Bebas Neue';font-size:1.2rem;letter-spacing:0.06em;color:var(--red);margin-bottom:0.5rem;">${mv}</div>
-      ${sortedPrs.map(p => `
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:0.35rem 0;border-top:1px solid var(--border);gap:0.5rem;">
-          <div style="display:flex;align-items:baseline;gap:0.5rem;flex:1;min-width:0;">
-            <span style="font-family:'Bebas Neue';font-size:1.05rem;color:var(--text);">${p.value}${p.unit}</span>
-            <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.1em;color:var(--red);">${rmLabel(p)}</span>
-            ${p.date ? `<span style="color:var(--muted);font-size:0.75rem;">${formatDate(p.date)}</span>` : ''}
-          </div>
-          <div style="display:flex;gap:0.25rem;flex-shrink:0;">
-            <button class="btn btn-ghost btn-sm btn-icon" onclick="editPR('${p.id}')">✏️</button>
-            <button class="btn btn-ghost btn-sm btn-icon" onclick="deletePR('${p.id}');selectDashSection('prs')">🗑</button>
-          </div>
-        </div>`).join('')}
+      ${best.map(p => prRow(p)).join('')}
+      ${hist.length ? `
+        <button onclick="var h=document.getElementById('prh_${uid}');var open=h.style.display!=='none';h.style.display=open?'none':'block';this.textContent=open?'History (${hist.length})':'Hide history';"
+          style="font-family:'Barlow Condensed';font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);background:transparent;border:none;padding:0.3rem 0 0;cursor:pointer;">
+          History (${hist.length})
+        </button>
+        <div id="prh_${uid}" style="display:none;">${hist.map(p => prRow(p, true)).join('')}</div>` : ''}
     </div>`;
   }).join('');
 }
@@ -5299,7 +5351,16 @@ function renderPRs() {
     return 999999; // unknown movements go last
   };
 
-  const sorted = [...state.prs].sort((a, b) => getSortKey(a) - getSortKey(b));
+  const dominated = (b, all) => all.some(a => a.id !== b.id && (a.reps||1) >= (b.reps||1) && a.value >= b.value && ((a.reps||1) > (b.reps||1) || a.value > b.value));
+  const byMov = {};
+  state.prs.forEach(p => { if (!byMov[p.movement]) byMov[p.movement] = []; byMov[p.movement].push(p); });
+  const visiblePRs = state.prs.filter(p => !dominated(p, byMov[p.movement] || []));
+
+  const sorted = [...visiblePRs].sort((a, b) => getSortKey(a) - getSortKey(b));
+
+  const svgEdit = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>`;
+  const svgTrash = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+  const svgChart = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`;
 
   // Group by category for visual separators
   let lastCat = null;
@@ -5316,9 +5377,9 @@ function renderPRs() {
       <td><span class="tag">${pr.unit}</span></td>
       <td class="date-cell">${pr.date ? formatDate(pr.date) : '<span style="color:var(--muted);">—</span>'}</td>
       <td style="display:flex;gap:0.25rem;">
-        <button class="btn btn-ghost btn-sm btn-icon" title="Progress chart" onclick="showProgressModal(decodeURIComponent('${encodeURIComponent(pr.movement)}'),'pr')">📈</button>
-        <button class="btn btn-ghost btn-sm btn-icon" onclick="editPR('${pr.id}')">✏️</button>
-        <button class="btn btn-ghost btn-sm btn-icon" onclick="deletePR('${pr.id}')">🗑</button>
+        <button class="btn btn-ghost btn-sm btn-icon" title="Progress chart" onclick="showProgressModal(decodeURIComponent('${encodeURIComponent(pr.movement)}'),'pr')">${svgChart}</button>
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="editPR('${pr.id}')">${svgEdit}</button>
+        <button class="btn btn-ghost btn-sm btn-icon" onclick="deletePR('${pr.id}')">${svgTrash}</button>
       </td>
     </tr>`;
   }).join('');
