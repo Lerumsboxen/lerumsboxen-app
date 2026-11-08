@@ -3176,15 +3176,8 @@ const DASH_SECTIONS = {
       const ua = navigator.userAgent;
       const isAndroid = /Android/i.test(ua);
       const isIOS = /iPhone|iPad|iPod/i.test(ua);
-      const wondrLink = isIOS
-        ? 'https://lerumsboxen.wondr.se/wondr/schedule'
-        : 'https://lerumsboxen.wondr.se/schedule';
-      const openBtn = `<a href="${wondrLink}" target="_blank" rel="noopener" style="font-family:'Barlow Condensed';font-size:0.8rem;color:var(--accent);text-decoration:none;letter-spacing:0.05em;">OPEN IN WONDR ↗</a>`;
       return `
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.75rem;">
-        <div class="section-title" style="margin:0;flex:1;">Schedule</div>
-        ${openBtn}
-      </div>
+      <div class="section-title" style="margin-bottom:1rem;">Schedule</div>
       <div id="dash-schedule"></div>`;
     }
   },
@@ -11736,13 +11729,21 @@ function _showBadgeCelebration(movement, tier) {
 function renderScheduleSection() {
   const el = document.getElementById('dash-schedule');
   if (!el) return;
-  const h = Math.max(500, window.innerHeight - 160);
-  el.innerHTML = `<iframe
-    src="https://lerumsboxen.wondr.se/schedule"
-    style="width:100%;height:${h}px;border:none;border-radius:10px;background:var(--black);"
-    title="Lerumsboxen Schema"
-    loading="lazy"
-  ></iframe>`;
+  const h = Math.max(460, window.innerHeight - 220);
+  el.innerHTML = `
+    <div style="text-align:center;margin-bottom:0.75rem;">
+      <a href="https://lerumsboxen.wondr.se/schedule" target="_blank" rel="noopener"
+         class="btn btn-ghost btn-sm" style="text-decoration:none;display:inline-flex;align-items:center;gap:0.4rem;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14L21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+        Logga in &amp; boka i Wondr
+      </a>
+    </div>
+    <iframe
+      src="https://lerumsboxen.wondr.se/schedule"
+      style="width:100%;height:${h}px;border:none;border-radius:10px;background:var(--black);"
+      title="Lerumsboxen Schema"
+      loading="lazy"
+    ></iframe>`;
 }
 
 function renderActivityFeed() {
