@@ -3226,28 +3226,48 @@ const MOBILITY_MUSCLE_MAP = {
   calves:     ['run','double under','du','jump rope','box jump','calf raise','sprint'],
 };
 
-function suggestMobilityFromToday() {
-  const today = new Date().toISOString().split('T')[0];
+function _mobilityTextsForDates(dates) {
+  const set = new Set(dates);
   const texts = [];
-  (state.wods || []).filter(w => w.date === today).forEach(w => {
+  (state.wods || []).filter(w => set.has(w.date)).forEach(w => {
     if (w.name) texts.push(w.name.toLowerCase());
     if (w.desc) texts.push(w.desc.toLowerCase());
   });
-  (state.strength || []).filter(s => s.date === today).forEach(s => {
+  (state.strength || []).filter(s => set.has(s.date)).forEach(s => {
     if (s.exercise) texts.push(s.exercise.toLowerCase());
     (s.movements || []).forEach(m => { if (m.name) texts.push(m.name.toLowerCase()); });
   });
-  const combined = texts.join(' ');
-  if (!combined.trim()) { showToast('No workouts logged today.'); return; }
+  return texts.join(' ');
+}
+
+function _applySuggestedGroups(combined, maxGroups, emptyMsg) {
+  if (!combined.trim()) { showToast(emptyMsg); return; }
   const scores = {};
   Object.entries(MOBILITY_MUSCLE_MAP).forEach(([grp, kws]) => {
     scores[grp] = kws.filter(kw => combined.includes(kw)).length;
   });
   const suggested = Object.entries(scores).filter(([,s]) => s > 0).sort(([,a],[,b]) => b - a).map(([g]) => g);
   if (!suggested.length) { showToast('Could not match movements to muscle groups.'); return; }
-  mobilitySelectedGroups = suggested.slice(0, 3);
+  mobilitySelectedGroups = suggested.slice(0, maxGroups);
   renderMobility();
-  setTimeout(() => { const el = document.getElementById('dash-mobility'); if (el) el.scrollTo({top:0,behavior:'smooth'}); }, 50);
+}
+
+function suggestMobilityFromToday() {
+  const today = new Date().toISOString().split('T')[0];
+  _applySuggestedGroups(_mobilityTextsForDates([today]), 3, 'No workouts logged today.');
+}
+
+function suggestMobilityFromWeek() {
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0=Sun
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const dates = [];
+  for (let i = mondayOffset; i <= 0; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    dates.push(d.toISOString().split('T')[0]);
+  }
+  _applySuggestedGroups(_mobilityTextsForDates(dates), 7, 'No workouts logged this week.');
 }
 
 function toggleMobilityGroup(key) {
@@ -3321,11 +3341,13 @@ function renderMobility() {
   }
   const today = new Date().toISOString().split('T')[0];
   const hasToday = [...(state.wods||[]),...(state.strength||[])].some(x => x.date === today);
+  const _wd = new Date(); const _mo = _wd.getDay()===0?-6:1-_wd.getDay(); const _weekStart = new Date(_wd); _weekStart.setDate(_wd.getDate()+_mo); const weekStart = _weekStart.toISOString().split('T')[0];
+  const hasWeek = [...(state.wods||[]),...(state.strength||[])].some(x => x.date >= weekStart && x.date <= today);
   el.innerHTML = `
     <div style="font-size:0.78rem;color:var(--muted);line-height:1.6;margin-bottom:0.75rem;">
       Hold each pose for 2–5 minutes. Breathe deeply and let your body sink into the position.
     </div>
-    ${hasToday ? `<button onclick="suggestMobilityFromToday()" style="display:flex;align-items:center;gap:0.5rem;width:100%;margin-bottom:0.85rem;font-family:'Barlow Condensed';font-weight:700;font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text);background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:6px;padding:0.6rem 0.85rem;cursor:pointer;text-align:left;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2"/><path d="M12 7v5l3 3"/><path d="M9 15l-2 4"/><path d="M15 15l2 4"/><path d="M9 12H6a1 1 0 0 0-1 1v2"/><path d="M15 12h3a1 1 0 0 1 1 1v2"/></svg>Suggest from today's training</button>` : ''}
+    ${hasToday || hasWeek ? `<div style="display:flex;gap:0.5rem;margin-bottom:0.85rem;">${hasToday ? `<button onclick="suggestMobilityFromToday()" style="display:flex;align-items:center;gap:0.4rem;flex:1;font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text);background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:6px;padding:0.55rem 0.75rem;cursor:pointer;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2"/><path d="M12 7v5l3 3"/><path d="M9 15l-2 4"/><path d="M15 15l2 4"/><path d="M9 12H6a1 1 0 0 0-1 1v2"/><path d="M15 12h3a1 1 0 0 1 1 1v2"/></svg>Today</button>` : ''}<button onclick="suggestMobilityFromWeek()" style="display:flex;align-items:center;gap:0.4rem;flex:1;font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text);background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:6px;padding:0.55rem 0.75rem;cursor:pointer;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>This week</button></div>` : ''}
     <div class="mobility-chips-grid">${chips}</div>
     ${posesHTML}
   `;
