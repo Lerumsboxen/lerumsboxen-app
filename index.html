@@ -9500,6 +9500,7 @@ async function fetchDailyProgram(silent = false) {
   }
 
   if (statusEl && !silent) { statusEl.textContent = 'Syncing…'; statusEl.style.color = 'var(--muted)'; }
+  if (!silent) showToast('Syncing program…');
 
   try {
     saveProgramSettings(); // ensure UI values are persisted before reading cols
