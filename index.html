@@ -3331,10 +3331,29 @@ function buildMobilitySession(durationMin, groups) {
   return session;
 }
 
+const POSE_IMAGES = {
+  childsPose:    'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/Hatha_yoga_child_pose.jpg/500px-Hatha_yoga_child_pose.jpg',
+  caterpillar:   'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fb/IMG_0222_2-_Caterpillar.jpg/500px-IMG_0222_2-_Caterpillar.jpg',
+  halfButterfly: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fb/IMG_0222_2-_Caterpillar.jpg/500px-IMG_0222_2-_Caterpillar.jpg',
+  shoelace:      'https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2d/Shoelace_cropped_photograph.jpg/500px-Shoelace_cropped_photograph.jpg',
+  sphinx:        'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9b/IMG_0549_2_Sphinx.jpg/500px-IMG_0549_2_Sphinx.jpg',
+  snail:         'https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d3/Mr-yoga-ear-pressure-pose.jpg/500px-Mr-yoga-ear-pressure-pose.jpg',
+  twistedRoots:  'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/55/Waist_Rotating_Pose.jpg/500px-Waist_Rotating_Pose.jpg',
+  supportedFish: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7b/Mr-yoga-fish-pose.jpg/500px-Mr-yoga-fish-pose.jpg',
+  butterfly:     'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9a/Bhadrasana_1.JPG/500px-Bhadrasana_1.JPG',
+  swan:          'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/91/Kapotasana_-_Pigeon_pose_-Full.jpg/500px-Kapotasana_-_Pigeon_pose_-Full.jpg',
+  recliningHero: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/7/78/Supta_Virasana.jpg/500px-Supta_Virasana.jpg',
+  saddle:        'https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f4/IMG_0438_2-1-_Saddle_pose.jpg/500px-IMG_0438_2-1-_Saddle_pose.jpg',
+  dragon:        'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/J%C3%B3ga_Anjaneyasana.jpg/500px-J%C3%B3ga_Anjaneyasana.jpg',
+  dragonHigh:    'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/J%C3%B3ga_Anjaneyasana.jpg/500px-J%C3%B3ga_Anjaneyasana.jpg',
+  legsUpWall:    'https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3b/Viparita-Karani_Yoga-Asana_Nina-Mel.jpg/500px-Viparita-Karani_Yoga-Asana_Nina-Mel.jpg',
+};
+
 function _msPoseVisual(p) {
-  if (p.videoId) {
+  const photoUrl = POSE_IMAGES[p.svgKey];
+  if (photoUrl) {
     const svgFallback = (p.svgKey && POSE_SVGS[p.svgKey]) ? p.svgKey : '';
-    return `<img src="https://img.youtube.com/vi/${p.videoId}/hqdefault.jpg" alt="${p.name}" onerror="_msFallbackToSvg('${svgFallback}')">`;
+    return `<img src="${photoUrl}" alt="${p.name}" onerror="_msFallbackToSvg('${svgFallback}')">`;
   }
   if (p.svgKey && POSE_SVGS[p.svgKey]) return POSE_SVGS[p.svgKey];
   return '';
