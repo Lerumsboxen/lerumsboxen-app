@@ -1163,8 +1163,8 @@
   .msess-group-lbl { font-family:'Barlow Condensed',sans-serif; font-size:0.7rem; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:var(--red); margin-bottom:0.2rem; min-height:1rem; }
   .msess-pose-name { font-family:'Bebas Neue',sans-serif; font-size:2.1rem; letter-spacing:0.06em; color:var(--text); line-height:1; margin-bottom:0.15rem; }
   .msess-side { font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:0.82rem; letter-spacing:0.18em; text-transform:uppercase; color:var(--muted); margin-bottom:0.6rem; min-height:1.1rem; }
-  #msess-svg-wrap { width:min(260px,70vw); flex-shrink:0; color:var(--red); margin-bottom:0.6rem; display:flex; align-items:center; justify-content:center; min-height:min(130px,37vw); border-radius:20px; overflow:hidden; }
-  #msess-svg-wrap img { width:100%; border-radius:20px; object-fit:contain; max-height:min(220px,60vw); display:block; filter:brightness(0.75); overflow:hidden; }
+  #msess-svg-wrap { width:min(260px,70vw); flex-shrink:0; color:var(--red); margin-bottom:0.6rem; display:flex; align-items:center; justify-content:center; min-height:min(130px,37vw); border-radius:20px; overflow:hidden; transform:translateZ(0); -webkit-transform:translateZ(0); }
+  #msess-svg-wrap img { width:100%; border-radius:20px; object-fit:contain; max-height:min(220px,60vw); display:block; filter:brightness(0.75); clip-path:inset(0 round 20px); }
   #msess-svg-wrap svg { width:min(160px,45vw); height:min(115px,33vw); opacity:0.85; }
   .msess-desc { font-size:0.8rem; color:var(--muted); line-height:1.5; max-width:290px; margin-bottom:0.8rem; }
   .msess-timer { font-family:'Bebas Neue',sans-serif; font-size:5rem; color:var(--red); letter-spacing:0.03em; line-height:1; transition:color 0.3s; }
@@ -3593,7 +3593,7 @@ function renderMobility() {
       const g = MOBILITY_POSES[key];
       posesHTML += `<div class="section-title" style="margin-top:1.25rem;">${g.label}</div>`;
       posesHTML += g.poses.map(p => {
-        const svg = p.photo ? `<div class="mobility-pose-svg" style="overflow:hidden;border-radius:6px;"><img src="${p.photo}" alt="${p.name}" style="width:50px;height:50px;object-fit:cover;display:block;"></div>` : '';
+        const svg = p.photo ? `<div class="mobility-pose-svg" style="overflow:hidden;border-radius:8px;transform:translateZ(0);-webkit-transform:translateZ(0);"><img src="${p.photo}" alt="${p.name}" style="width:50px;height:50px;object-fit:cover;display:block;border-radius:8px;clip-path:inset(0 round 8px);"></div>` : '';
         const videoBtn = p.videoId ? `<button class="pvm-watch-btn" onclick="event.stopPropagation();openPoseVideo('${p.videoId}','${p.name.replace(/'/g,"\\'")}','${p.hold}')"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg> Watch</button>` : '';
         return `<div class="mobility-pose-card">
           ${svg}
