@@ -669,7 +669,10 @@
 
   /* NOTIFICATION TOAST */
   .toast {
-    position: fixed; bottom: 2rem; right: 2rem;
+    position: fixed;
+    bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 0.65rem);
+    left: 50%; transform: translateX(-50%);
+    white-space: nowrap;
     background: var(--card);
     border: 1px solid var(--red);
     border-radius: 4px;
@@ -683,8 +686,8 @@
     box-shadow: 0 8px 30px rgba(0,0,0,0.4);
     display: flex; align-items: center; gap: 0.5rem;
   }
-  @keyframes toast-in { from { transform: translateY(20px); opacity: 0; } }
-  @keyframes toast-out { to { transform: translateY(20px); opacity: 0; } }
+  @keyframes toast-in { from { transform: translateX(-50%) translateY(12px); opacity: 0; } }
+  @keyframes toast-out { to { transform: translateX(-50%) translateY(12px); opacity: 0; } }
 
   /* HALLOWEEN THEME — active Oct 29 – Nov 2 */
   body.halloween {
@@ -809,7 +812,10 @@
 
   /* SYNC BANNER */
   #syncBanner {
-    position: fixed; bottom: 1rem; right: 1rem;
+    position: fixed;
+    bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 0.65rem);
+    left: 50%; transform: translateX(-50%);
+    white-space: nowrap;
     background: var(--card2);
     border: 1px solid var(--border);
     border-radius: 20px;
@@ -3552,6 +3558,7 @@ function renderMobility() {
     </div>
     ${hasToday || hasWeek ? `<div style="display:flex;gap:0.5rem;margin-bottom:0.85rem;">${hasToday ? `<button onclick="suggestMobilityFromToday()" style="display:flex;align-items:center;gap:0.4rem;flex:1;font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text);background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:6px;padding:0.55rem 0.75rem;cursor:pointer;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2"/><path d="M12 7v5l3 3"/><path d="M9 15l-2 4"/><path d="M15 15l2 4"/><path d="M9 12H6a1 1 0 0 0-1 1v2"/><path d="M15 12h3a1 1 0 0 1 1 1v2"/></svg>Today</button>` : ''}<button onclick="suggestMobilityFromWeek()" style="display:flex;align-items:center;gap:0.4rem;flex:1;font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text);background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:6px;padding:0.55rem 0.75rem;cursor:pointer;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>This week</button></div>` : ''}
     <div class="mobility-chips-grid">${chips}</div>
+    ${sel.length > 0 ? `<div style="text-align:right;margin:0.3rem 0 0;"><button onclick="mobilitySelectedGroups=[];renderMobility()" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.68rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);background:transparent;border:none;cursor:pointer;padding:0.2rem 0;">&#x2715; Clear</button></div>` : ''}
     ${sel.length > 0 ? `<div style="display:flex;align-items:center;justify-content:space-between;margin:0.75rem 0 0.65rem;padding:0.6rem 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);"><div style="font-family:'Barlow Condensed';font-size:0.7rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);">Start session</div><div style="display:flex;gap:0.35rem;"><button class="ms-dur-btn" onclick="startMobilitySession(15)">15 min</button><button class="ms-dur-btn" onclick="startMobilitySession(30)">30 min</button><button class="ms-dur-btn" onclick="startMobilitySession(45)">45 min</button></div></div>` : ''}
     ${posesHTML}
   `;
