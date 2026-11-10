@@ -2346,6 +2346,33 @@ function json(obj) {
       <div id="anthropicKeyStatus" style="margin-top:0.5rem;font-size:0.78rem;color:var(--muted);"></div>
     </div>` : ''}
 
+    <!-- Stripe Payment Config (admin only) -->
+    ${isAdmin() ? `<div class="card" style="margin-bottom:1rem;border-color:rgba(99,214,138,0.35);">
+      <div style="font-family:'Bebas Neue';font-size:1.1rem;letter-spacing:0.06em;color:#4ade80;margin-bottom:0.75rem;">💳 STRIPE BETALNINGAR — ADMIN</div>
+      <p style="font-size:0.82rem;color:var(--muted);margin-bottom:0.75rem;line-height:1.5;">
+        Skapa produkter på <strong style="color:var(--text);">dashboard.stripe.com</strong> → Products → + Add product.<br>
+        Hämta Secret Key under Developers → API Keys. Hämta Price IDs inne på respektive produkt.
+      </p>
+      <div class="form-group" style="margin-bottom:0.65rem;">
+        <label>Stripe Secret Key</label>
+        <input type="password" id="stripeSecretKey" placeholder="sk_live_…" autocomplete="off" style="font-family:monospace;font-size:0.82rem;">
+      </div>
+      <div class="form-group" style="margin-bottom:0.65rem;">
+        <label>Price ID — LBWL 3×/vecka (1 000 kr)</label>
+        <input type="text" id="stripePriceLbwl" placeholder="price_…" autocomplete="off" style="font-family:monospace;font-size:0.82rem;">
+      </div>
+      <div class="form-group" style="margin-bottom:0.65rem;">
+        <label>Price ID — LBWL 2×/vecka (800 kr)</label>
+        <input type="text" id="stripePrice2dwl" placeholder="price_…" autocomplete="off" style="font-family:monospace;font-size:0.82rem;">
+      </div>
+      <div class="form-group" style="margin-bottom:0.75rem;">
+        <label>Price ID — Rehabbot (60 kr/mån)</label>
+        <input type="text" id="stripePriceRehab" placeholder="price_…" autocomplete="off" style="font-family:monospace;font-size:0.82rem;">
+      </div>
+      <button class="btn btn-sm" onclick="saveStripeConfig()" style="background:#4ade80;color:#000;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:2px;cursor:pointer;">💾 Spara Stripe-inställningar</button>
+      <div id="stripeConfigStatus" style="margin-top:0.5rem;font-size:0.78rem;color:var(--muted);"></div>
+    </div>` : ''}
+
     <!-- Daily Program Sync -->
     <div class="card" style="margin-bottom:1rem;border-color:rgba(251,191,36,0.3);">
       <div style="font-family:'Bebas Neue';font-size:1.1rem;letter-spacing:0.06em;color:#fbbf24;margin-bottom:1rem;">DAILY PROGRAM</div>
@@ -2468,6 +2495,7 @@ function json(obj) {
     <button class="sheet-btn" onclick="closeMoreSheet();selectDashSection('members')"><svg class="sheet-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="sheet-btn-label">Box Buddies</span></button>
     <button class="sheet-btn" onclick="closeMoreSheet();selectDashSection('feed')"><svg class="sheet-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span class="sheet-btn-label">Activity Feed</span></button>
     <button class="sheet-btn" onclick="closeMoreSheet();selectDashSection('badges')"><svg class="sheet-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg><span class="sheet-btn-label">Badges</span></button>
+    <button class="sheet-btn" onclick="closeMoreSheet();selectDashSection('shop')"><svg class="sheet-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg><span class="sheet-btn-label">Shop</span></button>
   </div>
 </div>
 
@@ -3028,8 +3056,26 @@ const DASH_SECTIONS = {
         <div class="program-section-text" style="margin-bottom:0.5rem;">${enrichProgramText(prog.accessory)}</div>
         <button data-log="accessory" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:#475569;color:#fff;border:none;border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">+ LOG</button>
       </div>` : ''}
-      ${hasProgramAccess('lbwl') ? buildWLProgramCard('lbwl') : ''}
-      ${hasProgramAccess('2dwl') ? buildWLProgramCard('2dwl') : ''}
+      ${hasProgramAccess('lbwl') ? buildWLProgramCard('lbwl') : `
+      <div style="background:var(--card);border:1px solid rgba(251,146,60,0.35);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;">
+          <div>
+            <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#fb923c;">🏋️ LBWL 3×/VECKA</div>
+            <div style="font-size:0.75rem;color:var(--muted);margin-top:0.15rem;">10 veckors program • 1 000 kr</div>
+          </div>
+          <button onclick="selectDashSection('shop')" style="background:#fb923c;color:#000;font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:3px;padding:0.4rem 0.85rem;cursor:pointer;white-space:nowrap;">Köp →</button>
+        </div>
+      </div>`}
+      ${hasProgramAccess('2dwl') ? buildWLProgramCard('2dwl') : `
+      <div style="background:var(--card);border:1px solid rgba(52,211,153,0.35);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;">
+          <div>
+            <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#34d399;">💪 LBWL 2×/VECKA</div>
+            <div style="font-size:0.75rem;color:var(--muted);margin-top:0.15rem;">10 veckors program • 800 kr</div>
+          </div>
+          <button onclick="selectDashSection('shop')" style="background:#34d399;color:#000;font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:3px;padding:0.4rem 0.85rem;cursor:pointer;white-space:nowrap;">Köp →</button>
+        </div>
+      </div>`}
       ${(state.individualProgram||[]).length ? buildIndividualProgramCard(state.individualProgram) : ''}
       ${buildTrainingAdvisorCard()}
       <div id="rehab-card-container">${buildRehabCard()}</div>
@@ -3200,6 +3246,14 @@ const DASH_SECTIONS = {
         <span style="font-family:'Barlow Condensed';font-size:0.7rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;">Yin yoga</span>
       </div>
       <div id="dash-mobility"></div>`
+  },
+  shop: {
+    render: () => { renderShopSection(); },
+    build: () => `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+      <div class="section-title" style="margin:0;">Shop</div>
+    </div>
+    <div id="dash-shop"></div>`
   },
   home: {
     render: () => { renderHomeLanding(); },
@@ -7417,8 +7471,23 @@ function updateSyncSummary() {
 // Restore saved settings on page load
 window.addEventListener('DOMContentLoaded', () => {
   initHeroBg();
-  // Start on home landing page
-  selectDashSection('home');
+
+  // Handle Stripe payment redirect
+  const _sp = new URLSearchParams(window.location.search);
+  if (_sp.get('payment') === 'success') {
+    history.replaceState({}, '', window.location.pathname);
+    const _sid = _sp.get('session_id');
+    const _sprod = _sp.get('product');
+    selectDashSection('home');
+    setTimeout(() => handleStripeSuccess(_sid, _sprod), 400);
+  } else if (_sp.get('payment') === 'cancel') {
+    history.replaceState({}, '', window.location.pathname);
+    selectDashSection('shop');
+    setTimeout(() => showToast('Betalning avbruten.'), 300);
+  } else {
+    // Start on home landing page
+    selectDashSection('home');
+  }
 
   const saved = localStorage.getItem('lerums_sheets_url');
   const el = document.getElementById('sheetsUrl');
@@ -13245,6 +13314,146 @@ window.addEventListener('orientationchange', () => {
 </div>
 
 
+
+// ===== SHOP / STRIPE =====
+
+function renderShopSection() {
+  const el = document.getElementById('dash-shop');
+  if (!el) return;
+
+  const products = [
+    {
+      id: 'lbwl',
+      name: 'LBWL 3×/vecka',
+      emoji: '🏋️',
+      desc: '10 veckors fullt periodiserat styrkelyftsprogram med 3 pass per vecka. Uppbyggnad, peak och deload ingår.',
+      price: '1 000 kr',
+      duration: '10 veckor • engångskostnad',
+      active: hasProgramAccess('lbwl'),
+      color: '#fb923c'
+    },
+    {
+      id: '2dwl',
+      name: 'LBWL 2×/vecka',
+      emoji: '💪',
+      desc: '10 veckors styrkelyftsprogram med 2 pass per vecka. Perfekt om du tränar CrossFit parallellt.',
+      price: '800 kr',
+      duration: '10 veckor • engångskostnad',
+      active: hasProgramAccess('2dwl'),
+      color: '#34d399'
+    },
+    {
+      id: 'rehab',
+      name: 'Rehabbot',
+      emoji: '🤖',
+      desc: 'AI-driven rehab baserad på Claude. Beskriv din skada och få ett personligt rehabiliteringsprogram.',
+      price: '60 kr/mån',
+      duration: 'Månadsabonnemang • avsluta när som helst',
+      active: window._rehabAccess === 'granted',
+      color: '#a78bfa'
+    }
+  ];
+
+  el.innerHTML = products.map(p => `
+    <div style="background:var(--card);border:1px solid ${p.active ? p.color : 'var(--border)'};border-radius:8px;padding:1.25rem;margin-bottom:0.9rem;position:relative;overflow:hidden;">
+      ${p.active ? `<div style="position:absolute;top:0.75rem;right:0.75rem;background:${p.color};color:#000;font-family:'Barlow Condensed';font-weight:700;font-size:0.65rem;letter-spacing:0.14em;text-transform:uppercase;padding:0.2rem 0.6rem;border-radius:3px;">AKTIVT</div>` : ''}
+      <div style="display:flex;align-items:flex-start;gap:0.75rem;margin-bottom:0.65rem;">
+        <div style="font-size:1.8rem;line-height:1;">${p.emoji}</div>
+        <div>
+          <div style="font-family:'Bebas Neue';font-size:1.2rem;letter-spacing:0.06em;color:${p.active ? p.color : 'var(--text)'};">${p.name}</div>
+          <div style="font-size:0.68rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-top:0.1rem;">${p.duration}</div>
+        </div>
+      </div>
+      <div style="font-size:0.82rem;color:var(--muted);line-height:1.6;margin-bottom:0.9rem;">${p.desc}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;">
+        <div style="font-family:'Bebas Neue';font-size:1.6rem;letter-spacing:0.04em;color:var(--text);">${p.price}</div>
+        ${p.active
+          ? `<div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:${p.color};">✓ Aktiverat</div>`
+          : `<button onclick="startStripeCheckout('${p.id}', event)" style="background:${p.color};color:#000;font-family:'Barlow Condensed';font-weight:700;font-size:0.82rem;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:4px;padding:0.5rem 1.1rem;cursor:pointer;">Köp →</button>`
+        }
+      </div>
+    </div>
+  `).join('') + `
+  <div style="font-size:0.72rem;color:var(--muted);text-align:center;line-height:1.5;padding:0.5rem 0 1rem;">
+    Betalning hanteras säkert av Stripe. Lerum Boxen lagrar inga kortuppgifter.
+  </div>`;
+}
+
+async function startStripeCheckout(product, evt) {
+  if (!profile.name) {
+    showToast('Du måste vara inloggad för att köpa.');
+    setTimeout(() => openProfileModal(), 200);
+    return;
+  }
+  const btn = evt && evt.currentTarget ? evt.currentTarget : (evt && evt.target ? evt.target : null);
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    const base = window.location.origin + window.location.pathname;
+    const successUrl = base + '?payment=success&session_id={CHECKOUT_SESSION_ID}&product=' + product;
+    const cancelUrl = base + '?payment=cancel';
+    const data = await xhrPost(APPS_SCRIPT_URL, {
+      action: 'createCheckoutSession',
+      product,
+      memberName: profile.name,
+      memberEmail: profile.email || '',
+      successUrl,
+      cancelUrl
+    });
+    if (data.error) throw new Error(data.error);
+    if (data.url) window.location.href = data.url;
+  } catch(e) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Köp →'; }
+    showToast('Fel: ' + (e.message || 'Kunde inte starta betalning'));
+  }
+}
+
+async function handleStripeSuccess(sessionId, product) {
+  if (!sessionId) return;
+  showToast('Verifierar betalning…');
+  try {
+    const data = await xhrPost(APPS_SCRIPT_URL, {
+      action: 'verifyStripePayment',
+      sessionId,
+      product: product || '',
+      memberName: profile.name || '',
+      memberEmail: profile.email || ''
+    });
+    if (data.error) throw new Error(data.error);
+    // Refresh member access list
+    try { await fetchMembers(); } catch(_) {}
+    const labels = { lbwl: 'LBWL 3×/vecka', '2dwl': 'LBWL 2×/vecka', rehab: 'Rehabbot' };
+    showToast('✓ Betalning bekräftad! ' + (labels[data.product || product] || '') + ' är nu aktivt.');
+    setTimeout(() => {
+      if (data.product === 'rehab' || product === 'rehab') selectDashSection('programming');
+      else selectDashSection('programming');
+    }, 600);
+  } catch(e) {
+    showToast('Betalningsverifiering misslyckades: ' + (e.message || 'Okänt fel'));
+  }
+}
+
+async function saveStripeConfig() {
+  const key     = (document.getElementById('stripeSecretKey')?.value || '').trim();
+  const lbwl    = (document.getElementById('stripePriceLbwl')?.value || '').trim();
+  const dwl2    = (document.getElementById('stripePrice2dwl')?.value || '').trim();
+  const rehab   = (document.getElementById('stripePriceRehab')?.value || '').trim();
+  const statusEl = document.getElementById('stripeConfigStatus');
+  if (statusEl) { statusEl.textContent = 'Sparar…'; statusEl.style.color = 'var(--muted)'; }
+  try {
+    const data = await xhrPost(APPS_SCRIPT_URL, {
+      action: 'saveStripeConfig',
+      stripeKey: key,
+      priceLbwl: lbwl,
+      price2dwl: dwl2,
+      priceRehab: rehab
+    });
+    if (data.status === 'ok') {
+      if (statusEl) { statusEl.textContent = '✓ Sparat i Config-fliken'; statusEl.style.color = 'var(--success)'; }
+    } else throw new Error(data.error || 'Okänt fel');
+  } catch(e) {
+    if (statusEl) { statusEl.textContent = 'Fel: ' + e.message; statusEl.style.color = '#f87171'; }
+  }
+}
 
 <script>
 // Register service worker for PWA install
