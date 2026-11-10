@@ -15,6 +15,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lerumsboxen Workout Tracker v. 1.3.3</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@300;400;600;700&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root {
     --black: #0b0b0d;
@@ -2789,6 +2790,9 @@ if (!state.individualProgram) state.individualProgram = [];
 
 // ===== HARDCODED WEB APP URL =====
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxVqMRcf3PG9_7LX-INfkg74sszWA--DZ3EvjeUn5apBHFY5QFpCxCNWC5LYBq0eKzdkg/exec';
+const REHAB_CLIENT_ID = '731937673278-t86r292b49833pq4l5npptfo9bcfaipk.apps.googleusercontent.com';
+window._rehabUser   = null;  // { email, name, picture }
+window._rehabAccess = 'init'; // 'init' | 'loading' | 'granted' | 'denied'
 // Default LB WL secondary script URL (configurable in admin settings)
 const LBWL_SCRIPT_URL_DEFAULT = 'https://script.google.com/macros/s/AKfycbxfbdqL3zJQidSUhwrzGsczrUSoCNjQNRWl_SmpozenQbjyMGRAs_9ou0U-R0LNLuRQ/exec';
 
@@ -2934,6 +2938,8 @@ const DASH_SECTIONS = {
         window._ipFetching = true;
         fetchIndividualProgram(true).then(() => { window._ipFetching = false; }).catch(() => { window._ipFetching = false; });
       }
+      // Init Google Sign-In button if rehab card is showing the sign-in state
+      if (window._rehabAccess === 'init') setTimeout(initRehabGSI, 150);
     },
     build: () => {
       const today = new Date().toISOString().split('T')[0];
@@ -3026,6 +3032,7 @@ const DASH_SECTIONS = {
       ${hasProgramAccess('2dwl') ? buildWLProgramCard('2dwl') : ''}
       ${(state.individualProgram||[]).length ? buildIndividualProgramCard(state.individualProgram) : ''}
       ${buildTrainingAdvisorCard()}
+      <div id="rehab-card-container">${buildRehabCard()}</div>
       ${isAdmin() && typeof membersCache !== 'undefined' && membersCache && membersCache.some(m => m.programRef) ? (() => {
         const withProgs = membersCache.filter(m => m.programRef);
         return '<div style="background:var(--card);border:1px solid rgba(167,139,250,0.25);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">'
@@ -9790,6 +9797,7 @@ if (profile.name && !profile.firstName) {
   profile.firstName = parts.slice(0, -1).join(' ') || parts[0] || '';
   profile.lastName  = parts.length > 1 ? parts[parts.length - 1] : '';
 }
+if (!profile.email) profile.email = '';
 
 // Weight display helpers
 function toDisplayUnit(kg) {
@@ -9982,11 +9990,21 @@ function openProfileModal() {
   const loggedIn = !!(profile.name);
   document.getElementById('profileLoggedIn').style.display  = loggedIn ? 'block' : 'none';
   document.getElementById('profileLoggedOut').style.display = loggedIn ? 'none' : 'block';
+  document.getElementById('profileLinking').style.display   = 'none';
 
   if (loggedIn) {
     // Logged-in view
     document.getElementById('profileModalTitle').innerHTML = 'MY PROFILE <button class="close-btn" onclick="closeProfileModal()">✕</button>';
     document.getElementById('profileNameDisplay').textContent = profile.name;
+    // Show email or connect-google section
+    const emailEl = document.getElementById('profileEmailDisplay');
+    const connectEl = document.getElementById('profileConnectGoogle');
+    if (emailEl) emailEl.textContent = profile.email || '';
+    if (emailEl) emailEl.style.display = profile.email ? 'block' : 'none';
+    if (connectEl) {
+      connectEl.style.display = profile.email ? 'none' : 'block';
+      if (!profile.email) setTimeout(initConnectGoogleGSI, 100);
+    }
     // Avatar in logged-in view — use refreshAvatarPreviews (no embedded file input)
     refreshAvatarPreviews();
     setProfileUnit(profile.unit || 'kg');
@@ -9998,7 +10016,7 @@ function openProfileModal() {
     `).join('');
   } else {
     // Setup view
-    document.getElementById('profileModalTitle').innerHTML = 'CREATE ACCOUNT <button class="close-btn" onclick="closeProfileModal()">✕</button>';
+    document.getElementById('profileModalTitle').innerHTML = 'SIGN IN <button class="close-btn" onclick="closeProfileModal()">✕</button>';
     if (document.getElementById('profileFirstName')) document.getElementById('profileFirstName').value = '';
     if (document.getElementById('profileLastName'))  document.getElementById('profileLastName').value  = '';
     document.getElementById('profilePassword').value = '';
@@ -10011,25 +10029,204 @@ function openProfileModal() {
     if (pickerOut) pickerOut.innerHTML = AVATAR_EMOJIS.map(e => `
       <div class="avatar-opt${e === profile.avatar ? ' selected' : ''}" onclick="selectAvatar('${e}')">${e}</div>
     `).join('');
+    // Init Google sign-in button
+    setTimeout(initLBWTSignInGSI, 100);
   }
   document.getElementById('profileModal').style.display = 'flex';
 }
 
 function confirmLogout() {
   if (!confirm('Are you sure you want to log out? Your local data stays on this device.')) return;
-  profile = { name: '', avatar: '💪', photo: null, passwordHash: null, unit: profile.unit || 'kg' };
+  try { google.accounts.id.disableAutoSelect(); } catch(e) {}
+  profile = { name: '', firstName: '', lastName: '', email: '', avatar: '💪', photo: null, passwordHash: null, unit: profile.unit || 'kg', gender: profile.gender || 'male' };
   localStorage.removeItem('lerums_profile');
   localStorage.removeItem('lerums_cloud_last_sync');
   updateHeaderProfile();
   closeProfileModal();
   showToast('Logged out. Open profile to sign in.');
-  // Show setup view next time
   setTimeout(() => openProfileModal(), 300);
 }
 
 function closeProfileModal(e) {
   if (!e || e.target === document.getElementById('profileModal')) {
     document.getElementById('profileModal').style.display = 'none';
+    document.getElementById('profileLinking').style.display = 'none';
+    window._pendingGoogleCredential = null;
+  }
+}
+
+// ===== GOOGLE SIGN-IN (hela appen) =====
+
+function initLBWTSignInGSI() {
+  if (!window.google?.accounts?.id) { setTimeout(initLBWTSignInGSI, 200); return; }
+  const btn = document.getElementById('lbwt-gsignin-btn');
+  if (!btn) return;
+  google.accounts.id.initialize({
+    client_id: REHAB_CLIENT_ID,
+    callback: handleLBWTCredential,
+    auto_select: false,
+    cancel_on_tap_outside: false
+  });
+  btn.innerHTML = '';
+  google.accounts.id.renderButton(btn, { theme: 'outline', size: 'large', text: 'signin_with', width: 300 });
+}
+
+function initConnectGoogleGSI() {
+  if (!window.google?.accounts?.id) { setTimeout(initConnectGoogleGSI, 200); return; }
+  const btn = document.getElementById('connectGoogleBtn');
+  if (!btn) return;
+  window._lbwtGSIMode = 'connect';
+  google.accounts.id.initialize({
+    client_id: REHAB_CLIENT_ID,
+    callback: handleLBWTCredential,
+    auto_select: false,
+    cancel_on_tap_outside: false
+  });
+  btn.innerHTML = '';
+  google.accounts.id.renderButton(btn, { theme: 'outline', size: 'medium', text: 'signin_with', width: 260 });
+}
+
+async function handleLBWTCredential(response) {
+  let googleEmail = '', googleName = '';
+  try {
+    const pl = JSON.parse(atob(response.credential.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+    googleEmail = pl.email || '';
+    googleName  = pl.name  || '';
+  } catch(e) {}
+  window._pendingGoogleCredential = response.credential;
+  window._pendingGoogleEmail      = googleEmail;
+  window._pendingGoogleName       = googleName;
+
+  if (window._lbwtGSIMode === 'connect') {
+    // Link Google to already-logged-in profile
+    _lbwtConnectExisting();
+    return;
+  }
+
+  // Sign-in flow
+  const signInBtn = document.getElementById('lbwt-gsignin-btn');
+  if (signInBtn) signInBtn.innerHTML = '<div style="color:var(--muted);padding:0.75rem;font-size:0.85rem;">Signing in…</div>';
+
+  try {
+    const res = await xhrPost(APPS_SCRIPT_URL, { action: 'loginWithGoogle', credential: response.credential });
+    if (res.found) {
+      _lbwtApplyMember(res.member);
+      closeProfileModal();
+      showToast('Welcome back, ' + res.member.firstName + '! 👊');
+      registerMember();
+      setTimeout(() => cloudPull(true), 500);
+      if (!isAdmin()) setTimeout(() => fetchDailyProgram(true), 2000);
+    } else if (res.error) {
+      showToast('Sign-in failed: ' + res.error);
+      initLBWTSignInGSI();
+    } else {
+      _lbwtShowLinkingPanel(res.members || [], googleEmail, googleName);
+    }
+  } catch(e) {
+    showToast('Sign-in error. Try again.');
+    initLBWTSignInGSI();
+  }
+}
+
+function _lbwtApplyMember(m) {
+  profile.firstName = m.firstName || '';
+  profile.lastName  = m.lastName  || '';
+  profile.name      = m.name      || (m.firstName + (m.lastName ? ' ' + m.lastName : '')).trim();
+  profile.avatar    = m.avatar    || profile.avatar || '💪';
+  profile.email     = m.email     || window._pendingGoogleEmail || '';
+  localStorage.setItem('lerums_profile', JSON.stringify(profile));
+  updateHeaderProfile();
+}
+
+function _lbwtShowLinkingPanel(members, email, googleName) {
+  document.getElementById('profileLoggedOut').style.display = 'none';
+  const panel = document.getElementById('profileLinking');
+  panel.style.display = 'block';
+  document.getElementById('profileModalTitle').innerHTML = 'SIGN IN <button class="close-btn" onclick="closeProfileModal()">✕</button>';
+  const displayName = googleName || email.split('@')[0] || 'you';
+  document.getElementById('linkingGreeting').textContent = 'Welcome, ' + displayName + '!';
+  const list = document.getElementById('linkingMemberList');
+  list.innerHTML = members.map(m => `
+    <button class="btn btn-ghost" style="width:100%;text-align:left;padding:0.6rem 0.75rem;margin-bottom:0.35rem;display:flex;align-items:center;gap:0.6rem;" onclick="lbwtLinkToMember(${JSON.stringify(m.name)})">
+      <span style="font-size:1.3rem;">${m.avatar || '💪'}</span>
+      <span>${m.name}</span>
+    </button>`).join('');
+}
+
+async function lbwtLinkToMember(memberName) {
+  if (!window._pendingGoogleCredential) return;
+  const listEl = document.getElementById('linkingMemberList');
+  if (listEl) listEl.innerHTML = '<div style="color:var(--muted);padding:0.5rem;">Linking…</div>';
+  try {
+    const res = await xhrPost(APPS_SCRIPT_URL, {
+      action: 'linkGoogleAccount',
+      credential: window._pendingGoogleCredential,
+      memberName: memberName
+    });
+    if (res.status === 'ok') {
+      const membersRes = await xhrPost(APPS_SCRIPT_URL, { action: 'getMembers' });
+      const m = (membersRes.members || []).find(x => x.name === memberName);
+      const parts = memberName.split(/\s+/);
+      _lbwtApplyMember({
+        firstName: m ? (m.firstName || parts.slice(0,-1).join(' ') || parts[0]) : (parts.slice(0,-1).join(' ') || parts[0]),
+        lastName:  m ? (m.lastName  || parts.slice(-1)[0]) : parts.slice(-1)[0],
+        name:      memberName,
+        avatar:    m?.avatar || profile.avatar || '💪',
+        email:     window._pendingGoogleEmail
+      });
+      closeProfileModal();
+      showToast('Linked! Welcome, ' + profile.firstName + '! 👊');
+      setTimeout(() => cloudPull(true), 500);
+      if (!isAdmin()) setTimeout(() => fetchDailyProgram(true), 2000);
+    } else {
+      showToast('Could not link. Try again.');
+      _lbwtShowLinkingPanel([], window._pendingGoogleEmail, window._pendingGoogleName);
+    }
+  } catch(e) {
+    showToast('Error linking account.');
+  }
+}
+
+async function lbwtCreateNewAccount() {
+  const googleName = window._pendingGoogleName || '';
+  const parts = googleName.trim().split(/\s+/);
+  const firstName = parts.slice(0,-1).join(' ') || parts[0] || 'User';
+  const lastName  = parts.length > 1 ? parts.slice(-1)[0] : '';
+  _lbwtApplyMember({ firstName, lastName, name: googleName || 'User', avatar: profile.avatar || '💪', email: window._pendingGoogleEmail });
+  await xhrPost(APPS_SCRIPT_URL, {
+    action: 'registerMember',
+    firstName, lastName,
+    name: profile.name, avatar: profile.avatar || '💪',
+    email: profile.email
+  }).catch(() => {});
+  closeProfileModal();
+  showToast('Welcome, ' + firstName + '! 👊');
+  setTimeout(() => cloudPull(true), 500);
+}
+
+async function _lbwtConnectExisting() {
+  if (!window._pendingGoogleCredential || !profile.name) return;
+  window._lbwtGSIMode = 'signin';
+  const connectBtn = document.getElementById('connectGoogleBtn');
+  if (connectBtn) connectBtn.innerHTML = '<div style="color:var(--muted);padding:0.5rem;font-size:0.8rem;">Connecting…</div>';
+  try {
+    const res = await xhrPost(APPS_SCRIPT_URL, {
+      action: 'linkGoogleAccount',
+      credential: window._pendingGoogleCredential,
+      memberName: profile.name
+    });
+    if (res.status === 'ok') {
+      profile.email = window._pendingGoogleEmail;
+      localStorage.setItem('lerums_profile', JSON.stringify(profile));
+      showToast('Google account connected! ✅');
+      openProfileModal();
+    } else {
+      showToast('Could not connect: ' + (res.error || 'unknown error'));
+      openProfileModal();
+    }
+  } catch(e) {
+    showToast('Error connecting Google account.');
+    openProfileModal();
   }
 }
 
@@ -10533,6 +10730,107 @@ function generateWarmup() {
     ${sectionsHtml}
     <div style="margin-top:1rem;font-size:0.75rem;color:var(--muted);">Adjust loads and volumes to your level. Total suggested time: ${5 + sections.length * 4}–${7 + sections.length * 5} min.</div>
   `);
+}
+
+// ===== REHAB & SKADOR =====
+
+function buildRehabCard() {
+  const s    = window._rehabAccess;
+  const user = window._rehabUser;
+  let content = '';
+
+  if (s === 'init') {
+    content = `
+      <div style="color:var(--muted);font-size:0.82rem;margin-bottom:1rem;line-height:1.5;">
+        Logga in med ditt Google-konto för att komma åt personliga rehabprogram och alternativa övningar vid skador.
+      </div>
+      <div id="rehab-gsignin-btn" style="display:flex;justify-content:center;"></div>`;
+  } else if (s === 'loading') {
+    content = `<div style="text-align:center;color:var(--muted);font-size:0.82rem;padding:0.75rem 0;">Kontrollerar tillgång…</div>`;
+  } else if (s === 'granted') {
+    content = `
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;padding-bottom:0.75rem;border-bottom:1px solid var(--border);">
+        ${user?.picture ? `<img src="${user.picture}" style="width:26px;height:26px;border-radius:50%;border:1px solid var(--border);">` : ''}
+        <span style="font-size:0.78rem;color:var(--muted);flex:1;">${user?.name || user?.email}</span>
+        <button onclick="signOutRehab()" style="font-size:0.7rem;color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;">Logga ut</button>
+      </div>
+      <div style="color:var(--muted);font-size:0.82rem;text-align:center;padding:0.5rem 0;">
+        Skadeformulär och AI-rehabprogram — kommer snart 🚧
+      </div>`;
+  } else if (s === 'denied') {
+    content = `
+      <div style="text-align:center;padding:0.5rem 0;">
+        ${user ? `<div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.75rem;">${user.email} har inte tillgång till tjänsten.</div>` : ''}
+        <div style="font-size:0.82rem;color:var(--muted);margin-bottom:1rem;line-height:1.5;">
+          Prenumerera för att få tillgång till personliga rehabprogram och alternativa övningar.
+        </div>
+        <button onclick="openRehabPayment()" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;background:var(--red);color:#fff;border:none;border-radius:4px;padding:0.5rem 1.25rem;cursor:pointer;">Prenumerera</button>
+        ${user ? `<div style="margin-top:0.75rem;"><button onclick="signOutRehab()" style="font-size:0.7rem;color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;">Byt konto</button></div>` : ''}
+      </div>`;
+  }
+
+  return `
+  <div style="background:var(--card);border:1px solid rgba(20,184,166,0.3);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
+    <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#14b8a6;margin-bottom:0.75rem;">🩹 Rehab & Skador</div>
+    ${content}
+  </div>`;
+}
+
+function initRehabGSI() {
+  if (!window.google?.accounts?.id) {
+    // GIS not loaded yet — retry once more
+    setTimeout(initRehabGSI, 300);
+    return;
+  }
+  google.accounts.id.initialize({
+    client_id: REHAB_CLIENT_ID,
+    callback: handleRehabCredential,
+    auto_select: false,
+    cancel_on_tap_outside: true
+  });
+  const btn = document.getElementById('rehab-gsignin-btn');
+  if (btn) {
+    google.accounts.id.renderButton(btn, { theme: 'outline', size: 'medium', locale: 'sv' });
+  }
+}
+
+async function handleRehabCredential(response) {
+  // Decode JWT payload client-side (server verifies the signature)
+  try {
+    const payload = JSON.parse(atob(response.credential.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+    window._rehabUser = { email: payload.email, name: payload.name, picture: payload.picture };
+  } catch(e) {
+    window._rehabUser = null;
+  }
+  window._rehabAccess = 'loading';
+  renderRehabCard();
+
+  try {
+    const res = await xhrPost(APPS_SCRIPT_URL, { action: 'checkRehabAccess', credential: response.credential });
+    window._rehabAccess = res.access ? 'granted' : 'denied';
+  } catch(e) {
+    window._rehabAccess = 'denied';
+  }
+  renderRehabCard();
+}
+
+function renderRehabCard() {
+  const container = document.getElementById('rehab-card-container');
+  if (!container) return;
+  container.innerHTML = buildRehabCard();
+  if (window._rehabAccess === 'init') setTimeout(initRehabGSI, 100);
+}
+
+function signOutRehab() {
+  window._rehabUser   = null;
+  window._rehabAccess = 'init';
+  if (window.google?.accounts?.id) google.accounts.id.disableAutoSelect();
+  renderRehabCard();
+}
+
+function openRehabPayment() {
+  // Stripe-integration — nästa steg
+  showToast('Stripe-betalning kommer snart!');
 }
 
 // ===== PROGRAM WARM-UP (Programming section, capped at ~10 min) =====
@@ -11887,7 +12185,8 @@ async function registerMember() {
       name:      profile.name,
       firstName: profile.firstName || profile.name.split(' ').slice(0, -1).join(' ') || profile.name,
       lastName:  profile.lastName  || profile.name.split(' ').slice(-1).join(''),
-      avatar:    profile.avatar || '💪'
+      avatar:    profile.avatar || '💪',
+      email:     profile.email || ''
     });
   } catch(e) { /* silent */ }
 }
@@ -12826,8 +13125,15 @@ window.addEventListener('orientationchange', () => {
         </div>
         <div style="flex:1;">
           <div style="font-family:'Bebas Neue';font-size:1.4rem;letter-spacing:0.06em;" id="profileNameDisplay"></div>
+          <div id="profileEmailDisplay" style="font-size:0.72rem;color:var(--muted);margin-top:0.1rem;"></div>
           <div style="font-size:0.75rem;color:var(--success);">🔒 Logged in</div>
         </div>
+      </div>
+      <!-- Connect Google (shown only when no email linked) -->
+      <div id="profileConnectGoogle" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem;margin-bottom:1rem;">
+        <div style="font-size:0.8rem;font-weight:600;margin-bottom:0.3rem;">Connect your Google account</div>
+        <div style="font-size:0.72rem;color:var(--muted);margin-bottom:0.6rem;">Log in from any device without a password</div>
+        <div id="connectGoogleBtn" style="display:flex;justify-content:flex-start;min-height:40px;"></div>
       </div>
       <!-- Unit preference (always editable) -->
       <div class="form-group" style="margin-bottom:1rem;">
@@ -12859,8 +13165,31 @@ window.addEventListener('orientationchange', () => {
       <button class="btn btn-ghost" onclick="confirmLogout()" style="width:100%;color:var(--muted);">Switch account / Log out</button>
     </div>
 
+    <!-- LINKING PANEL (shown after Google sign-in when email not found) -->
+    <div id="profileLinking" style="display:none;">
+      <div style="margin-bottom:1rem;">
+        <div style="font-size:1rem;font-weight:600;margin-bottom:0.25rem;" id="linkingGreeting">Welcome!</div>
+        <div style="font-size:0.8rem;color:var(--muted);">Are you already a member? Pick your name below, or create a new account.</div>
+      </div>
+      <div id="linkingMemberList" style="max-height:220px;overflow-y:auto;margin-bottom:0.75rem;"></div>
+      <div style="border-top:1px solid var(--border);padding-top:0.75rem;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:0.78rem;color:var(--muted);">New to Lerum Boxen?</span>
+        <button class="btn btn-red" onclick="lbwtCreateNewAccount()">Create account</button>
+      </div>
+    </div>
+
     <!-- LOGGED OUT / SETUP VIEW -->
     <div id="profileLoggedOut" style="display:none;">
+      <!-- Google Sign-In (primary) -->
+      <div style="text-align:center;padding:0.75rem 0 1rem;">
+        <div style="font-size:0.85rem;color:var(--muted);margin-bottom:0.75rem;">Sign in to sync your data across devices</div>
+        <div id="lbwt-gsignin-btn" style="display:flex;justify-content:center;min-height:44px;"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;">
+        <div style="flex:1;height:1px;background:var(--border);"></div>
+        <span style="font-size:0.72rem;color:var(--muted);white-space:nowrap;">or sign in with name</span>
+        <div style="flex:1;height:1px;background:var(--border);"></div>
+      </div>
       <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;">
         <div class="avatar profile-pic-upload" id="profileAvatarPreview" style="width:3.5rem;height:3.5rem;font-size:1.6rem;cursor:pointer;" title="Tap to upload photo" onclick="document.getElementById('profilePicInput').click()">
           <div class="upload-overlay">📷</div>
