@@ -10236,7 +10236,8 @@ function initLBWTSignInGSI() {
     client_id: REHAB_CLIENT_ID,
     callback: handleLBWTCredential,
     auto_select: false,
-    cancel_on_tap_outside: false
+    cancel_on_tap_outside: false,
+    ux_mode: 'popup'
   });
   btn.innerHTML = '';
   google.accounts.id.renderButton(btn, { theme: 'outline', size: 'large', text: 'signin_with', width: 300 });
@@ -10251,7 +10252,8 @@ function initConnectGoogleGSI() {
     client_id: REHAB_CLIENT_ID,
     callback: handleLBWTCredential,
     auto_select: false,
-    cancel_on_tap_outside: false
+    cancel_on_tap_outside: false,
+    ux_mode: 'popup'
   });
   btn.innerHTML = '';
   google.accounts.id.renderButton(btn, { theme: 'outline', size: 'medium', text: 'signin_with', width: 260 });
@@ -11051,7 +11053,8 @@ function initRehabGSI() {
     client_id: REHAB_CLIENT_ID,
     callback: handleRehabCredential,
     auto_select: false,
-    cancel_on_tap_outside: true
+    cancel_on_tap_outside: true,
+    ux_mode: 'popup'
   });
   const btn = document.getElementById('rehab-gsignin-btn');
   if (btn) {
