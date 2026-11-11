@@ -3060,22 +3060,18 @@ const DASH_SECTIONS = {
       </div>` : ''}
       ${hasProgramAccess('lbwl') ? buildWLProgramCard('lbwl') : `
       <div style="background:var(--card);border:1px solid rgba(251,146,60,0.35);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;">
-          <div>
-            <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#fb923c;">🏋️ LBWL 3×/VECKA</div>
-            <div style="font-size:0.75rem;color:var(--muted);margin-top:0.15rem;">10 veckors program • 1 000 kr</div>
-          </div>
-          <button onclick="selectDashSection('shop')" style="background:#fb923c;color:#000;font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:3px;padding:0.4rem 0.85rem;cursor:pointer;white-space:nowrap;">Köp →</button>
+        <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#fb923c;margin-bottom:0.15rem;">🏋️ LBWL 3×/VECKA</div>
+        <div style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem;">10 veckors program • 1 000 kr</div>
+        <div style="text-align:center;">
+          <button onclick="selectDashSection('shop')" style="background:#fb923c;color:#000;font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:3px;padding:0.4rem 1.5rem;cursor:pointer;white-space:nowrap;">Köp →</button>
         </div>
       </div>`}
       ${hasProgramAccess('2dwl') ? buildWLProgramCard('2dwl') : `
       <div style="background:var(--card);border:1px solid rgba(52,211,153,0.35);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;">
-          <div>
-            <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#34d399;">💪 LBWL 2×/VECKA</div>
-            <div style="font-size:0.75rem;color:var(--muted);margin-top:0.15rem;">10 veckors program • 800 kr</div>
-          </div>
-          <button onclick="selectDashSection('shop')" style="background:#34d399;color:#000;font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:3px;padding:0.4rem 0.85rem;cursor:pointer;white-space:nowrap;">Köp →</button>
+        <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#34d399;margin-bottom:0.15rem;">💪 LBWL 2×/VECKA</div>
+        <div style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem;">10 veckors program • 800 kr</div>
+        <div style="text-align:center;">
+          <button onclick="selectDashSection('shop')" style="background:#34d399;color:#000;font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:3px;padding:0.4rem 1.5rem;cursor:pointer;white-space:nowrap;">Köp →</button>
         </div>
       </div>`}
       ${(state.individualProgram||[]).length ? buildIndividualProgramCard(state.individualProgram) : ''}
