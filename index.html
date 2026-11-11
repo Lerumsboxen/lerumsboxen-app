@@ -12763,6 +12763,143 @@ window.addEventListener('orientationchange', () => {
     }
   }, 300);
 });
+
+// ===== SHOP / STRIPE =====
+
+function renderShopSection() {
+  const el = document.getElementById('dash-shop');
+  if (!el) return;
+
+  const products = [
+    {
+      id: 'lbwl',
+      name: 'LBWL 3×/vecka',
+      emoji: '🏋️',
+      desc: '10 veckors fullt periodiserat styrkelyftsprogram med 3 pass per vecka. Uppbyggnad, peak och deload ingår.',
+      price: '1 000 kr',
+      duration: '10 veckor • engångskostnad',
+      active: hasProgramAccess('lbwl'),
+      color: '#fb923c'
+    },
+    {
+      id: '2dwl',
+      name: 'LBWL 2×/vecka',
+      emoji: '💪',
+      desc: '10 veckors styrkelyftsprogram med 2 pass per vecka. Perfekt om du tränar CrossFit parallellt.',
+      price: '800 kr',
+      duration: '10 veckor • engångskostnad',
+      active: hasProgramAccess('2dwl'),
+      color: '#34d399'
+    },
+    {
+      id: 'rehab',
+      name: 'Rehabbot',
+      emoji: '🤖',
+      desc: 'AI-driven rehab baserad på Claude. Beskriv din skada och få ett personligt rehabiliteringsprogram.',
+      price: '60 kr/mån',
+      duration: 'Månadsabonnemang • avsluta när som helst',
+      active: window._rehabAccess === 'granted',
+      color: '#a78bfa'
+    }
+  ];
+
+  el.innerHTML = products.map(p => `
+    <div style="background:var(--card);border:1px solid ${p.active ? p.color : 'var(--border)'};border-radius:8px;padding:1.25rem;margin-bottom:0.9rem;position:relative;overflow:hidden;">
+      ${p.active ? `<div style="position:absolute;top:0.75rem;right:0.75rem;background:${p.color};color:#000;font-family:'Barlow Condensed';font-weight:700;font-size:0.65rem;letter-spacing:0.14em;text-transform:uppercase;padding:0.2rem 0.6rem;border-radius:3px;">AKTIVT</div>` : ''}
+      <div style="display:flex;align-items:flex-start;gap:0.75rem;margin-bottom:0.65rem;">
+        <div style="font-size:1.8rem;line-height:1;">${p.emoji}</div>
+        <div>
+          <div style="font-family:'Bebas Neue';font-size:1.2rem;letter-spacing:0.06em;color:${p.active ? p.color : 'var(--text)'};">${p.name}</div>
+          <div style="font-size:0.68rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-top:0.1rem;">${p.duration}</div>
+        </div>
+      </div>
+      <div style="font-size:0.82rem;color:var(--muted);line-height:1.6;margin-bottom:0.9rem;">${p.desc}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;">
+        <div style="font-family:'Bebas Neue';font-size:1.6rem;letter-spacing:0.04em;color:var(--text);">${p.price}</div>
+        ${p.active
+          ? `<div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:${p.color};">✓ Aktiverat</div>`
+          : `<button onclick="startStripeCheckout('${p.id}', event)" style="background:${p.color};color:#000;font-family:'Barlow Condensed';font-weight:700;font-size:0.82rem;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:4px;padding:0.5rem 1.1rem;cursor:pointer;">Köp →</button>`
+        }
+      </div>
+    </div>
+  `).join('') + `
+  <div style="font-size:0.72rem;color:var(--muted);text-align:center;line-height:1.5;padding:0.5rem 0 1rem;">
+    Betalning hanteras säkert av Stripe. Lerum Boxen lagrar inga kortuppgifter.
+  </div>`;
+}
+
+async function startStripeCheckout(product, evt) {
+  if (!profile.name) {
+    showToast('Du måste vara inloggad för att köpa.');
+    setTimeout(() => openProfileModal(), 200);
+    return;
+  }
+  const btn = evt && evt.currentTarget ? evt.currentTarget : (evt && evt.target ? evt.target : null);
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    const base = window.location.origin + window.location.pathname;
+    const successUrl = base + '?payment=success&session_id={CHECKOUT_SESSION_ID}&product=' + product;
+    const cancelUrl = base + '?payment=cancel';
+    const data = await xhrPost(APPS_SCRIPT_URL, {
+      action: 'createCheckoutSession',
+      product,
+      memberName: profile.name,
+      memberEmail: profile.email || '',
+      successUrl,
+      cancelUrl
+    });
+    if (data.error) throw new Error(data.error);
+    if (data.url) window.location.href = data.url;
+  } catch(e) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Köp →'; }
+    showToast('Fel: ' + (e.message || 'Kunde inte starta betalning'));
+  }
+}
+
+async function handleStripeSuccess(sessionId, product) {
+  if (!sessionId) return;
+  showToast('Verifierar betalning…');
+  try {
+    const data = await xhrPost(APPS_SCRIPT_URL, {
+      action: 'verifyStripePayment',
+      sessionId,
+      product: product || '',
+      memberName: profile.name || '',
+      memberEmail: profile.email || ''
+    });
+    if (data.error) throw new Error(data.error);
+    try { await fetchMembers(); } catch(_) {}
+    const labels = { lbwl: 'LBWL 3×/vecka', '2dwl': 'LBWL 2×/vecka', rehab: 'Rehabbot' };
+    showToast('✓ Betalning bekräftad! ' + (labels[data.product || product] || '') + ' är nu aktivt.');
+    setTimeout(() => selectDashSection('programming'), 600);
+  } catch(e) {
+    showToast('Betalningsverifiering misslyckades: ' + (e.message || 'Okänt fel'));
+  }
+}
+
+async function saveStripeConfig() {
+  const key    = (document.getElementById('stripeSecretKey')?.value || '').trim();
+  const lbwl   = (document.getElementById('stripePriceLbwl')?.value || '').trim();
+  const dwl2   = (document.getElementById('stripePrice2dwl')?.value || '').trim();
+  const rehab  = (document.getElementById('stripePriceRehab')?.value || '').trim();
+  const statusEl = document.getElementById('stripeConfigStatus');
+  if (statusEl) { statusEl.textContent = 'Sparar…'; statusEl.style.color = 'var(--muted)'; }
+  try {
+    const data = await xhrPost(APPS_SCRIPT_URL, {
+      action: 'saveStripeConfig',
+      stripeKey: key,
+      priceLbwl: lbwl,
+      price2dwl: dwl2,
+      priceRehab: rehab
+    });
+    if (data.status === 'ok') {
+      if (statusEl) { statusEl.textContent = '✓ Sparat i Config-fliken'; statusEl.style.color = 'var(--success)'; }
+    } else throw new Error(data.error || 'Okänt fel');
+  } catch(e) {
+    if (statusEl) { statusEl.textContent = 'Fel: ' + e.message; statusEl.style.color = '#f87171'; }
+  }
+}
+
 </script>
 
 <!-- CONDITIONING MODAL -->
@@ -13314,146 +13451,6 @@ window.addEventListener('orientationchange', () => {
 </div>
 
 
-
-// ===== SHOP / STRIPE =====
-
-function renderShopSection() {
-  const el = document.getElementById('dash-shop');
-  if (!el) return;
-
-  const products = [
-    {
-      id: 'lbwl',
-      name: 'LBWL 3×/vecka',
-      emoji: '🏋️',
-      desc: '10 veckors fullt periodiserat styrkelyftsprogram med 3 pass per vecka. Uppbyggnad, peak och deload ingår.',
-      price: '1 000 kr',
-      duration: '10 veckor • engångskostnad',
-      active: hasProgramAccess('lbwl'),
-      color: '#fb923c'
-    },
-    {
-      id: '2dwl',
-      name: 'LBWL 2×/vecka',
-      emoji: '💪',
-      desc: '10 veckors styrkelyftsprogram med 2 pass per vecka. Perfekt om du tränar CrossFit parallellt.',
-      price: '800 kr',
-      duration: '10 veckor • engångskostnad',
-      active: hasProgramAccess('2dwl'),
-      color: '#34d399'
-    },
-    {
-      id: 'rehab',
-      name: 'Rehabbot',
-      emoji: '🤖',
-      desc: 'AI-driven rehab baserad på Claude. Beskriv din skada och få ett personligt rehabiliteringsprogram.',
-      price: '60 kr/mån',
-      duration: 'Månadsabonnemang • avsluta när som helst',
-      active: window._rehabAccess === 'granted',
-      color: '#a78bfa'
-    }
-  ];
-
-  el.innerHTML = products.map(p => `
-    <div style="background:var(--card);border:1px solid ${p.active ? p.color : 'var(--border)'};border-radius:8px;padding:1.25rem;margin-bottom:0.9rem;position:relative;overflow:hidden;">
-      ${p.active ? `<div style="position:absolute;top:0.75rem;right:0.75rem;background:${p.color};color:#000;font-family:'Barlow Condensed';font-weight:700;font-size:0.65rem;letter-spacing:0.14em;text-transform:uppercase;padding:0.2rem 0.6rem;border-radius:3px;">AKTIVT</div>` : ''}
-      <div style="display:flex;align-items:flex-start;gap:0.75rem;margin-bottom:0.65rem;">
-        <div style="font-size:1.8rem;line-height:1;">${p.emoji}</div>
-        <div>
-          <div style="font-family:'Bebas Neue';font-size:1.2rem;letter-spacing:0.06em;color:${p.active ? p.color : 'var(--text)'};">${p.name}</div>
-          <div style="font-size:0.68rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-top:0.1rem;">${p.duration}</div>
-        </div>
-      </div>
-      <div style="font-size:0.82rem;color:var(--muted);line-height:1.6;margin-bottom:0.9rem;">${p.desc}</div>
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;">
-        <div style="font-family:'Bebas Neue';font-size:1.6rem;letter-spacing:0.04em;color:var(--text);">${p.price}</div>
-        ${p.active
-          ? `<div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:${p.color};">✓ Aktiverat</div>`
-          : `<button onclick="startStripeCheckout('${p.id}', event)" style="background:${p.color};color:#000;font-family:'Barlow Condensed';font-weight:700;font-size:0.82rem;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:4px;padding:0.5rem 1.1rem;cursor:pointer;">Köp →</button>`
-        }
-      </div>
-    </div>
-  `).join('') + `
-  <div style="font-size:0.72rem;color:var(--muted);text-align:center;line-height:1.5;padding:0.5rem 0 1rem;">
-    Betalning hanteras säkert av Stripe. Lerum Boxen lagrar inga kortuppgifter.
-  </div>`;
-}
-
-async function startStripeCheckout(product, evt) {
-  if (!profile.name) {
-    showToast('Du måste vara inloggad för att köpa.');
-    setTimeout(() => openProfileModal(), 200);
-    return;
-  }
-  const btn = evt && evt.currentTarget ? evt.currentTarget : (evt && evt.target ? evt.target : null);
-  if (btn) { btn.disabled = true; btn.textContent = '…'; }
-  try {
-    const base = window.location.origin + window.location.pathname;
-    const successUrl = base + '?payment=success&session_id={CHECKOUT_SESSION_ID}&product=' + product;
-    const cancelUrl = base + '?payment=cancel';
-    const data = await xhrPost(APPS_SCRIPT_URL, {
-      action: 'createCheckoutSession',
-      product,
-      memberName: profile.name,
-      memberEmail: profile.email || '',
-      successUrl,
-      cancelUrl
-    });
-    if (data.error) throw new Error(data.error);
-    if (data.url) window.location.href = data.url;
-  } catch(e) {
-    if (btn) { btn.disabled = false; btn.textContent = 'Köp →'; }
-    showToast('Fel: ' + (e.message || 'Kunde inte starta betalning'));
-  }
-}
-
-async function handleStripeSuccess(sessionId, product) {
-  if (!sessionId) return;
-  showToast('Verifierar betalning…');
-  try {
-    const data = await xhrPost(APPS_SCRIPT_URL, {
-      action: 'verifyStripePayment',
-      sessionId,
-      product: product || '',
-      memberName: profile.name || '',
-      memberEmail: profile.email || ''
-    });
-    if (data.error) throw new Error(data.error);
-    // Refresh member access list
-    try { await fetchMembers(); } catch(_) {}
-    const labels = { lbwl: 'LBWL 3×/vecka', '2dwl': 'LBWL 2×/vecka', rehab: 'Rehabbot' };
-    showToast('✓ Betalning bekräftad! ' + (labels[data.product || product] || '') + ' är nu aktivt.');
-    setTimeout(() => {
-      if (data.product === 'rehab' || product === 'rehab') selectDashSection('programming');
-      else selectDashSection('programming');
-    }, 600);
-  } catch(e) {
-    showToast('Betalningsverifiering misslyckades: ' + (e.message || 'Okänt fel'));
-  }
-}
-
-async function saveStripeConfig() {
-  const key     = (document.getElementById('stripeSecretKey')?.value || '').trim();
-  const lbwl    = (document.getElementById('stripePriceLbwl')?.value || '').trim();
-  const dwl2    = (document.getElementById('stripePrice2dwl')?.value || '').trim();
-  const rehab   = (document.getElementById('stripePriceRehab')?.value || '').trim();
-  const statusEl = document.getElementById('stripeConfigStatus');
-  if (statusEl) { statusEl.textContent = 'Sparar…'; statusEl.style.color = 'var(--muted)'; }
-  try {
-    const data = await xhrPost(APPS_SCRIPT_URL, {
-      action: 'saveStripeConfig',
-      stripeKey: key,
-      priceLbwl: lbwl,
-      price2dwl: dwl2,
-      priceRehab: rehab
-    });
-    if (data.status === 'ok') {
-      if (statusEl) { statusEl.textContent = '✓ Sparat i Config-fliken'; statusEl.style.color = 'var(--success)'; }
-    } else throw new Error(data.error || 'Okänt fel');
-  } catch(e) {
-    if (statusEl) { statusEl.textContent = 'Fel: ' + e.message; statusEl.style.color = '#f87171'; }
-  }
-}
 
 <script>
 // Register service worker for PWA install
