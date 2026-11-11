@@ -9866,8 +9866,11 @@ function avatarDivBg(avatar) {
   return isColorAvatar(avatar) ? avatar : '';
 }
 
-function avatarCircle(avatar, name, px) {
+function avatarCircle(avatar, name, px, photoUrl) {
   px = px || 32;
+  if (photoUrl) {
+    return `<div style="width:${px}px;height:${px}px;border-radius:50%;overflow:hidden;flex-shrink:0;"><img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;" loading="lazy"></div>`;
+  }
   const isCol = isColorAvatar(avatar);
   const bg = isCol ? avatar : 'rgba(232,0,29,0.15)';
   const content = isCol ? avatarInitials(name || '') : (avatar || '💪');
@@ -9885,7 +9888,7 @@ function lbsPickAndConvert(raw) {
 }
 
 let profile = JSON.parse(localStorage.getItem('lerums_profile') || 'null') || {
-  name: '', firstName: '', lastName: '', avatar: '#e63946', photo: null, passwordHash: null, unit: 'kg', gender: 'male'
+  name: '', firstName: '', lastName: '', avatar: '#e63946', photo: null, photoUrl: null, passwordHash: null, unit: 'kg', gender: 'male'
 };
 // Migrate old profile
 if (!profile.unit) profile.unit = 'kg';
@@ -9918,12 +9921,15 @@ async function saveProfile() {
   const loggedIn = !!(profile.name);
 
   if (loggedIn) {
-    // Logged-in: just save unit and avatar preferences
+    // Logged-in: save preferences, then upload photo to Drive if one was selected
+    if (profile.photo && profile.name) {
+      showToast('Uploading photo…');
+      await uploadPhotoToDrive(profile.photo);
+    }
     localStorage.setItem('lerums_profile', JSON.stringify(profile));
     updateHeaderProfile();
     closeProfileModal();
     showToast('Profile updated! 👊');
-    // Update avatar in member registry
     registerMember();
     return;
   }
@@ -9977,26 +9983,57 @@ async function verifyPassword(name, pw) {
 function handleProfilePicUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
-  // Reset input so same file can be re-selected
   event.target.value = '';
-  if (file.size > 2000000) { showToast('Image too large — max 2MB'); return; }
+  if (file.size > 5000000) { showToast('Image too large — max 5MB'); return; }
   const reader = new FileReader();
   reader.onload = (e) => {
-    profile.photo = e.target.result;
-    profile.avatar = null;
-    // Refresh both avatar previews
-    refreshAvatarPreviews();
-    showToast('Photo uploaded! 📷');
+    // Resize to max 400×400 before storing
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 400;
+      let w = img.width, h = img.height;
+      if (w > MAX || h > MAX) {
+        const ratio = Math.min(MAX / w, MAX / h);
+        w = Math.round(w * ratio); h = Math.round(h * ratio);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      profile.photo = canvas.toDataURL('image/jpeg', 0.82);
+      profile.avatar = null;
+      refreshAvatarPreviews();
+      showToast('Photo selected — save profile to upload.');
+    };
+    img.src = e.target.result;
   };
   reader.readAsDataURL(file);
+}
+
+async function uploadPhotoToDrive(base64DataUrl) {
+  try {
+    const res = await xhrPost(APPS_SCRIPT_URL, {
+      action: 'uploadProfilePhoto',
+      memberName: profile.name,
+      base64: base64DataUrl
+    });
+    if (res.url) {
+      profile.photoUrl = res.url;
+      profile.photo = null;
+      localStorage.setItem('lerums_profile', JSON.stringify(profile));
+      updateHeaderProfile();
+      return res.url;
+    }
+  } catch(e) {}
+  return null;
 }
 
 function refreshAvatarPreviews() {
   const firstName = document.getElementById('profileFirstName')?.value?.trim() || '';
   const lastName  = document.getElementById('profileLastName')?.value?.trim() || '';
   const displayName = profile.name || (firstName + (lastName ? ' ' + lastName : '')).trim() || '';
-  const photoHtml = profile.photo
-    ? `<img src="${profile.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"><div class="upload-overlay">📷</div>`
+  const photoSrc = profile.photo || profile.photoUrl || null;
+  const photoHtml = photoSrc
+    ? `<img src="${photoSrc}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"><div class="upload-overlay">📷</div>`
     : null;
   ['profileAvatarPreviewIn', 'profileAvatarPreview'].forEach(id => {
     const el = document.getElementById(id);
@@ -10097,8 +10134,9 @@ function applyAdminVisibility() {
 function updateHeaderProfile() {
   const btn = document.getElementById('headerProfileBtn');
   if (!btn) return;
-  if (profile.photo) {
-    btn.innerHTML = `<img src="${profile.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+  const headerPhotoSrc = profile.photo || profile.photoUrl || null;
+  if (headerPhotoSrc) {
+    btn.innerHTML = `<img src="${headerPhotoSrc}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
     btn.style.background = '';
   } else {
     btn.textContent = avatarDivInner(profile.avatar, profile.name || '');
@@ -10267,6 +10305,7 @@ function _lbwtApplyMember(m) {
   profile.name      = m.name      || (m.firstName + (m.lastName ? ' ' + m.lastName : '')).trim();
   profile.avatar    = m.avatar    || profile.avatar || '💪';
   profile.email     = m.email     || window._pendingGoogleEmail || '';
+  if (m.photoUrl) { profile.photoUrl = m.photoUrl; profile.photo = null; }
   localStorage.setItem('lerums_profile', JSON.stringify(profile));
   updateHeaderProfile();
 }
@@ -10281,7 +10320,7 @@ function _lbwtShowLinkingPanel(members, email, googleName) {
   const list = document.getElementById('linkingMemberList');
   list.innerHTML = members.map(m => `
     <button class="btn btn-ghost" style="width:100%;text-align:left;padding:0.6rem 0.75rem;margin-bottom:0.35rem;display:flex;align-items:center;gap:0.6rem;" onclick='lbwtLinkToMember(${JSON.stringify(m.name)})'>
-      ${avatarCircle(m.avatar || '#e63946', m.name, 28)}
+      ${avatarCircle(m.avatar || '#e63946', m.name, 28, m.photoUrl || null)}
       <span>${m.name}</span>
     </button>`).join('');
 }
@@ -10330,7 +10369,8 @@ async function lbwtCreateNewAccount() {
     action: 'registerMember',
     firstName, lastName,
     name: profile.name, avatar: profile.avatar || '💪',
-    email: profile.email
+    email: profile.email,
+    photoUrl: profile.photoUrl || ''
   }).catch(() => {});
   closeProfileModal();
   showToast('Welcome, ' + firstName + '! 👊');
@@ -10366,6 +10406,7 @@ async function _lbwtConnectExisting() {
 function selectAvatar(color) {
   profile.avatar = color;
   profile.photo = null;
+  profile.photoUrl = null;
   const fn = document.getElementById('profileFirstName')?.value?.trim() || '';
   const ln = document.getElementById('profileLastName')?.value?.trim() || '';
   const pName = (profile.name || (fn + (ln ? ' ' + ln : '')).trim() || '');
@@ -12023,7 +12064,7 @@ function renderMembersList() {
     <div onclick="openMemberProfile('${m.name.replace(/'/g,"\\'")}','${(m.avatar||'💪').replace(/'/g,"\\'")}' )"
       style="display:flex;align-items:center;gap:1rem;padding:0.85rem 1rem;background:var(--card);border:1px solid var(--border);border-radius:6px;margin-bottom:0.5rem;cursor:pointer;transition:border-color 0.15s;"
       onmouseover="this.style.borderColor='var(--red)'" onmouseout="this.style.borderColor='var(--border)'">
-      ${avatarCircle(m.avatar || '#e63946', m.name, 44)}
+      ${avatarCircle(m.avatar || '#e63946', m.name, 44, m.photoUrl || null)}
       <div style="flex:1;min-width:0;">
         <div style="font-family:'Bebas Neue';font-size:1.1rem;letter-spacing:0.04em;">${m.name}</div>
         ${m.lastSeen ? `<div style="font-size:0.72rem;color:var(--muted);">Last seen ${formatDate(m.lastSeen?.toString().split('T')[0])}</div>` : ''}
@@ -12611,7 +12652,8 @@ async function registerMember() {
       firstName: profile.firstName || profile.name.split(' ').slice(0, -1).join(' ') || profile.name,
       lastName:  profile.lastName  || profile.name.split(' ').slice(-1).join(''),
       avatar:    profile.avatar || '💪',
-      email:     profile.email || ''
+      email:     profile.email || '',
+      photoUrl:  profile.photoUrl || ''
     });
   } catch(e) { /* silent */ }
 }
@@ -12650,6 +12692,13 @@ async function fetchMembers() {
       // Cache individual program reference for current user
       if (profile && profile.name) {
         const myMember = data.members.find(m => m.name === profile.name);
+        // Sync Drive photo URL from server (e.g. uploaded from another device)
+        if (myMember?.photoUrl && myMember.photoUrl !== profile.photoUrl) {
+          profile.photoUrl = myMember.photoUrl;
+          profile.photo = null;
+          localStorage.setItem('lerums_profile', JSON.stringify(profile));
+          updateHeaderProfile();
+        }
         const myRef = myMember ? (myMember.programRef || '') : '';
         if (myRef) {
           localStorage.setItem('lerums_ip_ref', myRef);
@@ -12727,15 +12776,19 @@ function filterMemberDropdown() {
 }
 
 function getAvatarFor(name) {
-  let avatar = null;
+  let avatar = null, photoUrl = null;
   if (membersCache) {
     const m = membersCache.find(m => m.name === name);
     if (m?.avatar) avatar = m.avatar;
+    if (m?.photoUrl) photoUrl = m.photoUrl;
   }
   if (!avatar && leaderboardCache) {
     const entry = [...(leaderboardCache.wods||[]), ...(leaderboardCache.strength||[])]
       .find(e => e.memberName === name);
     if (entry?.avatar) avatar = entry.avatar;
+  }
+  if (photoUrl) {
+    return `<span style="display:inline-flex;width:24px;height:24px;border-radius:50%;overflow:hidden;flex-shrink:0;vertical-align:middle;"><img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;" loading="lazy"></span>`;
   }
   avatar = avatar || '#e63946';
   const isCol = isColorAvatar(avatar);
