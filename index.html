@@ -9925,6 +9925,7 @@ async function saveProfile() {
     if (profile.photo && profile.name) {
       showToast('Uploading photo…');
       await uploadPhotoToDrive(profile.photo);
+      fetchMembers().catch(() => {});
     }
     localStorage.setItem('lerums_profile', JSON.stringify(profile));
     updateHeaderProfile();
