@@ -10531,7 +10531,7 @@ function renderLeaderboard() {
         const dispWeight = e.topWeight ? (profile.unit === 'lbs'
           ? Math.round(parseFloat(e.topWeight) * KG_TO_LBS * 10) / 10 + ' lbs'
           : parseFloat(e.topWeight) + ' kg') : null;
-        const avatarHtml = avatarCircle(e.avatar || '#e63946', e.memberName, 32);
+        const avatarHtml = avatarCircle(e.avatar || '#e63946', e.memberName, 32, getMemberPhotoUrl(e.memberName));
         const hasDetail = !!(e.desc || (e._type === 'strength' && e.topReps));
         const detailContent = e._type === 'strength'
           ? `<div style="font-size:0.8rem;color:var(--muted);">${e.exercise || ''}${e.topReps ? ' · ' + e.topReps + ' reps' : ''}</div>`
@@ -10638,7 +10638,7 @@ function showBenchmarkHistory(name) {
   const memberRows = memberEntries.length ? memberEntries.map(e => {
     const isMe = e.memberName === profile.name;
     return `<div style="display:flex;align-items:center;gap:0.6rem;padding:0.45rem 0;border-bottom:1px solid var(--border);">
-      ${avatarCircle(e.avatar || '#e63946', e.memberName, 20)}
+      ${avatarCircle(e.avatar || '#e63946', e.memberName, 20, getMemberPhotoUrl(e.memberName))}
       <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.85rem;color:${isMe ? 'var(--red)' : 'var(--text)'};flex:1;">${e.memberName||'—'}${isMe ? ' ★' : ''}</span>
       <span style="font-family:'Bebas Neue';font-size:1rem;color:#60a5fa;">${e.score||'—'}</span>
       <span style="font-size:0.7rem;color:var(--muted);">${(e.rx||'rx').toUpperCase()}</span>
@@ -12571,7 +12571,7 @@ function renderActivityFeed() {
         const scoreLabel = e._kind === 'strength' ? (e.topWeight ? (profile.unit==='lbs' ? Math.round(parseFloat(e.topWeight)*KG_TO_LBS*10)/10+' lbs' : parseFloat(e.topWeight)+' kg') : '—') : (e.score || '—');
         const wodName = e._kind === 'strength' ? (e.exercise||'Strength') : (e.name||'WOD');
         return `<div style="display:flex;align-items:center;gap:0.65rem;padding:0.6rem 0.75rem;background:var(--card);border:1px solid ${isMe ? 'var(--red)' : 'var(--border)'};border-radius:6px;margin-bottom:0.4rem;">
-          ${avatarCircle(e.avatar || '#e63946', e.memberName, 35)}
+          ${avatarCircle(e.avatar || '#e63946', e.memberName, 35, getMemberPhotoUrl(e.memberName))}
           <div style="flex:1;min-width:0;">
             <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.9rem;color:${isMe ? 'var(--red)' : 'var(--text)'};">${e.memberName||'Anonymous'}</div>
             <div style="font-size:0.78rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${wodName}</div>
@@ -12595,9 +12595,12 @@ async function openMemberProfile(name, avatar) {
   // Show modal with member PRs
   const modal = document.getElementById('memberProfileModal');
   document.getElementById('memberProfileName').textContent = name;
-  document.getElementById('memberProfileAvatar').innerHTML = isColorAvatar(avatar)
-    ? `<div style="width:2rem;height:2rem;border-radius:50%;background:${avatar};display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:0.85rem;color:#fff;letter-spacing:0.05em;">${avatarInitials(name)}</div>`
-    : `<span style="font-size:1.6rem;">${avatar || '💪'}</span>`;
+  const photoUrl = getMemberPhotoUrl(name);
+  document.getElementById('memberProfileAvatar').innerHTML = photoUrl
+    ? `<div style="width:2rem;height:2rem;border-radius:50%;overflow:hidden;"><img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;" loading="lazy"></div>`
+    : isColorAvatar(avatar)
+      ? `<div style="width:2rem;height:2rem;border-radius:50%;background:${avatar};display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:0.85rem;color:#fff;letter-spacing:0.05em;">${avatarInitials(name)}</div>`
+      : `<span style="font-size:1.6rem;">${avatar || '💪'}</span>`;
   document.getElementById('memberProfilePRs').innerHTML = '<div style="color:var(--muted);text-align:center;padding:1rem;">Loading PRs…</div>';
   modal.style.display = 'flex';
 
@@ -12776,6 +12779,12 @@ function filterMemberDropdown() {
       ${getAvatarFor(m)}
       <span>${m}</span>
     </div>`).join('');
+}
+
+function getMemberPhotoUrl(name) {
+  if (!membersCache) return null;
+  const m = membersCache.find(m => m.name === name);
+  return m?.photoUrl || null;
 }
 
 function getAvatarFor(name) {
