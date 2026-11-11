@@ -10031,6 +10031,14 @@ function hasProgramAccess(type) {
   } catch(e) { return false; }
 }
 
+function hasRehabAccess() {
+  if (isAdmin()) return true;
+  try {
+    const names = JSON.parse(localStorage.getItem('lerums_rehabbot_members') || '[]');
+    return names.includes(profile.name);
+  } catch(e) { return false; }
+}
+
 function applyAdminVisibility() {
   // Sync settings button — admin only
   const syncBtn = document.getElementById('headerSyncBtn');
@@ -10804,6 +10812,10 @@ function generateWarmup() {
 // ===== REHAB & SKADOR =====
 
 function buildRehabCard() {
+  // If Members sheet has granted access, treat as 'granted' automatically
+  if (hasRehabAccess() && window._rehabAccess !== 'granted') {
+    window._rehabAccess = 'granted';
+  }
   const s    = window._rehabAccess;
   const user = window._rehabUser;
   let content = '';
@@ -12276,6 +12288,13 @@ async function fetchMembers() {
       localStorage.setItem('lerums_lbwl_members', JSON.stringify(lbwlNames));
       const dwl2Names = data.members.filter(m => m['2dwl']).map(m => m.name);
       localStorage.setItem('lerums_2dwl_members', JSON.stringify(dwl2Names));
+      // Cache Rehabbot access flags (col L = "rehabbot")
+      const rehabNames = data.members.filter(m => m.rehabbot).map(m => m.name);
+      localStorage.setItem('lerums_rehabbot_members', JSON.stringify(rehabNames));
+      // Auto-grant rehab access if member has it in Members sheet
+      if (profile && profile.name && rehabNames.includes(profile.name)) {
+        window._rehabAccess = 'granted';
+      }
       // Re-apply visibility and always re-render log so date nav picks up correct admin/preview status
       applyAdminVisibility();
       if (currentDashSection === 'log' || currentDashSection === 'programming') selectDashSection(currentDashSection);
@@ -12791,16 +12810,6 @@ function renderShopSection() {
       active: hasProgramAccess('2dwl'),
       color: '#34d399'
     },
-    {
-      id: 'rehab',
-      name: 'Rehabbot',
-      emoji: '🤖',
-      desc: 'AI-driven rehab baserad på Claude. Beskriv din skada och få ett personligt rehabiliteringsprogram.',
-      price: '75 kr/mån',
-      duration: 'Månadsabonnemang • avsluta när som helst',
-      active: window._rehabAccess === 'granted',
-      color: '#a78bfa'
-    }
   ];
 
   el.innerHTML = products.map(p => `
@@ -12823,8 +12832,22 @@ function renderShopSection() {
       </div>
     </div>
   `).join('') + `
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1.25rem;margin-bottom:0.9rem;opacity:0.6;">
+    <div style="display:flex;align-items:flex-start;gap:0.75rem;margin-bottom:0.65rem;">
+      <div style="font-size:1.8rem;line-height:1;">🤖</div>
+      <div>
+        <div style="font-family:'Bebas Neue';font-size:1.2rem;letter-spacing:0.06em;color:var(--text);">Rehabbot</div>
+        <div style="font-size:0.68rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-top:0.1rem;">Månadsabonnemang • 75 kr/mån</div>
+      </div>
+    </div>
+    <div style="font-size:0.82rem;color:var(--muted);line-height:1.6;margin-bottom:0.9rem;">AI-driven rehab baserad på Claude. Beskriv din skada och få ett personligt rehabiliteringsprogram.</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;">
+      <div style="font-family:'Bebas Neue';font-size:1.6rem;letter-spacing:0.04em;color:var(--text);">75 kr/mån</div>
+      <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);background:var(--border);padding:0.4rem 0.9rem;border-radius:4px;">Kommer snart</div>
+    </div>
+  </div>
   <div style="font-size:0.72rem;color:var(--muted);text-align:center;line-height:1.5;padding:0.5rem 0 1rem;">
-    Betalning hanteras säkert av Stripe. Lerum Boxen lagrar inga kortuppgifter.
+    Betalning hanteras säkert av Stripe. Lerumsboxen lagrar inga kortuppgifter.
   </div>`;
 }
 
@@ -12869,6 +12892,8 @@ async function handleStripeSuccess(sessionId, product) {
     });
     if (data.error) throw new Error(data.error);
     try { await fetchMembers(); } catch(_) {}
+    // For rehab, grant access immediately regardless of fetchMembers timing
+    if ((data.product || product) === 'rehab') window._rehabAccess = 'granted';
     const labels = { lbwl: 'LBWL 3×/vecka', '2dwl': 'LBWL 2×/vecka', rehab: 'Rehabbot' };
     showToast('✓ Betalning bekräftad! ' + (labels[data.product || product] || '') + ' är nu aktivt.');
     setTimeout(() => selectDashSection('programming'), 600);
@@ -13379,7 +13404,7 @@ async function saveStripeConfig() {
       </div>
       <div id="linkingMemberList" style="max-height:220px;overflow-y:auto;margin-bottom:0.75rem;"></div>
       <div style="border-top:1px solid var(--border);padding-top:0.75rem;display:flex;justify-content:space-between;align-items:center;">
-        <span style="font-size:0.78rem;color:var(--muted);">New to Lerum Boxen?</span>
+        <span style="font-size:0.78rem;color:var(--muted);">New to Lerumsboxen?</span>
         <button class="btn btn-red" onclick="lbwtCreateNewAccount()">Create account</button>
       </div>
     </div>
