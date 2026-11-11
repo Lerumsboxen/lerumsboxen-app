@@ -1380,12 +1380,14 @@
     display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;
   }
   #profileModal .avatar-opt {
-    width: 2.5rem; height: 2.5rem; border-radius: 50%; font-size: 1.3rem;
+    width: 2.5rem; height: 2.5rem; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    cursor: pointer; border: 2px solid transparent; background: var(--card2);
-    transition: border-color 0.15s;
+    cursor: pointer; border: 3px solid transparent;
+    font-family: 'Bebas Neue', sans-serif; font-size: 0.75rem; color: rgba(255,255,255,0.9);
+    letter-spacing: 0.05em; transition: border-color 0.15s, transform 0.1s;
   }
-  #profileModal .avatar-opt.selected { border-color: var(--red); }
+  #profileModal .avatar-opt.selected { border-color: #fff; transform: scale(1.1); }
+  #profileModal .avatar-opt:hover:not(.selected) { border-color: rgba(255,255,255,0.4); }
 
   /* TODAY'S PROGRAM BANNER */
   .program-banner {
@@ -5432,7 +5434,7 @@ function filterPartnerDropdown() {
     <div onmousedown="event.preventDefault();addPartner('${m.replace(/'/g,"\\'")}');"
       onmouseover="this.style.background='var(--card2)'" onmouseout="this.style.background=''"
       style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.85rem;cursor:pointer;font-size:0.88rem;border-bottom:1px solid var(--border);">
-      <span>${getAvatarFor(m)}</span><span>${m}</span>
+      ${getAvatarFor(m)}<span>${m}</span>
     </div>`).join('');
 }
 
@@ -5459,7 +5461,7 @@ function renderPartnerTags() {
   if (!el) return;
   el.innerHTML = selectedPartners.map(p => `
     <div style="display:inline-flex;align-items:center;gap:0.4rem;background:rgba(232,0,29,0.15);border:1px solid rgba(232,0,29,0.3);border-radius:20px;padding:0.2rem 0.7rem;font-size:0.82rem;">
-      <span>${getAvatarFor(p)}</span>
+      ${getAvatarFor(p)}
       <span>${p}</span>
       <span onclick="removePartner('${p.replace(/'/g,"\\'")}');" style="cursor:pointer;margin-left:0.2rem;color:var(--muted);">✕</span>
     </div>`).join('');
@@ -9844,7 +9846,38 @@ function updateRmChart() {
 
 // ===== PROFILE =====
 // ===== PROFILE =====
-const AVATAR_EMOJIS = ['🏋️','💪','🤸','🥊','🏃','🧗','⚡','🔥','🦁','🐺','🦅','🏅','👊','🎯','🛡️','👑'];
+const AVATAR_COLORS = [
+  '#e63946','#ff6b35','#f4a261','#2a9d8f',
+  '#457b9d','#6a4c93','#c77dff','#1d3557',
+  '#555555','#1a1a1a'
+];
+
+function avatarInitials(name) {
+  if (!name) return '?';
+  const p = (name || '').trim().split(/\s+/).filter(Boolean);
+  return p.length >= 2 ? (p[0][0] + p[p.length - 1][0]).toUpperCase() : (name.slice(0, 2)).toUpperCase();
+}
+
+function isColorAvatar(v) {
+  return typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v);
+}
+
+function avatarDivInner(avatar, name) {
+  return isColorAvatar(avatar) ? avatarInitials(name || '') : (avatar || '💪');
+}
+function avatarDivBg(avatar) {
+  return isColorAvatar(avatar) ? avatar : '';
+}
+
+function avatarCircle(avatar, name, px) {
+  px = px || 32;
+  const isCol = isColorAvatar(avatar);
+  const bg = isCol ? avatar : 'rgba(232,0,29,0.15)';
+  const content = isCol ? avatarInitials(name || '') : (avatar || '💪');
+  const fs = isCol ? Math.round(px * 0.44) + 'px' : Math.round(px * 0.65) + 'px';
+  const ff = isCol ? "font-family:'Bebas Neue',sans-serif;letter-spacing:0.05em;" : '';
+  return `<div style="width:${px}px;height:${px}px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;font-size:${fs};${ff}color:#fff;flex-shrink:0;overflow:hidden;">${content}</div>`;
+}
 const KG_TO_LBS = 2.20462;
 
 // Convert a lbs string (possibly gendered "135/95") to kg, picking by gender first
@@ -9855,7 +9888,7 @@ function lbsPickAndConvert(raw) {
 }
 
 let profile = JSON.parse(localStorage.getItem('lerums_profile') || 'null') || {
-  name: '', firstName: '', lastName: '', avatar: '💪', photo: null, passwordHash: null, unit: 'kg', gender: 'male'
+  name: '', firstName: '', lastName: '', avatar: '#e63946', photo: null, passwordHash: null, unit: 'kg', gender: 'male'
 };
 // Migrate old profile
 if (!profile.unit) profile.unit = 'kg';
@@ -9962,21 +9995,23 @@ function handleProfilePicUpload(event) {
 }
 
 function refreshAvatarPreviews() {
-  // Logged-in preview
-  const prevIn = document.getElementById('profileAvatarPreviewIn');
-  if (prevIn) {
-    prevIn.innerHTML = profile.photo
-      ? `<img src="${profile.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"><div class="upload-overlay">📷</div>`
-      : `${profile.avatar || '💪'}<div class="upload-overlay">📷</div>`;
-  }
-  // Logged-out preview
-  const prev = document.getElementById('profileAvatarPreview');
-  if (prev) {
-    prev.innerHTML = profile.photo
-      ? `<img src="${profile.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"><div class="upload-overlay">📷</div>`
-      : `${profile.avatar || '💪'}<div class="upload-overlay">📷</div>`;
-  }
-  // Header button
+  const firstName = document.getElementById('profileFirstName')?.value?.trim() || '';
+  const lastName  = document.getElementById('profileLastName')?.value?.trim() || '';
+  const displayName = profile.name || (firstName + (lastName ? ' ' + lastName : '')).trim() || '';
+  const photoHtml = profile.photo
+    ? `<img src="${profile.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"><div class="upload-overlay">📷</div>`
+    : null;
+  ['profileAvatarPreviewIn', 'profileAvatarPreview'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (photoHtml) {
+      el.innerHTML = photoHtml;
+      el.style.background = '';
+    } else {
+      el.innerHTML = avatarDivInner(profile.avatar, displayName) + `<div class="upload-overlay">📷</div>`;
+      el.style.background = avatarDivBg(profile.avatar);
+    }
+  });
   updateHeaderProfile();
 }
 
@@ -10067,8 +10102,10 @@ function updateHeaderProfile() {
   if (!btn) return;
   if (profile.photo) {
     btn.innerHTML = `<img src="${profile.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+    btn.style.background = '';
   } else {
-    btn.textContent = profile.avatar || '👤';
+    btn.textContent = avatarDivInner(profile.avatar, profile.name || '');
+    btn.style.background = avatarDivBg(profile.avatar);
   }
   applyAdminVisibility();
 }
@@ -10098,9 +10135,13 @@ function openProfileModal() {
     setProfileGender(profile.gender || 'male');
     // Emoji picker in logged-in view
     const picker = document.getElementById('avatarPicker');
-    if (picker) picker.innerHTML = AVATAR_EMOJIS.map(e => `
-      <div class="avatar-opt${e === profile.avatar ? ' selected' : ''}" onclick="selectAvatar('${e}')">${e}</div>
-    `).join('');
+    if (picker) {
+      const pName = profile.name || '';
+      picker.innerHTML = AVATAR_COLORS.map(c => {
+        const sel = c === profile.avatar;
+        return `<div class="avatar-opt${sel ? ' selected' : ''}" data-color="${c}" onclick="selectAvatar('${c}')" style="background:${c};">${sel ? avatarInitials(pName) : ''}</div>`;
+      }).join('');
+    }
   } else {
     // Setup view
     document.getElementById('profileModalTitle').innerHTML = 'SIGN IN <button class="close-btn" onclick="closeProfileModal()">✕</button>';
@@ -10115,9 +10156,15 @@ function openProfileModal() {
     setProfileGender(profile.gender || 'male');
     updateProfilePreview();
     const pickerOut = document.getElementById('avatarPickerOut');
-    if (pickerOut) pickerOut.innerHTML = AVATAR_EMOJIS.map(e => `
-      <div class="avatar-opt${e === profile.avatar ? ' selected' : ''}" onclick="selectAvatar('${e}')">${e}</div>
-    `).join('');
+    if (pickerOut) {
+      const fn = document.getElementById('profileFirstName')?.value?.trim() || '';
+      const ln = document.getElementById('profileLastName')?.value?.trim() || '';
+      const pNameOut = (fn + (ln ? ' ' + ln : '')).trim();
+      pickerOut.innerHTML = AVATAR_COLORS.map(c => {
+        const sel = c === profile.avatar;
+        return `<div class="avatar-opt${sel ? ' selected' : ''}" data-color="${c}" onclick="selectAvatar('${c}')" style="background:${c};">${sel ? avatarInitials(pNameOut) : ''}</div>`;
+      }).join('');
+    }
     // Init Google sign-in button
     setTimeout(initLBWTSignInGSI, 100);
   }
@@ -10237,7 +10284,7 @@ function _lbwtShowLinkingPanel(members, email, googleName) {
   const list = document.getElementById('linkingMemberList');
   list.innerHTML = members.map(m => `
     <button class="btn btn-ghost" style="width:100%;text-align:left;padding:0.6rem 0.75rem;margin-bottom:0.35rem;display:flex;align-items:center;gap:0.6rem;" onclick='lbwtLinkToMember(${JSON.stringify(m.name)})'>
-      <span style="font-size:1.3rem;">${m.avatar || '💪'}</span>
+      ${avatarCircle(m.avatar || '#e63946', m.name, 28)}
       <span>${m.name}</span>
     </button>`).join('');
 }
@@ -10319,10 +10366,17 @@ async function _lbwtConnectExisting() {
   }
 }
 
-function selectAvatar(emoji) {
-  profile.avatar = emoji;
+function selectAvatar(color) {
+  profile.avatar = color;
   profile.photo = null;
-  document.querySelectorAll('.avatar-opt').forEach(el => el.classList.toggle('selected', el.textContent === emoji));
+  const fn = document.getElementById('profileFirstName')?.value?.trim() || '';
+  const ln = document.getElementById('profileLastName')?.value?.trim() || '';
+  const pName = (profile.name || (fn + (ln ? ' ' + ln : '')).trim() || '');
+  document.querySelectorAll('.avatar-opt').forEach(el => {
+    const sel = el.dataset.color === color;
+    el.classList.toggle('selected', sel);
+    el.textContent = sel ? avatarInitials(pName) : '';
+  });
   refreshAvatarPreviews();
 }
 
@@ -10437,7 +10491,7 @@ function renderLeaderboard() {
         const dispWeight = e.topWeight ? (profile.unit === 'lbs'
           ? Math.round(parseFloat(e.topWeight) * KG_TO_LBS * 10) / 10 + ' lbs'
           : parseFloat(e.topWeight) + ' kg') : null;
-        const avatarHtml = `<div style="width:2rem;height:2rem;border-radius:50%;background:var(--red);display:flex;align-items:center;justify-content:center;font-size:1rem;overflow:hidden;flex-shrink:0;">${e.avatar || '💪'}</div>`;
+        const avatarHtml = avatarCircle(e.avatar || '#e63946', e.memberName, 32);
         const hasDetail = !!(e.desc || (e._type === 'strength' && e.topReps));
         const detailContent = e._type === 'strength'
           ? `<div style="font-size:0.8rem;color:var(--muted);">${e.exercise || ''}${e.topReps ? ' · ' + e.topReps + ' reps' : ''}</div>`
@@ -10544,7 +10598,7 @@ function showBenchmarkHistory(name) {
   const memberRows = memberEntries.length ? memberEntries.map(e => {
     const isMe = e.memberName === profile.name;
     return `<div style="display:flex;align-items:center;gap:0.6rem;padding:0.45rem 0;border-bottom:1px solid var(--border);">
-      <span style="font-size:1rem;flex-shrink:0;">${e.avatar || '💪'}</span>
+      ${avatarCircle(e.avatar || '#e63946', e.memberName, 20)}
       <span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.85rem;color:${isMe ? 'var(--red)' : 'var(--text)'};flex:1;">${e.memberName||'—'}${isMe ? ' ★' : ''}</span>
       <span style="font-family:'Bebas Neue';font-size:1rem;color:#60a5fa;">${e.score||'—'}</span>
       <span style="font-size:0.7rem;color:var(--muted);">${(e.rx||'rx').toUpperCase()}</span>
@@ -11972,7 +12026,7 @@ function renderMembersList() {
     <div onclick="openMemberProfile('${m.name.replace(/'/g,"\\'")}','${(m.avatar||'💪').replace(/'/g,"\\'")}' )"
       style="display:flex;align-items:center;gap:1rem;padding:0.85rem 1rem;background:var(--card);border:1px solid var(--border);border-radius:6px;margin-bottom:0.5rem;cursor:pointer;transition:border-color 0.15s;"
       onmouseover="this.style.borderColor='var(--red)'" onmouseout="this.style.borderColor='var(--border)'">
-      <div style="width:2.75rem;height:2.75rem;border-radius:50%;background:rgba(232,0,29,0.15);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;">${m.avatar || '💪'}</div>
+      ${avatarCircle(m.avatar || '#e63946', m.name, 44)}
       <div style="flex:1;min-width:0;">
         <div style="font-family:'Bebas Neue';font-size:1.1rem;letter-spacing:0.04em;">${m.name}</div>
         ${m.lastSeen ? `<div style="font-size:0.72rem;color:var(--muted);">Last seen ${formatDate(m.lastSeen?.toString().split('T')[0])}</div>` : ''}
@@ -12476,7 +12530,7 @@ function renderActivityFeed() {
         const scoreLabel = e._kind === 'strength' ? (e.topWeight ? (profile.unit==='lbs' ? Math.round(parseFloat(e.topWeight)*KG_TO_LBS*10)/10+' lbs' : parseFloat(e.topWeight)+' kg') : '—') : (e.score || '—');
         const wodName = e._kind === 'strength' ? (e.exercise||'Strength') : (e.name||'WOD');
         return `<div style="display:flex;align-items:center;gap:0.65rem;padding:0.6rem 0.75rem;background:var(--card);border:1px solid ${isMe ? 'var(--red)' : 'var(--border)'};border-radius:6px;margin-bottom:0.4rem;">
-          <div style="width:2.2rem;height:2.2rem;border-radius:50%;background:${isMe ? 'rgba(232,0,29,0.2)' : '#1f2937'};display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">${e.avatar||'💪'}</div>
+          ${avatarCircle(e.avatar || '#e63946', e.memberName, 35)}
           <div style="flex:1;min-width:0;">
             <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.9rem;color:${isMe ? 'var(--red)' : 'var(--text)'};">${e.memberName||'Anonymous'}</div>
             <div style="font-size:0.78rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${wodName}</div>
@@ -12500,7 +12554,9 @@ async function openMemberProfile(name, avatar) {
   // Show modal with member PRs
   const modal = document.getElementById('memberProfileModal');
   document.getElementById('memberProfileName').textContent = name;
-  document.getElementById('memberProfileAvatar').textContent = avatar;
+  document.getElementById('memberProfileAvatar').innerHTML = isColorAvatar(avatar)
+    ? `<div style="width:2rem;height:2rem;border-radius:50%;background:${avatar};display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:0.85rem;color:#fff;letter-spacing:0.05em;">${avatarInitials(name)}</div>`
+    : `<span style="font-size:1.6rem;">${avatar || '💪'}</span>`;
   document.getElementById('memberProfilePRs').innerHTML = '<div style="color:var(--muted);text-align:center;padding:1rem;">Loading PRs…</div>';
   modal.style.display = 'flex';
 
@@ -12668,23 +12724,28 @@ function filterMemberDropdown() {
       onmouseover="this.style.background='var(--card2)'"
       onmouseout="this.style.background=''"
       style="display:flex;align-items:center;gap:0.6rem;padding:0.55rem 0.85rem;cursor:pointer;font-size:0.88rem;border-bottom:1px solid var(--border);">
-      <span style="font-size:1rem;">${getAvatarFor(m)}</span>
+      ${getAvatarFor(m)}
       <span>${m}</span>
     </div>`).join('');
 }
 
 function getAvatarFor(name) {
-  // Check members cache first
+  let avatar = null;
   if (membersCache) {
     const m = membersCache.find(m => m.name === name);
-    if (m?.avatar) return m.avatar;
+    if (m?.avatar) avatar = m.avatar;
   }
-  if (leaderboardCache) {
+  if (!avatar && leaderboardCache) {
     const entry = [...(leaderboardCache.wods||[]), ...(leaderboardCache.strength||[])]
       .find(e => e.memberName === name);
-    if (entry?.avatar) return entry.avatar;
+    if (entry?.avatar) avatar = entry.avatar;
   }
-  return '💪';
+  avatar = avatar || '#e63946';
+  const isCol = isColorAvatar(avatar);
+  const bg = isCol ? avatar : 'rgba(232,0,29,0.15)';
+  const content = isCol ? avatarInitials(name || '') : avatar;
+  const ff = isCol ? "font-family:'Bebas Neue',sans-serif;letter-spacing:0.05em;" : '';
+  return `<span style="display:inline-flex;width:24px;height:24px;border-radius:50%;background:${bg};align-items:center;justify-content:center;font-size:${isCol ? '11px' : '14px'};${ff}color:#fff;flex-shrink:0;overflow:hidden;vertical-align:middle;">${content}</span>`;
 }
 
 function selectMember(name) {
