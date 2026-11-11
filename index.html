@@ -2366,7 +2366,7 @@ function json(obj) {
         <input type="text" id="stripePrice2dwl" placeholder="price_…" autocomplete="off" style="font-family:monospace;font-size:0.82rem;">
       </div>
       <div class="form-group" style="margin-bottom:0.75rem;">
-        <label>Price ID — Rehabbot (60 kr/mån)</label>
+        <label>Price ID — Lerumsboxen Rehab (75 kr/mån)</label>
         <input type="text" id="stripePriceRehab" placeholder="price_…" autocomplete="off" style="font-family:monospace;font-size:0.82rem;">
       </div>
       <button class="btn btn-sm" onclick="saveStripeConfig()" style="background:#4ade80;color:#000;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:2px;cursor:pointer;">💾 Spara Stripe-inställningar</button>
@@ -10851,7 +10851,7 @@ function buildRehabCard() {
     } else {
       const btnStyle = (active) => `font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.08em;text-transform:uppercase;border-radius:3px;padding:0.3rem 0.75rem;cursor:pointer;border:1px solid;transition:all 0.15s;`;
       content = `
-        <div style="font-size:0.78rem;color:var(--muted);margin-bottom:1rem;line-height:1.5;">Fyll i formuläret nedan så genererar Rehabbot ett personligt rehabiliteringsprogram åt dig.</div>
+        <div style="font-size:0.78rem;color:var(--muted);margin-bottom:1rem;line-height:1.5;">Fyll i formuläret nedan så genererar Lerumsboxen Rehab ett personligt rehabiliteringsprogram åt dig.</div>
 
         <div style="margin-bottom:0.85rem;">
           <div style="font-size:0.72rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.4rem;">Kroppsdel *</div>
@@ -10932,7 +10932,7 @@ function buildRehabCard() {
 
   return `
   <div style="background:var(--card);border:1px solid rgba(20,184,166,0.3);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
-    <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#14b8a6;margin-bottom:0.75rem;">🩹 Rehab & Skador</div>
+    <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#14b8a6;margin-bottom:0.75rem;">🩹 Lerumsboxen Rehab</div>
     ${content}
   </div>`;
 }
@@ -11125,7 +11125,11 @@ async function requestRehabProgram() {
 
     const userName = profile?.firstName || profile?.name?.split(' ')[0] || 'Atleten';
 
-    const system = `Du är Rehabbot på Lerumsboxen, en CrossFit-box. Du hjälper träningsaktiva personer med skador och rehabilitering. Svara alltid på svenska, i ren text utan markdown-tecken.
+    const system = `Du är Lerumsboxen Rehab, rehabtjänsten på CrossFit-boxen Lerumsboxen. Du hjälper träningsaktiva personer med skador och rehabilitering. Svara i ren text utan markdown-tecken.
+
+SPRÅK: Skriv korrekt, naturlig svenska. Använd aldrig tyska eller andra främmande ord. Svenska anatomiska termer gäller (ryggraden, bröstryggen, skulderbladet, ländryggen). Engelska får bara användas för vedertagna övningsnamn som face pulls eller wall slides.
+
+LÄNGD: Var kortfattad. Högst 3 korta rader per övning (utförande, dosering, ev. en nyckelpunkt). Hela svaret ska rymmas inom cirka 500 ord och alla fem avsnitt måste komma med.
 
 Du ställer inga diagnoser och ersätter inte vård. Följ kunskapsunderlaget nedan före egna antaganden, och välj övningar därifrån när de passar.
 
@@ -11173,7 +11177,7 @@ Var specifik och praktisk. Om besvären verkar allvarliga (hög smärtnivå, lå
         'content-type': 'application/json',
         'anthropic-dangerous-direct-browser-access': 'true'
       },
-      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1500, system,
+      body: JSON.stringify({ model: 'claude-sonnet-5-5', max_tokens: 3000, system,
         messages: [{ role: 'user', content: prompt }] })
     });
     const result = await resp.json();
@@ -11182,7 +11186,7 @@ Var specifik och praktisk. Om besvären verkar allvarliga (hög smärtnivå, lå
     localStorage.setItem('lerums_rehab_program', result.content[0].text);
     localStorage.setItem('lerums_rehab_program_time', Date.now().toString());
   } catch(e) {
-    showToast('Rehabbot: ' + (e.message || 'Okänt fel'));
+    showToast('Lerumsboxen Rehab: ' + (e.message || 'Okänt fel'));
   }
 
   window._rehabGenerating = false;
@@ -12563,7 +12567,7 @@ async function fetchMembers() {
       localStorage.setItem('lerums_lbwl_members', JSON.stringify(lbwlNames));
       const dwl2Names = data.members.filter(m => m['2dwl']).map(m => m.name);
       localStorage.setItem('lerums_2dwl_members', JSON.stringify(dwl2Names));
-      // Cache Rehabbot access flags (col L = "rehabbot")
+      // Cache rehab access flags (col L = "rehabbot")
       const rehabNames = data.members.filter(m => m.rehabbot).map(m => m.name);
       localStorage.setItem('lerums_rehabbot_members', JSON.stringify(rehabNames));
       // Auto-grant rehab access if member has it in Members sheet
@@ -13111,7 +13115,7 @@ function renderShopSection() {
     <div style="display:flex;align-items:flex-start;gap:0.75rem;margin-bottom:0.65rem;">
       <div style="font-size:1.8rem;line-height:1;">🤖</div>
       <div>
-        <div style="font-family:'Bebas Neue';font-size:1.2rem;letter-spacing:0.06em;color:var(--text);">Rehabbot</div>
+        <div style="font-family:'Bebas Neue';font-size:1.2rem;letter-spacing:0.06em;color:var(--text);">Lerumsboxen Rehab</div>
         <div style="font-size:0.68rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-top:0.1rem;">Månadsabonnemang • 75 kr/mån</div>
       </div>
     </div>
@@ -13169,7 +13173,7 @@ async function handleStripeSuccess(sessionId, product) {
     try { await fetchMembers(); } catch(_) {}
     // For rehab, grant access immediately regardless of fetchMembers timing
     if ((data.product || product) === 'rehab') window._rehabAccess = 'granted';
-    const labels = { lbwl: 'LBWL 3×/vecka', '2dwl': 'LBWL 2×/vecka', rehab: 'Rehabbot' };
+    const labels = { lbwl: 'LBWL 3×/vecka', '2dwl': 'LBWL 2×/vecka', rehab: 'Lerumsboxen Rehab' };
     showToast('✓ Betalning bekräftad! ' + (labels[data.product || product] || '') + ' är nu aktivt.');
     setTimeout(() => selectDashSection('programming'), 600);
   } catch(e) {
