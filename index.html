@@ -10216,7 +10216,7 @@ function _lbwtShowLinkingPanel(members, email, googleName) {
   document.getElementById('linkingGreeting').textContent = 'Welcome, ' + displayName + '!';
   const list = document.getElementById('linkingMemberList');
   list.innerHTML = members.map(m => `
-    <button class="btn btn-ghost" style="width:100%;text-align:left;padding:0.6rem 0.75rem;margin-bottom:0.35rem;display:flex;align-items:center;gap:0.6rem;" onclick="lbwtLinkToMember(${JSON.stringify(m.name)})">
+    <button class="btn btn-ghost" style="width:100%;text-align:left;padding:0.6rem 0.75rem;margin-bottom:0.35rem;display:flex;align-items:center;gap:0.6rem;" onclick='lbwtLinkToMember(${JSON.stringify(m.name)})'>
       <span style="font-size:1.3rem;">${m.avatar || '💪'}</span>
       <span>${m.name}</span>
     </button>`).join('');
