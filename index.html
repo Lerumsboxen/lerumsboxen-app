@@ -11017,6 +11017,64 @@ function rehabSelectImpact(btn, val) {
   document.getElementById('rehab-impact').value = val;
 }
 
+const REHAB_KB_GENERAL = `ARBETSSÄTT (sammanfattade principer från Aaron Horschig / Squat University, Stuart McGill och Tom Walters / Rehab Science):
+- Belastningsstyrning före vila: hitta en nivå som tål belastning i stället för att sluta träna helt. Smärta upp till ca 3–4/10 under övning är ok om den lugnar sig inom 24 timmar; annars backa i vikt, volym eller rörelseomfång.
+- Smärta är inte samma sak som vävnadsskada. Förklara lugnt och sakligt, skräm inte.
+- Leta orsak, inte bara symptom: bedöm leden ovanför och under (t.ex. höft och fotled vid knäbesvär, bröstrygg vid axelbesvär).
+- Ordning: rörlighet där det är stelt -> stabilitet och motorisk kontroll -> styrka -> explosivitet och full återgång.
+- Senbesvär: isometriska håll för smärtlindring (t.ex. 5 x 30–45 s) -> tung, långsam styrka (tempo ca 3 s ner, 3 s upp) -> hopp/snabba belastningar -> full träning. Stretcha inte en irriterad sena hårt.
+- Ändra en variabel i taget (vikt, volym, djup, tempo) och utvärdera dagen efter.
+- Röda flaggor som alltid ska till vård: domningar eller kraftnedsättning, störd blås-/tarmfunktion, nattlig eller konstant smärta som inte påverkas av rörelse, större trauma, kraftig svullnad, låsningar i leden, oförklarlig viktnedgång eller feber.`;
+
+const REHAB_KB = {
+  'Ländryggen': `LÄNDRYGG (McGill):
+- Identifiera triggern: böjning (flexion), bakåtböjning (extension) eller kompression/tung belastning. Ta bort triggern i vardag och träning först.
+- "Ryggvård": höftfällning i stället för att runda ryggen, undvik djup böjning första timmen efter uppvaknande, undvik att stretcha ryggen in i smärta (t.ex. knäna mot bröstet), bryt långt sittande.
+- McGill Big 3 dagligen: modifierad curl-up, sidoplanka (från knä vid behov), bird dog. Håll ca 10 s per repetition, fallande pyramid (t.ex. 6-4-2 reps). Uthållighet före styrka.
+- Katt-ko som mjuk rörelse (6–8 cykler) före, inte som stretch. Korta promenader flera gånger per dag.
+- Bålspänning (bracing) och neutral rygg i alla lyft.
+- Återgång: höftfällning med pinne, goblet squat, suitcase carry, sedan kettlebellsving och marklyft från upphöjning innan golv.
+- Tillfälliga byten: marklyft -> upphöjt/trap bar, sit-ups/toes-to-bar -> planka/dead bug, rodd med rundad rygg -> skidmaskin eller cykel beroende på trigger.`,
+  'Knä': `KNÄ (Horschig):
+- Knät är ofta offret: testa fotledsrörlighet (knä-mot-vägg, ca 10–12 cm) och höftkontroll (enbensknäböj/step-down: faller knät inåt?).
+- Patellarsena/quadricepssena: isometrisk Spanish squat eller wall sit 5 x 45 s, sedan tempoknäböj, boxböj och baklänges släddrag. Minska hopp tillfälligt.
+- Smärta runt knäskålen: höftstyrka (sidogång med band, sidoplanka med benlyft, enbens höftlyft), step-downs/touchdowns med kontroll, mjukdelsarbete på framsida/utsida lår.
+- Tillfälliga byten: djupa knäböj -> boxböj till smärtfritt djup, box jumps -> step-ups, löpning -> cykel/rodd om det tolereras, pistols -> step-downs, utfall -> bakåtutfall eller split squat med kortare steg.`,
+  'Axel': `AXEL (Horschig, Walters):
+- Kolla bröstryggens rörlighet och lats-stelhet först (extension över foam roller, rotation i fyrfota).
+- Rotatorkuff: utåtrotation liggande på sidan eller med gummiband, isometriska håll vid smärta.
+- Skulderblad: liggande Y/T/W, wall slides för serratus, push-up plus, face pulls.
+- Stabilitet över huvudet: bottoms-up kettlebell (bära/pressa), landmine press som steg mot press över huvudet.
+- Tillfälliga byten: kipping pull-ups/toes-to-bar/muscle-ups -> strikta varianter med tempo eller ring rows, dips -> armhävningar, press över huvudet -> landmine press, ryck/overhead squat -> front squat eller hang power clean om det är smärtfritt.`,
+  'Armbåge / handled': `ARMBÅGE / HANDLED:
+- Tennis-/golfarmbåge är senbesvär: isometriska handledshåll (extension eller flexion) 5 x 30–45 s, sedan långsamma excentriska handledscurls med hantel, därefter greppstyrka.
+- Minska greppvolym tillfälligt (pull-ups, toes-to-bar, tunga kettlebellsvingar), använd neutralt grepp och ev. dragremmar.
+- Kolla axel och bröstrygg: dålig front rack-position belastar handled och armbåge. Jobba med lats, triceps och handledsextension.
+- Tillfälliga byten: front rack -> goblet eller korsade armar, armhävningar -> på hantlar/knogar med neutral handled, pull-ups -> ring rows med neutralt grepp.`,
+  'Nacke / övre rygg': `NACKE / ÖVRE RYGG:
+- Rörlighet i bröstryggen (extension och rotation), hakindragningar (chin tucks) och träning av djupa nackflexorer.
+- Stärk skulderbladsmuskulaturen: rodd, face pulls, liggande Y/T.
+- Kolla huvudposition i lyft (titta inte upp hårt i marklyft och knäböj) och stångens läge i back squat.
+- Tillfälliga byten: tunga shrugs och press över huvudet -> landmine press och rodd, handstående -> pike-varianter eller hantelpress, kipping -> strikt.`,
+  'Höft / ljumske': `HÖFT / LJUMSKE (Horschig):
+- Nyp framtill i höften i botten av knäböj: testa fotbredd och fotvinkel, höftmobilisering med band, 90/90-rotationer, rock-backs i fyrfota för att hitta smärtfritt djup.
+- Stabilitet: höftlyft (två ben -> ett ben), sidogång med band, enbensarbete med kontroll.
+- Ljumske/adduktorer: isometrisk kläm (boll mellan knäna) 5 x 30 s, sedan Copenhagen-planka från knä till rakt ben, sedan sidoutfall.
+- Tillfälliga byten: djup knäböj -> boxböj till smärtfritt djup, sumo -> konventionell stans (eller tvärtom), löpning/shuttle runs -> cykel, breda utfall -> smalare split squat.`,
+  'Hamstrings / lår': `HAMSTRINGS / LÅR:
+- Tidigt: isometriska håll (höftlyft med långa hävarmar, hälarna långt fram) i stället för aggressiv stretching.
+- Sedan excentrisk styrka: RDL med tempo, hamstring curl på sliders/boll, nordic hamstring med assistans -> full.
+- Gradvis återgång till sprint: lugn jogg -> stegringslopp -> full fart sist.
+- Framsida lår: samma princip, isometriskt -> tempoknäböj/step-ups -> hopp.
+- Tillfälliga byten: tunga marklyft/kettlebellsving -> höftlyft och lätt RDL, sprint -> cykel/rodd, box jumps -> step-ups.`,
+  'Vad / fot / ankeln': `VAD / FOT / FOTLED:
+- Hälsena: isometrisk tåhävning (håll 5 x 45 s), sedan tunga långsamma tåhävningar med rakt och böjt knä (soleus), därefter excentriska hälsänkningar från trappsteg, sist hopp.
+- Stel fotled: knä-mot-vägg-mobilisering, mobilisering med band, vadmuskulatur med roller. Påverkar knäböjsdjup.
+- Stukad fotled: tidig belastning inom smärtgräns, balansövningar på ett ben, tåhävningar, sedan sidledsrörelser och hopp.
+- Plantarfascia: tåhävningar med tårna upphöjda på handduk (långsamt, tungt), fotens småmuskler ("short foot").
+- Tillfälliga byten: double unders/hopprep och studsande box jumps -> step-ups, löpning -> cykel/rodd/skidmaskin, knäböj med hälkil vid behov.`
+};
+
 function clearRehabProgram() {
   localStorage.removeItem('lerums_rehab_program');
   localStorage.removeItem('lerums_rehab_program_time');
@@ -11067,9 +11125,15 @@ async function requestRehabProgram() {
 
     const userName = profile?.firstName || profile?.name?.split(' ')[0] || 'Atleten';
 
-    const prompt = `Du är Rehabbot på Lerumsboxen, en CrossFit-box. Du hjälper träningsaktiva personer med skador och rehabilitering. Svara alltid på svenska.
+    const system = `Du är Rehabbot på Lerumsboxen, en CrossFit-box. Du hjälper träningsaktiva personer med skador och rehabilitering. Svara alltid på svenska, i ren text utan markdown-tecken.
 
-SKADEINFORMATION för ${userName}:
+Du ställer inga diagnoser och ersätter inte vård. Följ kunskapsunderlaget nedan före egna antaganden, och välj övningar därifrån när de passar.
+
+${REHAB_KB_GENERAL}
+
+${REHAB_KB[bodypart] || ''}`;
+
+    const prompt = `SKADEINFORMATION för ${userName}:
 - Kroppsdel: ${bodypart}
 - Typ av besvär: ${issue}
 ${duration ? `- Hur länge: ${duration}` : ''}
@@ -11109,7 +11173,7 @@ Var specifik och praktisk. Om besvären verkar allvarliga (hög smärtnivå, lå
         'content-type': 'application/json',
         'anthropic-dangerous-direct-browser-access': 'true'
       },
-      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1200,
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1500, system,
         messages: [{ role: 'user', content: prompt }] })
     });
     const result = await resp.json();
