@@ -10829,15 +10829,95 @@ function buildRehabCard() {
   } else if (s === 'loading') {
     content = `<div style="text-align:center;color:var(--muted);font-size:0.82rem;padding:0.75rem 0;">Kontrollerar tillgång…</div>`;
   } else if (s === 'granted') {
-    content = `
-      <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;padding-bottom:0.75rem;border-bottom:1px solid var(--border);">
-        ${user?.picture ? `<img src="${user.picture}" style="width:26px;height:26px;border-radius:50%;border:1px solid var(--border);">` : ''}
-        <span style="font-size:0.78rem;color:var(--muted);flex:1;">${user?.name || user?.email}</span>
-        <button onclick="signOutRehab()" style="font-size:0.7rem;color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;">Logga ut</button>
-      </div>
-      <div style="color:var(--muted);font-size:0.82rem;text-align:center;padding:0.5rem 0;">
-        Skadeformulär och AI-rehabprogram — kommer snart 🚧
-      </div>`;
+    const savedProgram = localStorage.getItem('lerums_rehab_program');
+    const savedTime    = localStorage.getItem('lerums_rehab_program_time');
+
+    if (window._rehabGenerating) {
+      content = `
+        <div style="text-align:center;padding:1.5rem 0;">
+          <div style="font-size:0.82rem;color:#14b8a6;margin-bottom:0.5rem;">Genererar rehabprogram…</div>
+          <div style="font-size:0.72rem;color:var(--muted);">Det tar några sekunder</div>
+        </div>`;
+    } else if (savedProgram) {
+      const timeStr = savedTime
+        ? new Date(parseInt(savedTime)).toLocaleString('sv-SE',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})
+        : '';
+      content = `
+        <div style="font-size:0.82rem;color:var(--text);line-height:1.6;white-space:pre-wrap;margin-bottom:0.75rem;">${savedProgram}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border);padding-top:0.6rem;margin-top:0.25rem;">
+          ${timeStr ? `<div style="font-size:0.68rem;color:var(--muted);">Genererat ${timeStr}</div>` : '<div></div>'}
+          <button onclick="clearRehabProgram()" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;background:none;color:#14b8a6;border:1px solid rgba(20,184,166,0.4);border-radius:3px;padding:0.3rem 0.7rem;cursor:pointer;">Nytt program</button>
+        </div>`;
+    } else {
+      const btnStyle = (active) => `font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.08em;text-transform:uppercase;border-radius:3px;padding:0.3rem 0.75rem;cursor:pointer;border:1px solid;transition:all 0.15s;`;
+      content = `
+        <div style="font-size:0.78rem;color:var(--muted);margin-bottom:1rem;line-height:1.5;">Fyll i formuläret nedan så genererar Rehabbot ett personligt rehabiliteringsprogram åt dig.</div>
+
+        <div style="margin-bottom:0.85rem;">
+          <div style="font-size:0.72rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.4rem;">Kroppsdel *</div>
+          <select id="rehab-bodypart" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.5rem 0.6rem;font-size:0.82rem;font-family:inherit;">
+            <option value="">Välj kroppsdel…</option>
+            <option>Axel</option>
+            <option>Armbåge / handled</option>
+            <option>Nacke / övre rygg</option>
+            <option>Ländryggen</option>
+            <option>Höft / ljumske</option>
+            <option>Knä</option>
+            <option>Hamstrings / lår</option>
+            <option>Vad / fot / ankeln</option>
+            <option>Annat</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom:0.85rem;">
+          <div style="font-size:0.72rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.4rem;">Typ av besvär *</div>
+          <div style="display:flex;flex-wrap:wrap;gap:0.4rem;" id="rehab-issue-btns">
+            ${['Akut skada','Kronisk smärta','Stelhet / mobilitet','Post-op rehab'].map(t =>
+              `<button onclick="rehabSelectIssue(this,'${t}')" data-val="${t}" style="background:var(--bg);color:var(--muted);border-color:var(--border);${btnStyle(false)}">${t}</button>`
+            ).join('')}
+          </div>
+          <input type="hidden" id="rehab-issue" value="">
+        </div>
+
+        <div style="margin-bottom:0.85rem;">
+          <div style="font-size:0.72rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.4rem;">Hur länge har du haft besvären?</div>
+          <select id="rehab-duration" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.5rem 0.6rem;font-size:0.82rem;font-family:inherit;">
+            <option value="">Välj…</option>
+            <option>Nytt besvär (under 1 vecka)</option>
+            <option>1–4 veckor</option>
+            <option>1–3 månader</option>
+            <option>Mer än 3 månader</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom:0.85rem;">
+          <div style="font-size:0.72rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.4rem;">Smärtnivå (1 = knappt märkbar, 10 = outhärdlig)</div>
+          <div style="display:flex;gap:0.3rem;flex-wrap:wrap;" id="rehab-pain-btns">
+            ${[1,2,3,4,5,6,7,8,9,10].map(n =>
+              `<button onclick="rehabSelectPain(this,${n})" data-val="${n}" style="background:var(--bg);color:var(--muted);border-color:var(--border);min-width:2.1rem;text-align:center;${btnStyle(false)}">${n}</button>`
+            ).join('')}
+          </div>
+          <input type="hidden" id="rehab-pain" value="">
+        </div>
+
+        <div style="margin-bottom:0.85rem;">
+          <div style="font-size:0.72rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.4rem;">Hur påverkar det din träning?</div>
+          <div style="display:flex;flex-wrap:wrap;gap:0.4rem;" id="rehab-impact-btns">
+            ${['Kan träna normalt','Tränar med anpassningar','Kan inte träna'].map(t =>
+              `<button onclick="rehabSelectImpact(this,'${t}')" data-val="${t}" style="background:var(--bg);color:var(--muted);border-color:var(--border);${btnStyle(false)}">${t}</button>`
+            ).join('')}
+          </div>
+          <input type="hidden" id="rehab-impact" value="">
+        </div>
+
+        <div style="margin-bottom:1rem;">
+          <div style="font-size:0.72rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.4rem;">Beskriv mer (valfritt)</div>
+          <textarea id="rehab-notes" placeholder="T.ex. gör ont vid knäböj, värre på morgonen, tidigare opererad…" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.5rem 0.6rem;font-size:0.82rem;font-family:inherit;resize:vertical;min-height:4rem;box-sizing:border-box;"></textarea>
+        </div>
+
+        <button onclick="requestRehabProgram()" id="rehab-submit-btn" style="width:100%;font-family:'Barlow Condensed';font-weight:700;font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;background:#14b8a6;color:#000;border:none;border-radius:4px;padding:0.6rem 1rem;cursor:pointer;">Generera rehabprogram →</button>
+        <div id="rehab-form-err" style="font-size:0.72rem;color:#f87171;margin-top:0.4rem;display:none;"></div>`;
+    }
   } else if (s === 'denied') {
     content = `
       <div style="text-align:center;padding:0.5rem 0;">
@@ -10910,8 +10990,139 @@ function signOutRehab() {
 }
 
 function openRehabPayment() {
-  // Stripe-integration — nästa steg
-  showToast('Stripe-betalning kommer snart!');
+  selectDashSection('shop');
+}
+
+function rehabSelectIssue(btn, val) {
+  document.querySelectorAll('#rehab-issue-btns button').forEach(b => {
+    b.style.background = 'var(--bg)'; b.style.color = 'var(--muted)'; b.style.borderColor = 'var(--border)';
+  });
+  btn.style.background = 'rgba(20,184,166,0.15)'; btn.style.color = '#14b8a6'; btn.style.borderColor = '#14b8a6';
+  document.getElementById('rehab-issue').value = val;
+}
+
+function rehabSelectPain(btn, val) {
+  document.querySelectorAll('#rehab-pain-btns button').forEach(b => {
+    b.style.background = 'var(--bg)'; b.style.color = 'var(--muted)'; b.style.borderColor = 'var(--border)';
+  });
+  btn.style.background = 'rgba(20,184,166,0.15)'; btn.style.color = '#14b8a6'; btn.style.borderColor = '#14b8a6';
+  document.getElementById('rehab-pain').value = val;
+}
+
+function rehabSelectImpact(btn, val) {
+  document.querySelectorAll('#rehab-impact-btns button').forEach(b => {
+    b.style.background = 'var(--bg)'; b.style.color = 'var(--muted)'; b.style.borderColor = 'var(--border)';
+  });
+  btn.style.background = 'rgba(20,184,166,0.15)'; btn.style.color = '#14b8a6'; btn.style.borderColor = '#14b8a6';
+  document.getElementById('rehab-impact').value = val;
+}
+
+function clearRehabProgram() {
+  localStorage.removeItem('lerums_rehab_program');
+  localStorage.removeItem('lerums_rehab_program_time');
+  renderRehabCard();
+}
+
+async function requestRehabProgram() {
+  const bodypart = (document.getElementById('rehab-bodypart')?.value || '').trim();
+  const issue    = (document.getElementById('rehab-issue')?.value   || '').trim();
+  const duration = (document.getElementById('rehab-duration')?.value || '').trim();
+  const pain     = (document.getElementById('rehab-pain')?.value    || '').trim();
+  const impact   = (document.getElementById('rehab-impact')?.value  || '').trim();
+  const notes    = (document.getElementById('rehab-notes')?.value   || '').trim();
+  const errEl    = document.getElementById('rehab-form-err');
+
+  if (!bodypart || !issue) {
+    if (errEl) { errEl.textContent = 'Fyll i kroppsdel och typ av besvär.'; errEl.style.display = 'block'; }
+    return;
+  }
+  if (errEl) errEl.style.display = 'none';
+
+  window._rehabGenerating = true;
+  renderRehabCard();
+
+  try {
+    const cutoff = new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const feelEmoji = [null,'😫','😕','😐','😊','🔥'];
+    const allSessions = [
+      ...(state.wods||[]).filter(w => w.date >= cutoff).map(w => ({
+        date: w.date, label: `WOD "${w.name||''}" [${w.type||''}]`,
+        muscles: inferMuscleGroups((w.desc||'')+(w.name||'')), feeling: w.feeling||null
+      })),
+      ...(state.strength||[]).filter(s => s.date >= cutoff).map(s => {
+        const top = (s.sets||[]).reduce((b,x)=>(x.weight||0)>(b.weight||0)?x:b, {});
+        return { date: s.date, label: `Styrka: "${s.exercise}"`,
+          score: top.weight ? `${top.weight}kg×${top.reps||1}` : '',
+          muscles: inferMuscleGroups(s.exercise), feeling: s.feeling||null };
+      }),
+      ...(state.conditioning||[]).filter(c => c.date >= cutoff).map(c => ({
+        date: c.date, label: `Kondition [${c.activity||''}]`,
+        muscles: inferMuscleGroups(c.activity||''), feeling: c.feeling||null
+      }))
+    ].sort((a,b) => b.date.localeCompare(a.date));
+
+    const sessionLines = allSessions.map(s =>
+      `${s.date}: ${s.label}${s.score ? ' · '+s.score : ''}${s.muscles.length ? ' ['+s.muscles.join(', ')+']' : ''}${s.feeling ? ' · Känsla '+feelEmoji[s.feeling] : ''}`
+    ).join('\n');
+
+    const userName = profile?.firstName || profile?.name?.split(' ')[0] || 'Atleten';
+
+    const prompt = `Du är Rehabbot på Lerumsboxen, en CrossFit-box. Du hjälper träningsaktiva personer med skador och rehabilitering. Svara alltid på svenska.
+
+SKADEINFORMATION för ${userName}:
+- Kroppsdel: ${bodypart}
+- Typ av besvär: ${issue}
+${duration ? `- Hur länge: ${duration}` : ''}
+${pain ? `- Smärtnivå: ${pain}/10` : ''}
+${impact ? `- Träningspåverkan: ${impact}` : ''}
+${notes ? `- Egna kommentarer: ${notes}` : ''}
+
+TRÄNINGSHISTORIK (senaste 3 veckorna, nyast först):
+${sessionLines || 'Ingen loggad träning.'}
+
+Skapa ett konkret, personligt rehabprogram med följande struktur:
+
+1. FÖRKLARING — Kort om vad som troligtvis händer och varför (2–3 meningar).
+
+2. UNDVIK — Rörelser och belastningar att undvika tills vidare.
+
+3. REHABÖVNINGAR — 4–6 specifika övningar med sets, reps/tid och frekvens per vecka.
+
+4. ALTERNATIV TRÄNING — Hur ${userName} kan fortsätta träna CrossFit med anpassningar. Nämn specifika rörelser de kan byta ut och vad de ersätts med.
+
+5. PROGRESSION — När och hur de kan trappa upp. Konkreta tecken på att de är redo att öka.
+
+Var specifik och praktisk. Om besvären verkar allvarliga (hög smärtnivå, lång duration, post-op), rekommendera att komplettera med fysioterapeut.`;
+
+    let apiKey = localStorage.getItem('lerums_anthropic_key') || '';
+    if (!apiKey) {
+      await fetchAnthropicKey();
+      apiKey = localStorage.getItem('lerums_anthropic_key') || '';
+    }
+    if (!apiKey) throw new Error('API-nyckel saknas — kontakta admin');
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1200,
+        messages: [{ role: 'user', content: prompt }] })
+    });
+    const result = await resp.json();
+    if (result.error) throw new Error(result.error.message || 'API-fel');
+
+    localStorage.setItem('lerums_rehab_program', result.content[0].text);
+    localStorage.setItem('lerums_rehab_program_time', Date.now().toString());
+  } catch(e) {
+    showToast('Rehabbot: ' + (e.message || 'Okänt fel'));
+  }
+
+  window._rehabGenerating = false;
+  renderRehabCard();
 }
 
 // ===== PROGRAM WARM-UP (Programming section, capped at ~10 min) =====
