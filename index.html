@@ -9844,7 +9844,7 @@ function updateRmChart() {
 
 // ===== PROFILE =====
 // ===== PROFILE =====
-const AVATAR_EMOJIS = ['💪','🏋️','🤸','🥊','🏃','🚴','🧗','⚡','🔥','🦅','🐺','🦁','👊','🎯','🧠','🌟'];
+const AVATAR_EMOJIS = ['🏋️','💪','🤸','🥊','🏃','🧗','⚡','🔥','🦁','🐺','🦅','🏅','👊','🎯','🛡️','👑'];
 const KG_TO_LBS = 2.20462;
 
 // Convert a lbs string (possibly gendered "135/95") to kg, picking by gender first
@@ -9902,6 +9902,16 @@ async function saveProfile() {
   const firstName = (document.getElementById('profileFirstName')?.value || '').trim();
   const lastName  = (document.getElementById('profileLastName')?.value  || '').trim();
   if (!firstName) { document.getElementById('profileFirstName')?.focus(); return; }
+
+  const emailInput = (document.getElementById('profileEmailInput')?.value || '').trim();
+  const emailStatusEl = document.getElementById('profileEmailStatus');
+  if (!emailInput || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput)) {
+    if (emailStatusEl) emailStatusEl.style.display = '';
+    document.getElementById('profileEmailInput')?.focus();
+    return;
+  }
+  if (emailStatusEl) emailStatusEl.style.display = 'none';
+  profile.email = emailInput;
 
   const pw = document.getElementById('profilePassword').value;
   const statusEl = document.getElementById('profilePasswordStatus');
@@ -10096,6 +10106,8 @@ function openProfileModal() {
     document.getElementById('profileModalTitle').innerHTML = 'SIGN IN <button class="close-btn" onclick="closeProfileModal()">✕</button>';
     if (document.getElementById('profileFirstName')) document.getElementById('profileFirstName').value = '';
     if (document.getElementById('profileLastName'))  document.getElementById('profileLastName').value  = '';
+    if (document.getElementById('profileEmailInput')) { document.getElementById('profileEmailInput').value = ''; }
+    if (document.getElementById('profileEmailStatus')) document.getElementById('profileEmailStatus').style.display = 'none';
     document.getElementById('profilePassword').value = '';
     const statusEl = document.getElementById('profilePasswordStatus');
     if (statusEl) { statusEl.textContent = ''; }
@@ -13111,9 +13123,9 @@ function renderShopSection() {
       </div>
     </div>
   `).join('') + `
-  <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1.25rem;margin-bottom:0.9rem;opacity:0.6;">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1.25rem;margin-bottom:0.9rem;">
     <div style="display:flex;align-items:flex-start;gap:0.75rem;margin-bottom:0.65rem;">
-      <div style="font-size:1.8rem;line-height:1;">🤖</div>
+      <div style="font-size:1.8rem;line-height:1;">🩹</div>
       <div>
         <div style="font-family:'Bebas Neue';font-size:1.2rem;letter-spacing:0.06em;color:var(--text);">Lerumsboxen Rehab</div>
         <div style="font-size:0.68rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-top:0.1rem;">Månadsabonnemang • 75 kr/mån</div>
@@ -13122,7 +13134,7 @@ function renderShopSection() {
     <div style="font-size:0.82rem;color:var(--muted);line-height:1.6;margin-bottom:0.9rem;">AI-driven rehab baserad på Claude. Beskriv din skada och få ett personligt rehabiliteringsprogram.</div>
     <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;">
       <div style="font-family:'Bebas Neue';font-size:1.6rem;letter-spacing:0.04em;color:var(--text);">75 kr/mån</div>
-      <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);background:var(--border);padding:0.4rem 0.9rem;border-radius:4px;">Kommer snart</div>
+      <button onclick="startStripeCheckout('rehab', event)" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;background:var(--red);color:#fff;border:none;border-radius:4px;padding:0.5rem 1.25rem;cursor:pointer;">Prenumerera →</button>
     </div>
   </div>
   <div style="font-size:0.72rem;color:var(--muted);text-align:center;line-height:1.5;padding:0.5rem 0 1rem;">
@@ -13718,6 +13730,11 @@ async function saveStripeConfig() {
           <label>Surname</label>
           <input type="text" id="profileLastName" placeholder="e.g. Karlsson" maxlength="30" oninput="updateProfilePreview()">
         </div>
+      </div>
+      <div class="form-group">
+        <label>E-post <span style="color:var(--red);font-weight:400;font-size:0.75rem;">— krävs</span></label>
+        <input type="email" id="profileEmailInput" placeholder="t.ex. anna@example.com" autocomplete="email">
+        <div id="profileEmailStatus" style="font-size:0.75rem;color:var(--red);margin-top:0.3rem;display:none;">Ange en giltig e-postadress</div>
       </div>
       <div class="form-group">
         <label>Password <span style="color:var(--muted);font-weight:400;font-size:0.75rem;">— protects your account</span></label>
