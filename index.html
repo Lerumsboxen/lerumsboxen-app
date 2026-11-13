@@ -2367,9 +2367,13 @@ function json(obj) {
         <label>Price ID — LBWL 2×/vecka (800 kr)</label>
         <input type="text" id="stripePrice2dwl" placeholder="price_…" autocomplete="off" style="font-family:monospace;font-size:0.82rem;">
       </div>
-      <div class="form-group" style="margin-bottom:0.75rem;">
+      <div class="form-group" style="margin-bottom:0.65rem;">
         <label>Price ID — Lerumsboxen Rehab (75 kr/mån)</label>
         <input type="text" id="stripePriceRehab" placeholder="price_…" autocomplete="off" style="font-family:monospace;font-size:0.82rem;">
+      </div>
+      <div class="form-group" style="margin-bottom:0.75rem;">
+        <label>Price ID — Mobility (40 kr/mån)</label>
+        <input type="text" id="stripePriceMobility" placeholder="price_…" autocomplete="off" style="font-family:monospace;font-size:0.82rem;">
       </div>
       <button class="btn btn-sm" onclick="saveStripeConfig()" style="background:#4ade80;color:#000;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:2px;cursor:pointer;">💾 Spara Stripe-inställningar</button>
       <div id="stripeConfigStatus" style="margin-top:0.5rem;font-size:0.78rem;color:var(--muted);"></div>
@@ -3078,6 +3082,14 @@ const DASH_SECTIONS = {
       ${(state.individualProgram||[]).length ? buildIndividualProgramCard(state.individualProgram) : ''}
       ${buildTrainingAdvisorCard()}
       <div id="rehab-card-container">${buildRehabCard()}</div>
+      ${!hasMobilityAccess() ? `
+      <div style="background:var(--card);border:1px solid rgba(167,139,250,0.35);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
+        <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#a78bfa;margin-bottom:0.15rem;">🧘 Mobility</div>
+        <div style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem;">Rörlighetsövningar • 40 kr/mån</div>
+        <div style="text-align:center;">
+          <button onclick="selectDashSection('shop')" style="background:#a78bfa;color:#000;font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:3px;padding:0.4rem 1.5rem;cursor:pointer;white-space:nowrap;">Köp →</button>
+        </div>
+      </div>` : ''}
       ${isAdmin() && typeof membersCache !== 'undefined' && membersCache && membersCache.some(m => m.programRef) ? (() => {
         const withProgs = membersCache.filter(m => m.programRef);
         return '<div style="background:var(--card);border:1px solid rgba(167,139,250,0.25);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">'
@@ -3631,6 +3643,28 @@ function toggleMobilityGroup(key) {
 function renderMobility() {
   const el = document.getElementById('dash-mobility');
   if (!el) return;
+
+  if (!profile.name) {
+    el.innerHTML = `<div style="text-align:center;padding:2rem 1rem;">
+      <div style="font-size:2rem;margin-bottom:0.75rem;">🧘</div>
+      <div style="font-family:'Bebas Neue';font-size:1.2rem;letter-spacing:0.08em;color:var(--text);margin-bottom:0.5rem;">Mobility</div>
+      <div style="font-size:0.82rem;color:var(--muted);margin-bottom:1.25rem;line-height:1.6;">Logga in för att komma åt mobilityövningar.</div>
+      <button onclick="openProfileModal()" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;background:var(--red);color:#fff;border:none;border-radius:4px;padding:0.55rem 1.5rem;cursor:pointer;">Logga in →</button>
+    </div>`;
+    return;
+  }
+
+  if (!hasMobilityAccess()) {
+    el.innerHTML = `<div style="text-align:center;padding:2rem 1rem;">
+      <div style="font-size:2rem;margin-bottom:0.75rem;">🧘</div>
+      <div style="font-family:'Bebas Neue';font-size:1.2rem;letter-spacing:0.08em;color:#a78bfa;margin-bottom:0.5rem;">Mobility</div>
+      <div style="font-size:0.82rem;color:var(--muted);margin-bottom:0.3rem;line-height:1.6;">Rörlighetsövningar anpassade efter dina träningspass — höft, axlar, rygg och mer.</div>
+      <div style="font-size:0.75rem;color:var(--muted);margin-bottom:1.25rem;">Månadsabonnemang • 40 kr/mån</div>
+      <button onclick="selectDashSection('shop')" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;background:#a78bfa;color:#000;border:none;border-radius:4px;padding:0.55rem 1.5rem;cursor:pointer;">Köp →</button>
+    </div>`;
+    return;
+  }
+
   const sel = mobilitySelectedGroups;
   const chips = Object.entries(MOBILITY_POSES).map(([key, g]) => {
     const active = sel.includes(key);
@@ -10119,6 +10153,14 @@ function hasRehabAccess() {
   } catch(e) { return false; }
 }
 
+function hasMobilityAccess() {
+  if (isAdmin()) return true;
+  try {
+    const names = JSON.parse(localStorage.getItem('lerums_mobility_members') || '[]');
+    return names.includes(profile.name);
+  } catch(e) { return false; }
+}
+
 function applyAdminVisibility() {
   // Sync settings button — admin only
   const syncBtn = document.getElementById('headerSyncBtn');
@@ -12684,6 +12726,9 @@ async function fetchMembers() {
       // Cache rehab access flags (col L = "rehabbot")
       const rehabNames = data.members.filter(m => m.rehabbot).map(m => m.name);
       localStorage.setItem('lerums_rehabbot_members', JSON.stringify(rehabNames));
+      // Cache mobility access flags (col N = "mobility")
+      const mobilityNames = data.members.filter(m => m.mobility).map(m => m.name);
+      localStorage.setItem('lerums_mobility_members', JSON.stringify(mobilityNames));
       // Auto-grant rehab access if member has it in Members sheet
       if (profile && profile.name && rehabNames.includes(profile.name)) {
         window._rehabAccess = 'granted';
@@ -13227,6 +13272,31 @@ function renderShopSection() {
     },
   ];
 
+  const subscriptions = [
+    {
+      id: 'rehab',
+      name: 'Lerumsboxen Rehab',
+      emoji: '🩹',
+      desc: 'AI-driven rehab baserad på Claude. Beskriv din skada och få ett personligt rehabiliteringsprogram.',
+      price: '75 kr/mån',
+      duration: 'Månadsabonnemang • 75 kr/mån',
+      active: hasRehabAccess(),
+      color: '#14b8a6'
+    },
+    {
+      id: 'mobility',
+      name: 'Mobility',
+      emoji: '🧘',
+      desc: 'Rörlighetsövningar anpassade efter dina träningspass. Höft, axlar, rygg och mer — välj muskelgrupper och bygg din session.',
+      price: '40 kr/mån',
+      duration: 'Månadsabonnemang • 40 kr/mån',
+      active: hasMobilityAccess(),
+      color: '#a78bfa'
+    }
+  ];
+
+  const hasActiveSubscription = hasRehabAccess() || hasMobilityAccess();
+
   el.innerHTML = products.map(p => `
     <div style="background:var(--card);border:1px solid ${p.active ? p.color : 'var(--border)'};border-radius:8px;padding:1.25rem;margin-bottom:0.9rem;position:relative;overflow:hidden;">
       ${p.active ? `<div style="position:absolute;top:0.75rem;right:0.75rem;background:${p.color};color:#000;font-family:'Barlow Condensed';font-weight:700;font-size:0.65rem;letter-spacing:0.14em;text-transform:uppercase;padding:0.2rem 0.6rem;border-radius:3px;">AKTIVT</div>` : ''}
@@ -13246,21 +13316,31 @@ function renderShopSection() {
         }
       </div>
     </div>
-  `).join('') + `
-  <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1.25rem;margin-bottom:0.9rem;">
-    <div style="display:flex;align-items:flex-start;gap:0.75rem;margin-bottom:0.65rem;">
-      <div style="font-size:1.8rem;line-height:1;">🩹</div>
-      <div>
-        <div style="font-family:'Bebas Neue';font-size:1.2rem;letter-spacing:0.06em;color:var(--text);">Lerumsboxen Rehab</div>
-        <div style="font-size:0.68rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-top:0.1rem;">Månadsabonnemang • 75 kr/mån</div>
+  `).join('') + subscriptions.map(p => `
+    <div style="background:var(--card);border:1px solid ${p.active ? p.color : 'var(--border)'};border-radius:8px;padding:1.25rem;margin-bottom:0.9rem;position:relative;overflow:hidden;">
+      ${p.active ? `<div style="position:absolute;top:0.75rem;right:0.75rem;background:${p.color};color:#000;font-family:'Barlow Condensed';font-weight:700;font-size:0.65rem;letter-spacing:0.14em;text-transform:uppercase;padding:0.2rem 0.6rem;border-radius:3px;">AKTIVT</div>` : ''}
+      <div style="display:flex;align-items:flex-start;gap:0.75rem;margin-bottom:0.65rem;">
+        <div style="font-size:1.8rem;line-height:1;">${p.emoji}</div>
+        <div>
+          <div style="font-family:'Bebas Neue';font-size:1.2rem;letter-spacing:0.06em;color:${p.active ? p.color : 'var(--text)'};">${p.name}</div>
+          <div style="font-size:0.68rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-top:0.1rem;">${p.duration}</div>
+        </div>
+      </div>
+      <div style="font-size:0.82rem;color:var(--muted);line-height:1.6;margin-bottom:0.9rem;">${p.desc}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;">
+        <div style="font-family:'Bebas Neue';font-size:1.6rem;letter-spacing:0.04em;color:var(--text);">${p.price}</div>
+        ${p.active
+          ? `<div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;color:${p.color};">✓ Aktiverat</div>`
+          : `<button onclick="startStripeCheckout('${p.id}', event)" style="background:${p.color};color:#fff;font-family:'Barlow Condensed';font-weight:700;font-size:0.82rem;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:4px;padding:0.5rem 1.1rem;cursor:pointer;">Prenumerera →</button>`
+        }
       </div>
     </div>
-    <div style="font-size:0.82rem;color:var(--muted);line-height:1.6;margin-bottom:0.9rem;">AI-driven rehab baserad på Claude. Beskriv din skada och få ett personligt rehabiliteringsprogram.</div>
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;">
-      <div style="font-family:'Bebas Neue';font-size:1.6rem;letter-spacing:0.04em;color:var(--text);">75 kr/mån</div>
-      <button onclick="startStripeCheckout('rehab', event)" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;background:var(--red);color:#fff;border:none;border-radius:4px;padding:0.5rem 1.25rem;cursor:pointer;">Prenumerera →</button>
-    </div>
-  </div>
+  `).join('') + `
+  ${hasActiveSubscription ? `
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:0.9rem;text-align:center;">
+    <div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.6rem;">Hantera eller avsluta dina prenumerationer via Stripe.</div>
+    <button onclick="openManageSubscription(event)" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:4px;padding:0.4rem 1rem;cursor:pointer;">Hantera prenumeration →</button>
+  </div>` : ''}
   <div style="font-size:0.72rem;color:var(--muted);text-align:center;line-height:1.5;padding:0.5rem 0 1rem;">
     Betalning hanteras säkert av Stripe. Lerumsboxen lagrar inga kortuppgifter.
   </div>`;
@@ -13308,20 +13388,33 @@ async function handleStripeSuccess(sessionId, product) {
     if (data.error) throw new Error(data.error);
     try { await fetchMembers(); } catch(_) {}
     // For rehab, grant access immediately regardless of fetchMembers timing
-    if ((data.product || product) === 'rehab') window._rehabAccess = 'granted';
-    const labels = { lbwl: 'LBWL 3×/vecka', '2dwl': 'LBWL 2×/vecka', rehab: 'Lerumsboxen Rehab' };
-    showToast('✓ Betalning bekräftad! ' + (labels[data.product || product] || '') + ' är nu aktivt.');
-    setTimeout(() => selectDashSection('programming'), 600);
+    const confirmedProduct = data.product || product;
+    if (confirmedProduct === 'rehab') window._rehabAccess = 'granted';
+    if (confirmedProduct === 'mobility') {
+      try {
+        const names = JSON.parse(localStorage.getItem('lerums_mobility_members') || '[]');
+        if (!names.includes(profile.name)) { names.push(profile.name); localStorage.setItem('lerums_mobility_members', JSON.stringify(names)); }
+      } catch(_) {}
+    }
+    const labels = { lbwl: 'LBWL 3×/vecka', '2dwl': 'LBWL 2×/vecka', rehab: 'Lerumsboxen Rehab', mobility: 'Mobility' };
+    showToast('✓ Betalning bekräftad! ' + (labels[confirmedProduct] || '') + ' är nu aktivt.');
+    const dest = (confirmedProduct === 'mobility') ? 'mobility' : 'programming';
+    setTimeout(() => selectDashSection(dest), 600);
   } catch(e) {
     showToast('Betalningsverifiering misslyckades: ' + (e.message || 'Okänt fel'));
   }
 }
 
+function openManageSubscription() {
+  window.open('https://billing.stripe.com/p/login/fZu00k72956afxOeB2ds400', '_blank');
+}
+
 async function saveStripeConfig() {
-  const key    = (document.getElementById('stripeSecretKey')?.value || '').trim();
-  const lbwl   = (document.getElementById('stripePriceLbwl')?.value || '').trim();
-  const dwl2   = (document.getElementById('stripePrice2dwl')?.value || '').trim();
-  const rehab  = (document.getElementById('stripePriceRehab')?.value || '').trim();
+  const key      = (document.getElementById('stripeSecretKey')?.value || '').trim();
+  const lbwl     = (document.getElementById('stripePriceLbwl')?.value || '').trim();
+  const dwl2     = (document.getElementById('stripePrice2dwl')?.value || '').trim();
+  const rehab    = (document.getElementById('stripePriceRehab')?.value || '').trim();
+  const mobility = (document.getElementById('stripePriceMobility')?.value || '').trim();
   const statusEl = document.getElementById('stripeConfigStatus');
   if (statusEl) { statusEl.textContent = 'Sparar…'; statusEl.style.color = 'var(--muted)'; }
   try {
@@ -13330,7 +13423,8 @@ async function saveStripeConfig() {
       stripeKey: key,
       priceLbwl: lbwl,
       price2dwl: dwl2,
-      priceRehab: rehab
+      priceRehab: rehab,
+      priceMobility: mobility
     });
     if (data.status === 'ok') {
       if (statusEl) { statusEl.textContent = '✓ Sparat i Config-fliken'; statusEl.style.color = 'var(--success)'; }
