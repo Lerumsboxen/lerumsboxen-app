@@ -6249,7 +6249,10 @@ function buildAmrapResultPanel() {
   const movements = Array.from(rows.children).map(row => {
     const rid = row.id.replace('wrow-', '');
     const mov = (document.getElementById('wmov-' + rid)?.value || '').trim();
-    const amt = (document.getElementById('wamt-' + rid)?.value || '').trim();
+    // weighted/height/repdist/default rows store reps in wreps; cardio stores amount in wamt
+    const wrepsEl = document.getElementById('wreps-' + rid);
+    const wamtEl  = document.getElementById('wamt-'  + rid);
+    const amt = (wrepsEl?.value || wamtEl?.value || '').trim();
     const unit = document.getElementById('wunit-' + rid)?.value || '';
     return { movement: mov, reps: amt, unit };
   }).filter(m => m.movement);
