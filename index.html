@@ -10177,13 +10177,26 @@ function applyAdminVisibility() {
 function updateHeaderProfile() {
   const btn = document.getElementById('headerProfileBtn');
   if (!btn) return;
-  const headerPhotoSrc = profile.photo || profile.photoUrl || null;
-  if (headerPhotoSrc) {
-    btn.innerHTML = `<img src="${headerPhotoSrc}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
-    btn.style.background = '';
+  if (!profile.name) {
+    btn.innerHTML = `<span style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--red);white-space:nowrap;">Logga in</span>`;
+    btn.style.background = 'transparent';
+    btn.style.border = '1px solid rgba(230,57,70,0.5)';
+    btn.style.borderRadius = '4px';
+    btn.style.width = 'auto';
+    btn.style.padding = '0 0.5rem';
   } else {
-    btn.textContent = avatarDivInner(profile.avatar, profile.name || '');
-    btn.style.background = avatarDivBg(profile.avatar);
+    btn.style.border = '';
+    btn.style.borderRadius = '';
+    btn.style.width = '';
+    btn.style.padding = '';
+    const headerPhotoSrc = profile.photo || profile.photoUrl || null;
+    if (headerPhotoSrc) {
+      btn.innerHTML = `<img src="${headerPhotoSrc}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+      btn.style.background = '';
+    } else {
+      btn.textContent = avatarDivInner(profile.avatar, profile.name || '');
+      btn.style.background = avatarDivBg(profile.avatar);
+    }
   }
   applyAdminVisibility();
 }
