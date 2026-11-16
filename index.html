@@ -2379,6 +2379,28 @@ function json(obj) {
       <div id="stripeConfigStatus" style="margin-top:0.5rem;font-size:0.78rem;color:var(--muted);"></div>
     </div>` : ''}
 
+    <!-- Weekly Slides Trigger (admin only) -->
+    ${isAdmin() ? `<div class="card" style="margin-bottom:1rem;border-color:rgba(251,191,36,0.35);">
+      <div style="font-family:'Bebas Neue';font-size:1.1rem;letter-spacing:0.06em;color:#fbbf24;margin-bottom:0.75rem;">🎞️ VECKOPRESENTATION — ADMIN</div>
+      <p style="font-size:0.82rem;color:var(--muted);margin-bottom:0.75rem;line-height:1.5;">
+        Skapar nästa veckas Google Slides-presentation via Namnlöst projekt.<br>
+        Kräver att scriptet är deployat som Web App med en <code style="font-size:0.78rem;background:rgba(255,255,255,0.08);padding:1px 4px;border-radius:3px;">doPost</code>-endpoint.
+      </p>
+      <div class="form-group" style="margin-bottom:0.75rem;">
+        <label>Web App URL (Namnlöst projekt)</label>
+        <input type="text" id="slidesWebhookUrl" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" style="font-family:monospace;font-size:0.78rem;">
+      </div>
+      <div class="form-group" style="margin-bottom:0.75rem;">
+        <label>Hemlig token (SLIDES_SECRET i scriptet)</label>
+        <input type="password" id="slidesWebhookSecret" placeholder="byt-mig" autocomplete="off" style="font-family:monospace;font-size:0.82rem;">
+      </div>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.5rem;">
+        <button class="btn btn-sm" onclick="saveSlidesConfig()" style="background:#fbbf24;color:#000;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:2px;cursor:pointer;">💾 Spara</button>
+        <button class="btn btn-sm" id="createSlidesBtn" onclick="triggerWeeklySlides()" style="background:transparent;border:1px solid #fbbf24;color:#fbbf24;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border-radius:2px;cursor:pointer;">🎞️ Skapa veckans presentation</button>
+      </div>
+      <div id="slidesStatus" style="margin-top:0.5rem;font-size:0.78rem;color:var(--muted);"></div>
+    </div>` : ''}
+
     <!-- Daily Program Sync -->
     <div class="card" style="margin-bottom:1rem;border-color:rgba(251,191,36,0.3);">
       <div style="font-family:'Bebas Neue';font-size:1.1rem;letter-spacing:0.06em;color:#fbbf24;margin-bottom:1rem;">DAILY PROGRAM</div>
@@ -13447,6 +13469,39 @@ async function saveStripeConfig() {
     } else throw new Error(data.error || 'Okänt fel');
   } catch(e) {
     if (statusEl) { statusEl.textContent = 'Fel: ' + e.message; statusEl.style.color = '#f87171'; }
+  }
+}
+
+async function saveSlidesConfig() {
+  const url    = (document.getElementById('slidesWebhookUrl')?.value || '').trim();
+  const secret = (document.getElementById('slidesWebhookSecret')?.value || '').trim();
+  const statusEl = document.getElementById('slidesStatus');
+  if (statusEl) { statusEl.textContent = 'Sparar…'; statusEl.style.color = 'var(--muted)'; }
+  try {
+    await xhrPost(APPS_SCRIPT_URL, { action: 'saveSlidesConfig', slidesWebhookUrl: url, slidesWebhookSecret: secret });
+    if (statusEl) { statusEl.textContent = '✓ Sparat'; statusEl.style.color = 'var(--success)'; }
+  } catch(e) {
+    if (statusEl) { statusEl.textContent = 'Fel: ' + e.message; statusEl.style.color = '#f87171'; }
+  }
+}
+
+async function triggerWeeklySlides() {
+  const btn = document.getElementById('createSlidesBtn');
+  const statusEl = document.getElementById('slidesStatus');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Skapar…'; }
+  if (statusEl) { statusEl.textContent = 'Bygger presentation, vänta…'; statusEl.style.color = 'var(--muted)'; }
+  try {
+    const data = await xhrPost(APPS_SCRIPT_URL, { action: 'triggerWeeklySlides' });
+    if (data.ok && data.url) {
+      if (statusEl) {
+        statusEl.innerHTML = '✓ Klar! <a href="' + data.url + '" target="_blank" style="color:#fbbf24;">Öppna presentation →</a>';
+        statusEl.style.color = 'var(--success)';
+      }
+    } else throw new Error(data.error || 'Okänt fel');
+  } catch(e) {
+    if (statusEl) { statusEl.textContent = 'Fel: ' + e.message; statusEl.style.color = '#f87171'; }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🎞️ Skapa veckans presentation'; }
   }
 }
 
