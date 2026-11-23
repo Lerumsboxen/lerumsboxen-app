@@ -2394,9 +2394,13 @@ function json(obj) {
         <label>Hemlig token (SLIDES_SECRET i scriptet)</label>
         <input type="password" id="slidesWebhookSecret" placeholder="byt-mig" autocomplete="off" style="font-family:monospace;font-size:0.82rem;">
       </div>
+      <div class="form-group" style="margin-bottom:0.75rem;">
+        <label>Välj vecka</label>
+        <select id="slidesWeekSelect" style="font-size:0.82rem;" onchange="document.getElementById('slidesStatus').textContent=''"></select>
+      </div>
       <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.5rem;">
         <button class="btn btn-sm" onclick="saveSlidesConfig()" style="background:#fbbf24;color:#000;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:2px;cursor:pointer;">💾 Spara</button>
-        <button class="btn btn-sm" id="createSlidesBtn" onclick="triggerWeeklySlides()" style="background:transparent;border:1px solid #fbbf24;color:#fbbf24;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border-radius:2px;cursor:pointer;">🎞️ Skapa veckans presentation</button>
+        <button class="btn btn-sm" id="createSlidesBtn" onclick="triggerWeeklySlides()" style="background:transparent;border:1px solid #fbbf24;color:#fbbf24;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border-radius:2px;cursor:pointer;">🎞️ Skapa presentation</button>
       </div>
       <div id="slidesStatus" style="margin-top:0.5rem;font-size:0.78rem;color:var(--muted);"></div>
     </div>` : ''}
@@ -2938,7 +2942,7 @@ function showPage(id, goingBack) {
   if (id === 'log') { switchLogTab(currentLogTab); }
   if (id === 'prs') renderPRs();
   if (id === 'movements') renderMovements();
-  if (id === 'sync') updateSyncSummary();
+  if (id === 'sync') { updateSyncSummary(); populateSlidesWeekSelect(); }
 }
 
 // ===== DASHBOARD SECTION SELECTOR =====
@@ -13485,23 +13489,58 @@ async function saveSlidesConfig() {
   }
 }
 
+function populateSlidesWeekSelect() {
+  const sel = document.getElementById('slidesWeekSelect');
+  if (!sel) return;
+  sel.innerHTML = '';
+  const today = new Date();
+  const dow = today.getDay();
+  const diffToMonday = dow === 0 ? -6 : 1 - dow;
+  const thisMonday = new Date(today);
+  thisMonday.setDate(today.getDate() + diffToMonday);
+
+  const sweDay = ['Sön','Mån','Tis','Ons','Tor','Fre','Lör'];
+  for (let i = 0; i < 8; i++) {
+    const mon = new Date(thisMonday);
+    mon.setDate(thisMonday.getDate() + i * 7);
+    const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+    const iso = mon.toISOString().split('T')[0];
+    // ISO week number
+    const d = new Date(Date.UTC(mon.getFullYear(), mon.getMonth(), mon.getDate()));
+    const dayNum = (d.getUTCDay() + 6) % 7;
+    d.setUTCDate(d.getUTCDate() - dayNum + 3);
+    const ft = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+    const ftDay = (ft.getUTCDay() + 6) % 7;
+    ft.setUTCDate(ft.getUTCDate() - ftDay + 3);
+    const week = 1 + Math.round((d - ft) / (7 * 24 * 3600 * 1000));
+    const label = `V. ${week} — ${mon.getDate()}/${mon.getMonth()+1}–${sun.getDate()}/${sun.getMonth()+1}`;
+    const opt = document.createElement('option');
+    opt.value = iso;
+    opt.textContent = i === 0 ? label + ' (denna vecka)' : i === 1 ? label + ' (nästa vecka)' : label;
+    if (i === 1) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
 async function triggerWeeklySlides() {
   const btn = document.getElementById('createSlidesBtn');
   const statusEl = document.getElementById('slidesStatus');
+  const isoMonday = document.getElementById('slidesWeekSelect')?.value || null;
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Skapar…'; }
   if (statusEl) { statusEl.textContent = 'Bygger presentation, vänta…'; statusEl.style.color = 'var(--muted)'; }
   try {
-    const data = await xhrPost(APPS_SCRIPT_URL, { action: 'triggerWeeklySlides' });
+    const data = await xhrPost(APPS_SCRIPT_URL, { action: 'triggerWeeklySlides', isoMonday });
     if (data.ok && data.url) {
       if (statusEl) {
-        statusEl.innerHTML = '✓ Klar! <a href="' + data.url + '" target="_blank" style="color:#fbbf24;">Öppna presentation →</a>';
+        const existed = data.existed ? ' (presentationen fanns redan)' : '';
+        statusEl.innerHTML = '✓ Klar' + existed + '! <a href="' + data.url + '" target="_blank" style="color:#fbbf24;">Öppna presentation →</a>';
         statusEl.style.color = 'var(--success)';
       }
     } else throw new Error(data.error || 'Okänt fel');
   } catch(e) {
     if (statusEl) { statusEl.textContent = 'Fel: ' + e.message; statusEl.style.color = '#f87171'; }
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '🎞️ Skapa veckans presentation'; }
+    if (btn) { btn.disabled = false; btn.textContent = '🎞️ Skapa presentation'; }
   }
 }
 
