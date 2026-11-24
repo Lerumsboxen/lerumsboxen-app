@@ -2371,9 +2371,13 @@ function json(obj) {
         <label>Price ID — Lerumsboxen Rehab (75 kr/mån)</label>
         <input type="text" id="stripePriceRehab" placeholder="price_…" autocomplete="off" style="font-family:monospace;font-size:0.82rem;">
       </div>
-      <div class="form-group" style="margin-bottom:0.75rem;">
+      <div class="form-group" style="margin-bottom:0.65rem;">
         <label>Price ID — Mobility (40 kr/mån)</label>
         <input type="text" id="stripePriceMobility" placeholder="price_…" autocomplete="off" style="font-family:monospace;font-size:0.82rem;">
+      </div>
+      <div class="form-group" style="margin-bottom:0.75rem;">
+        <label>Price ID — Individuellt Program (500 kr)</label>
+        <input type="text" id="stripePriceIndividualProgram" placeholder="price_…" autocomplete="off" style="font-family:monospace;font-size:0.82rem;">
       </div>
       <button class="btn btn-sm" onclick="saveStripeConfig()" style="background:#4ade80;color:#000;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:2px;cursor:pointer;">💾 Spara Stripe-inställningar</button>
       <div id="stripeConfigStatus" style="margin-top:0.5rem;font-size:0.78rem;color:var(--muted);"></div>
@@ -2948,14 +2952,7 @@ function showPage(id, goingBack) {
 // ===== DASHBOARD SECTION SELECTOR =====
 let currentDashSection = null;
 
-const HOME_HERO_IMAGES = [
-  'hero/01.jpg','hero/02.jpg','hero/03.jpg','hero/04.jpg','hero/05.jpg',
-  'hero/06.jpg','hero/07.jpg','hero/08.jpg','hero/09.jpg','hero/10.jpg','hero/11.jpg',
-  'hero/12.jpg','hero/13.jpg','hero/14.jpg','hero/15.jpg','hero/16.jpg',
-  'hero/17.jpg','hero/18.jpg','hero/19.jpg','hero/20.jpg','hero/21.jpg',
-  'hero/22.jpg','hero/23.jpg','hero/24.jpg','hero/25.jpg','hero/26.jpg',
-  'hero/27.jpg','hero/28.jpg','hero/29.jpg','hero/30.jpg','hero/31.jpg'
-];
+const HOME_HERO_IMAGES = Array.from({length: 40}, (_, i) => `hero/${String(i + 1).padStart(2, '0')}.jpg`);
 
 const DASH_SECTIONS = {
   log: {
@@ -3116,22 +3113,37 @@ const DASH_SECTIONS = {
           <button onclick="selectDashSection('shop')" style="background:#a78bfa;color:#000;font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:3px;padding:0.4rem 1.5rem;cursor:pointer;white-space:nowrap;">Köp →</button>
         </div>
       </div>` : ''}
-      ${isAdmin() && typeof membersCache !== 'undefined' && membersCache && membersCache.some(m => m.programRef) ? (() => {
+      ${isAdmin() && typeof membersCache !== 'undefined' && membersCache ? (() => {
         const withProgs = membersCache.filter(m => m.programRef);
-        return '<div style="background:var(--card);border:1px solid rgba(167,139,250,0.25);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">'
-          + '<div style="font-family:\'Bebas Neue\';font-size:1rem;letter-spacing:0.08em;color:#a78bfa;margin-bottom:0.6rem;">📋 Individual Programs</div>'
-          + withProgs.map(m => {
+        const allMembers = membersCache;
+        const memberListHtml = withProgs.length
+          ? withProgs.map(m => {
               const sid = m.name.replace(/[^a-zA-Z0-9]/g,'-');
               return '<div style="border-bottom:1px solid var(--border);padding:0.5rem 0;">'
                 + '<div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;">'
                 + '<span style="font-family:\'Barlow Condensed\';font-weight:700;font-size:0.85rem;color:var(--text);">' + m.name + '</span>'
                 + '<div style="display:flex;align-items:center;gap:0.5rem;">'
                 + '<span style="font-size:0.7rem;color:var(--muted);">' + m.programRef + '</span>'
+                + '<button onclick="openProgGen(\'' + m.name.replace(/'/g,"\\'") + '\')" style="font-family:\'Barlow Condensed\';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:transparent;color:#a78bfa;border:1px solid rgba(167,139,250,0.4);border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">✦ Ny</button>'
                 + '<button onclick="toggleIPAdminExpand(\'' + m.name + '\',\'' + m.programRef + '\')" id="ip-admin-btn-' + sid + '" style="font-family:\'Barlow Condensed\';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:transparent;color:#a78bfa;border:1px solid rgba(167,139,250,0.4);border-radius:3px;padding:0.3rem 0.65rem;cursor:pointer;">▸ View</button>'
                 + '</div></div>'
                 + '<div id="ip-admin-content-' + sid + '" style="display:none;margin-top:0.5rem;"></div>'
                 + '</div>';
             }).join('')
+          : '<div style="font-size:0.75rem;color:var(--muted);padding:0.5rem 0;">Inga individuella program ännu.</div>';
+        // Populate member dropdown in prog gen modal
+        setTimeout(() => {
+          const sel = document.getElementById('progGenMember');
+          if (!sel) return;
+          sel.innerHTML = '<option value="">– Välj medlem –</option>'
+            + allMembers.map(m => '<option value="' + m.name.replace(/"/g,'&quot;') + '">' + m.name + '</option>').join('');
+        }, 0);
+        return '<div style="background:var(--card);border:1px solid rgba(167,139,250,0.25);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">'
+          + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem;">'
+          + '<div style="font-family:\'Bebas Neue\';font-size:1rem;letter-spacing:0.08em;color:#a78bfa;">📋 Individual Programs</div>'
+          + '<button onclick="openProgGen(\'\')" style="font-family:\'Barlow Condensed\';font-weight:700;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;background:rgba(167,139,250,0.12);color:#a78bfa;border:1px solid rgba(167,139,250,0.4);border-radius:3px;padding:0.3rem 0.8rem;cursor:pointer;">+ Generera</button>'
+          + '</div>'
+          + memberListHtml
           + '</div>';
       })() : ''}`;
     }
@@ -3798,12 +3810,21 @@ function closeMoreSheet() {
 
 function initHeroBg() {
   if (document.getElementById('home-hero-bg')) return;
-  const heroImg = HOME_HERO_IMAGES[Math.floor(Math.random() * HOME_HERO_IMAGES.length)];
   const heroBg = document.createElement('div');
   heroBg.id = 'home-hero-bg';
-  heroBg.style.backgroundImage = `url('${heroImg}')`;
   document.body.appendChild(heroBg);
-  requestAnimationFrame(() => { heroBg.style.opacity = '0.18'; });
+  const candidates = [...HOME_HERO_IMAGES].sort(() => Math.random() - 0.5);
+  (function tryNext() {
+    const src = candidates.shift();
+    if (!src) return;
+    const img = new Image();
+    img.onload = () => {
+      heroBg.style.backgroundImage = `url('${src}')`;
+      requestAnimationFrame(() => { heroBg.style.opacity = '0.18'; });
+    };
+    img.onerror = tryNext;
+    img.src = src;
+  })();
 }
 
 function renderHomeLanding() {
@@ -7303,34 +7324,8 @@ function showToast(msg, duration) {
 
 // ===== SEED DATA (if fresh) =====
 function seedIfEmpty() {
-  // Only seed once, and never if a profile name is set (real user)
   if (localStorage.getItem('lerums_seeded')) return;
-  if (profile.name) return; // real account — don't inject fake data
-  if (state.wods.length > 0) return;
   localStorage.setItem('lerums_seeded', '1');
-  const today = new Date();
-  const days = (n) => { const d = new Date(today); d.setDate(d.getDate()-n); return d.toISOString().split('T')[0]; };
-  state.wods = [
-    { id:'1', name:'Fran', date:days(1), type:'fortime', desc:'21-15-9\nThrusters 43kg\nPull-ups', score:'4:52', rx:'rx', notes:'Felt strong on thrusters' },
-    { id:'2', name:'Helen', date:days(3), type:'fortime', desc:'3 rounds:\n400m Run\n21 KB Swings 24kg\n12 Pull-ups', score:'11:34', rx:'rx', notes:'' },
-    { id:'3', name:'EMOM 20', date:days(5), type:'emom', desc:'Odd: 10 Hang Power Cleans 60kg\nEven: 15 Box Jumps 60cm', score:'Complete', rx:'scaled', notes:'Heavy on last sets' },
-  ];
-  state.prs = [
-    { id:'1', movement:'Back Squat', value:120, unit:'kg', date:days(14) },
-    { id:'2', movement:'Clean & Jerk', value:90, unit:'kg', date:days(7) },
-    { id:'3', movement:'Snatch', value:72.5, unit:'kg', date:days(21) },
-    { id:'4', movement:'Deadlift', value:155, unit:'kg', date:days(10) },
-    { id:'5', movement:'Strict Press', value:72, unit:'kg', date:days(30) },
-  ];
-  state.strength = [
-    { id:'s1', date:days(2), exercise:'Back Squat', sets:[
-      {weight:80,reps:5,rpe:6},{weight:90,reps:5,rpe:7},{weight:100,reps:3,rpe:8},{weight:105,reps:2,rpe:9}], notes:'Worked up to heavy double' },
-    { id:'s2', date:days(4), exercise:'Deadlift', sets:[
-      {weight:100,reps:5,rpe:6},{weight:120,reps:3,rpe:7},{weight:140,reps:1,rpe:9}], notes:'New heavy single attempt' },
-    { id:'s3', date:days(6), exercise:'Strict Press', sets:[
-      {weight:50,reps:5,rpe:6},{weight:55,reps:5,rpe:7},{weight:60,reps:5,rpe:8},{weight:60,reps:4,rpe:9}], notes:'' },
-  ];
-  save();
 }
 
 
@@ -13312,6 +13307,16 @@ function renderShopSection() {
       active: hasProgramAccess('2dwl'),
       color: '#34d399'
     },
+    {
+      id: 'individualprogram',
+      name: 'Individuellt Program',
+      emoji: '✦',
+      desc: 'Ett skräddarsytt träningsprogram skapad specifikt för dig. Fyll i dina mål, din träningsbakgrund och dina max-lyft — vi genererar ett periodiserat program anpassat efter dig och lägger det direkt i appen.',
+      price: '500 kr',
+      duration: 'Engångskostnad • levereras i appen',
+      active: false,
+      color: '#f59e0b'
+    },
   ];
 
   const subscriptions = [
@@ -13394,6 +13399,10 @@ async function startStripeCheckout(product, evt) {
     setTimeout(() => openProfileModal(), 200);
     return;
   }
+  if (product === 'individualprogram') {
+    openIPIntakeModal();
+    return;
+  }
   const btn = evt && evt.currentTarget ? evt.currentTarget : (evt && evt.target ? evt.target : null);
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
   try {
@@ -13413,6 +13422,57 @@ async function startStripeCheckout(product, evt) {
   } catch(e) {
     if (btn) { btn.disabled = false; btn.textContent = 'Köp →'; }
     showToast('Fel: ' + (e.message || 'Kunde inte starta betalning'));
+  }
+}
+
+function openIPIntakeModal() {
+  const m = document.getElementById('ipIntakeModal');
+  if (!m) return;
+  document.getElementById('ipIntakeStatus').textContent = '';
+  document.getElementById('ipIntakeSubmitBtn').disabled = false;
+  document.getElementById('ipIntakeSubmitBtn').textContent = 'Betala 500 kr →';
+  m.style.display = 'flex';
+}
+
+function closeIPIntakeModal(e) {
+  if (!e || e.target === e.currentTarget) {
+    document.getElementById('ipIntakeModal').style.display = 'none';
+  }
+}
+
+async function submitIPIntake() {
+  const goal       = document.getElementById('ipGoal').value;
+  const days       = document.getElementById('ipDays').value;
+  const weeks      = document.getElementById('ipWeeks').value;
+  const maxSquat   = (document.getElementById('ipSquat').value   || '').trim();
+  const maxDl      = (document.getElementById('ipDeadlift').value || '').trim();
+  const maxBench   = (document.getElementById('ipBench').value   || '').trim();
+  const maxClean   = (document.getElementById('ipClean').value   || '').trim();
+  const maxSnatch  = (document.getElementById('ipSnatch').value  || '').trim();
+  const notes      = (document.getElementById('ipNotes').value   || '').trim();
+  const statusEl   = document.getElementById('ipIntakeStatus');
+  const btn        = document.getElementById('ipIntakeSubmitBtn');
+  btn.disabled = true; btn.textContent = '…';
+  statusEl.textContent = '';
+  try {
+    const base = window.location.origin + window.location.pathname;
+    const successUrl = base + '?payment=success&session_id={CHECKOUT_SESSION_ID}&product=individualprogram';
+    const cancelUrl  = base + '?payment=cancel';
+    const data = await xhrPost(APPS_SCRIPT_URL, {
+      action: 'createCheckoutSession',
+      product: 'individualprogram',
+      memberName:  profile.name,
+      memberEmail: profile.email || '',
+      successUrl, cancelUrl,
+      goal, daysPerWeek: days, programWeeks: weeks,
+      maxSquat, maxDeadlift: maxDl, maxBench, maxClean, maxSnatch, notes
+    });
+    if (data.error) throw new Error(data.error);
+    if (data.url) window.location.href = data.url;
+  } catch(e) {
+    btn.disabled = false; btn.textContent = 'Betala 500 kr →';
+    statusEl.textContent = 'Fel: ' + (e.message || 'Kunde inte starta betalning');
+    statusEl.style.color = '#f87171';
   }
 }
 
@@ -13438,7 +13498,12 @@ async function handleStripeSuccess(sessionId, product) {
         if (!names.includes(profile.name)) { names.push(profile.name); localStorage.setItem('lerums_mobility_members', JSON.stringify(names)); }
       } catch(_) {}
     }
-    const labels = { lbwl: 'LBWL 3×/vecka', '2dwl': 'LBWL 2×/vecka', rehab: 'Lerumsboxen Rehab', mobility: 'Mobility' };
+    const labels = { lbwl: 'LBWL 3×/vecka', '2dwl': 'LBWL 2×/vecka', rehab: 'Lerumsboxen Rehab', mobility: 'Mobility', individualprogram: 'Individuellt Program' };
+    if (confirmedProduct === 'individualprogram') {
+      showToast('✓ Betalning bekräftad! Vi skickar ditt program till dig så snart det är klart.');
+      setTimeout(() => selectDashSection('shop'), 600);
+      return;
+    }
     showToast('✓ Betalning bekräftad! ' + (labels[confirmedProduct] || '') + ' är nu aktivt.');
     const dest = (confirmedProduct === 'mobility') ? 'mobility' : 'programming';
     setTimeout(() => selectDashSection(dest), 600);
@@ -13457,6 +13522,7 @@ async function saveStripeConfig() {
   const dwl2     = (document.getElementById('stripePrice2dwl')?.value || '').trim();
   const rehab    = (document.getElementById('stripePriceRehab')?.value || '').trim();
   const mobility = (document.getElementById('stripePriceMobility')?.value || '').trim();
+  const indivProg = (document.getElementById('stripePriceIndividualProgram')?.value || '').trim();
   const statusEl = document.getElementById('stripeConfigStatus');
   if (statusEl) { statusEl.textContent = 'Sparar…'; statusEl.style.color = 'var(--muted)'; }
   try {
@@ -13466,7 +13532,8 @@ async function saveStripeConfig() {
       priceLbwl: lbwl,
       price2dwl: dwl2,
       priceRehab: rehab,
-      priceMobility: mobility
+      priceMobility: mobility,
+      priceIndividualProgram: indivProg
     });
     if (data.status === 'ok') {
       if (statusEl) { statusEl.textContent = '✓ Sparat i Config-fliken'; statusEl.style.color = 'var(--success)'; }
@@ -14111,6 +14178,177 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+// ===== PROGRAM GENERATOR =====
+
+function openProgGen(memberName) {
+  window._progGenMember = memberName || '';
+  const sel = document.getElementById('progGenMember');
+  if (sel && memberName) sel.value = memberName;
+  // Pre-populate PRs summary
+  _progGenUpdatePRSummary();
+  document.getElementById('progGenModal').style.display = 'flex';
+  document.getElementById('progGenOutput').innerHTML = '';
+  document.getElementById('progGenSaveRow').style.display = 'none';
+  document.getElementById('progGenStatus').textContent = '';
+  window._progGenRows = null;
+}
+
+function closeProgGen(e) {
+  if (!e || e.target === document.getElementById('progGenModal')) {
+    document.getElementById('progGenModal').style.display = 'none';
+  }
+}
+
+function _progGenUpdatePRSummary() {
+  const selEl = document.getElementById('progGenMember');
+  const name = selEl ? selEl.value : '';
+  window._progGenMember = name;
+  // Build PR summary for selected member (admin can see cached data)
+  const prEl = document.getElementById('progGenPRSummary');
+  if (!prEl) return;
+  let lines = [];
+  if (name && typeof window._ipAdminCache !== 'undefined') {
+    // Can't get member's PRs from cache; PRs aren't per-member in this design
+    // Use own state.prs as reference for the box's typical levels
+  }
+  if ((state.prs || []).length) {
+    const topPRs = state.prs.slice().sort((a,b)=>(b.weight||0)-(a.weight||0)).slice(0,8);
+    lines = topPRs.map(p => `${p.exercise}: ${p.weight}${p.unit||'kg'}${p.reps&&p.reps>1?' x'+p.reps:''}`);
+  }
+  prEl.textContent = lines.length ? lines.join(' · ') : 'Inga PRs inloggade';
+}
+
+async function generateProgram() {
+  const memberName = (document.getElementById('progGenMember')?.value || '').trim();
+  const goal       = document.getElementById('progGenGoal')?.value || 'crossfit';
+  const daysW      = document.getElementById('progGenDays')?.value || '3';
+  const weeks      = document.getElementById('progGenWeeks')?.value || '4';
+  const notes      = (document.getElementById('progGenNotes')?.value || '').trim();
+
+  const btn    = document.getElementById('progGenBtn');
+  const status = document.getElementById('progGenStatus');
+  const output = document.getElementById('progGenOutput');
+  if (btn) btn.disabled = true;
+  status.textContent = 'Genererar program…';
+  output.innerHTML = '';
+  document.getElementById('progGenSaveRow').style.display = 'none';
+  window._progGenRows = null;
+
+  const goalLabels = {
+    crossfit:     'Komplement till CrossFit-klassen – styrka och accessory som bygger upp klassträningen utan att skapa för mycket överlapp.',
+    styrka:       'Styrkelyft-fokus (Squat / Bench / Deadlift) med periodisering och progressionslogik.',
+    hypertrofi:   'Muskelhypertrofi – volymbaserat program med antagonist-träning och tydlig muskelsplit.',
+    powerbuilding:'Powerbuilding – kombinerar styrkelyft-liftar med hypertrofi-accessory-arbete.'
+  };
+  const goalDesc = goalLabels[goal] || goal;
+
+  const prLines = (state.prs||[]).slice().sort((a,b)=>(b.weight||0)-(a.weight||0)).slice(0,10)
+    .map(p=>`${p.exercise}: ${p.weight}${p.unit||'kg'}${p.reps&&p.reps>1?' x'+p.reps:''}`)
+    .join('\n') || 'Inga PRs tillgängliga';
+
+  const prompt = `Du är en erfaren styrke- och konditionstränare som skapar individuella träningsprogram för CrossFit-atleter vid en CrossFit-box i Sverige.
+
+Skapa ett ${weeks}-veckors träningsprogram för ${memberName || 'atleten'} med ${daysW} pass per vecka.
+
+MÅL: ${goalDesc}
+
+KÄNDA PR/MAXLYFT:
+${prLines}
+
+ÖVRIGT/SKADOR/NOTER:
+${notes || 'Inga specifika noter.'}
+
+REGLER:
+- Programmet kompletterar boxens gruppass (atleten tränar 4-5 ggr/vecka på boxen)
+- Dessa ${daysW} pass är EXTRA pass utöver grupptränin, eller alternativa styrkepass
+- Bygg in progression vecka för vecka (ökande vikt/volym)
+- Vecka ${Math.ceil(parseInt(weeks)/2)} är deload-vecka (70% av normal volym)
+- Inga utomhusrörelser (vinter i Sverige)
+- Använd svenska veckobeteckningar (Vecka 1, Vecka 2, osv)
+- Dag-numrering inom varje vecka: 1, 2, 3... (upp till ${daysW})
+
+SVARA EXAKT med ett JSON-objekt på denna form – INGET annat text, inga kommentarer:
+{
+  "rows": [
+    {"week": "Vecka 1", "day": "1", "strength": "...", "wod": "", "accessory": "..."},
+    {"week": "Vecka 1", "day": "2", "strength": "...", "wod": "", "accessory": "..."}
+  ]
+}
+
+Fälten "strength", "wod" och "accessory" är fritext med radbrytningar (\\n) för set/rep-schema.
+Exempel strength: "Back Squat\\n5x5 @ 75%\\nVila 3 min"
+Exempel accessory: "3x12 Romanian Deadlift\\n3x15 Goblet Squat\\n3x20 Hip Thrust"
+Lämna "wod" tomt (tom sträng) om du inte vill inkludera ett extra konditionspass för den dagen.`;
+
+  try {
+    const apiKey = localStorage.getItem('lerums_anthropic_key') || '';
+    if (!apiKey) throw new Error('Ingen API-nyckel konfigurerad – ange den i Sync-inställningarna');
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-5',
+        max_tokens: 4000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const result = await resp.json();
+    if (result.error) throw new Error(result.error.message || 'API-fel');
+    const raw = result.content[0].text.trim();
+    // Extract JSON from the response
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Kunde inte tolka svaret som JSON');
+    const parsed = JSON.parse(jsonMatch[0]);
+    const rows = parsed.rows || [];
+    if (!rows.length) throw new Error('Inga rader genererades');
+    window._progGenRows = rows;
+    // Preview using admin view (read-only navigation)
+    window._ipAdminState = window._ipAdminState || {};
+    window._ipAdminState['__preview__'] = {};
+    output.innerHTML = buildIndividualProgramCard(rows, '__preview__');
+    document.getElementById('progGenSaveRow').style.display = 'flex';
+    status.textContent = `✓ ${rows.length} pass genererade`;
+    if (btn) btn.disabled = false;
+  } catch(e) {
+    status.textContent = 'Fel: ' + e.message;
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function saveGeneratedProgram() {
+  const rows = window._progGenRows;
+  if (!rows || !rows.length) return;
+  const memberName = (document.getElementById('progGenMember')?.value || '').trim();
+  const tabRef = (document.getElementById('progGenTabRef')?.value || '').trim();
+  if (!tabRef) { showToast('Ange ett fliknamn för att spara'); return; }
+
+  const saveBtn = document.getElementById('progGenSaveBtn');
+  if (saveBtn) saveBtn.disabled = true;
+  document.getElementById('progGenStatus').textContent = 'Sparar till Google Sheets…';
+  try {
+    const data = await xhrPost(APPS_SCRIPT_URL, {
+      action: 'saveIndividualProgram',
+      memberName,
+      tabRef,
+      rows
+    });
+    if (data.error) throw new Error(data.error);
+    showToast(`Program sparat till fliken "${tabRef}" ✓`);
+    document.getElementById('progGenStatus').textContent = `✓ Sparat till fliken "${tabRef}"`;
+    // Invalidate cache so admin view refreshes
+    if (window._ipAdminCache) delete window._ipAdminCache[tabRef];
+    document.getElementById('progGenModal').style.display = 'none';
+  } catch(e) {
+    document.getElementById('progGenStatus').textContent = 'Fel vid sparning: ' + e.message;
+    if (saveBtn) saveBtn.disabled = false;
+  }
+}
+
 // Capture install prompt so we can trigger it manually if needed
 window._pwaInstallPrompt = null;
 window.addEventListener('beforeinstallprompt', function(e) {
@@ -14121,5 +14359,131 @@ window.addEventListener('beforeinstallprompt', function(e) {
   if (btn) btn.style.display = 'block';
 });
 </script>
+<!-- INDIVIDUAL PROGRAM INTAKE MODAL -->
+<div class="modal-overlay" id="ipIntakeModal" style="display:none;" onclick="closeIPIntakeModal(event)">
+  <div class="modal" style="max-width:520px;border-top-color:#f59e0b;">
+    <div class="modal-title" style="color:#f59e0b;">INDIVIDUELLT PROGRAM <button class="close-btn" onclick="closeIPIntakeModal({target:null})">✕</button></div>
+    <p style="font-size:0.82rem;color:var(--muted);margin-bottom:1.1rem;line-height:1.6;">Fyll i dina uppgifter så genererar vi ett skräddarsytt program åt dig. Du omdirigeras till säker betalning (500 kr) när du skickar in.</p>
+
+    <div class="form-group" style="margin-bottom:0.65rem;">
+      <label>Mål med programmet</label>
+      <select id="ipGoal" style="width:100%;background:var(--input-bg,var(--card));color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.5rem 0.6rem;font-size:0.88rem;">
+        <option value="crossfit">CrossFit Komplement</option>
+        <option value="styrka">Styrka (Powerlifting)</option>
+        <option value="hypertrofi">Hypertrofi</option>
+        <option value="powerbuilding">Powerbuilding</option>
+      </select>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-bottom:0.65rem;">
+      <div class="form-group" style="margin:0;">
+        <label>Pass per vecka</label>
+        <select id="ipDays" style="width:100%;background:var(--input-bg,var(--card));color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.5rem 0.6rem;font-size:0.88rem;">
+          <option value="2">2</option>
+          <option value="3" selected>3</option>
+          <option value="4">4</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label>Programlängd</label>
+        <select id="ipWeeks" style="width:100%;background:var(--input-bg,var(--card));color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.5rem 0.6rem;font-size:0.88rem;">
+          <option value="4">4 veckor</option>
+          <option value="8" selected>8 veckor</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:0.4rem;">Max-lyft (kg) — fyll i det du vet</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-bottom:0.65rem;">
+      <div class="form-group" style="margin:0;"><label style="font-size:0.76rem;">Squat</label><input type="number" id="ipSquat" placeholder="kg" min="0" style="width:100%;background:var(--input-bg,var(--card));color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.45rem 0.6rem;font-size:0.88rem;"></div>
+      <div class="form-group" style="margin:0;"><label style="font-size:0.76rem;">Deadlift</label><input type="number" id="ipDeadlift" placeholder="kg" min="0" style="width:100%;background:var(--input-bg,var(--card));color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.45rem 0.6rem;font-size:0.88rem;"></div>
+      <div class="form-group" style="margin:0;"><label style="font-size:0.76rem;">Bench Press</label><input type="number" id="ipBench" placeholder="kg" min="0" style="width:100%;background:var(--input-bg,var(--card));color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.45rem 0.6rem;font-size:0.88rem;"></div>
+      <div class="form-group" style="margin:0;"><label style="font-size:0.76rem;">Clean</label><input type="number" id="ipClean" placeholder="kg" min="0" style="width:100%;background:var(--input-bg,var(--card));color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.45rem 0.6rem;font-size:0.88rem;"></div>
+      <div class="form-group" style="margin:0;"><label style="font-size:0.76rem;">Snatch</label><input type="number" id="ipSnatch" placeholder="kg" min="0" style="width:100%;background:var(--input-bg,var(--card));color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.45rem 0.6rem;font-size:0.88rem;"></div>
+    </div>
+
+    <div class="form-group" style="margin-bottom:1rem;">
+      <label>Skador, besvär eller övrigt coachen bör känna till</label>
+      <textarea id="ipNotes" rows="3" placeholder="T.ex. ömt knä, vill undvika overhead…" style="width:100%;background:var(--input-bg,var(--card));color:var(--text);border:1px solid var(--border);border-radius:4px;padding:0.5rem 0.6rem;font-size:0.85rem;resize:vertical;box-sizing:border-box;"></textarea>
+    </div>
+
+    <div id="ipIntakeStatus" style="font-size:0.8rem;margin-bottom:0.5rem;"></div>
+    <button id="ipIntakeSubmitBtn" onclick="submitIPIntake()" style="width:100%;background:#f59e0b;color:#000;font-family:'Barlow Condensed';font-weight:700;font-size:1rem;letter-spacing:0.12em;text-transform:uppercase;border:none;border-radius:4px;padding:0.75rem 1rem;cursor:pointer;">Betala 500 kr →</button>
+  </div>
+</div>
+
+<!-- PROGRAM GENERATOR MODAL -->
+<div class="modal-overlay" id="progGenModal" style="display:none;" onclick="closeProgGen(event)">
+  <div class="modal" style="max-width:580px;border-top-color:#a78bfa;">
+    <div class="modal-title" style="color:#a78bfa;">GENERERA PROGRAM <button class="close-btn" onclick="closeProgGen()">✕</button></div>
+
+    <div style="display:flex;flex-direction:column;gap:0.75rem;margin-top:0.5rem;">
+
+      <div class="form-group">
+        <label style="font-family:'Barlow Condensed';font-size:0.78rem;letter-spacing:0.08em;color:var(--muted);text-transform:uppercase;">Medlem</label>
+        <select id="progGenMember" onchange="_progGenUpdatePRSummary()" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:0.4rem 0.6rem;color:var(--text);font-family:'Barlow Condensed';font-size:0.9rem;width:100%;">
+          <option value="">– Välj medlem –</option>
+        </select>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+        <div class="form-group">
+          <label style="font-family:'Barlow Condensed';font-size:0.78rem;letter-spacing:0.08em;color:var(--muted);text-transform:uppercase;">Mål / Fokus</label>
+          <select id="progGenGoal" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:0.4rem 0.6rem;color:var(--text);font-family:'Barlow Condensed';font-size:0.9rem;width:100%;">
+            <option value="crossfit">CrossFit Komplement</option>
+            <option value="styrka">Styrka (Powerlifting)</option>
+            <option value="hypertrofi">Hypertrofi</option>
+            <option value="powerbuilding">Powerbuilding</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label style="font-family:'Barlow Condensed';font-size:0.78rem;letter-spacing:0.08em;color:var(--muted);text-transform:uppercase;">Pass / Vecka</label>
+          <select id="progGenDays" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:0.4rem 0.6rem;color:var(--text);font-family:'Barlow Condensed';font-size:0.9rem;width:100%;">
+            <option value="2">2 dagar</option>
+            <option value="3" selected>3 dagar</option>
+            <option value="4">4 dagar</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+        <div class="form-group">
+          <label style="font-family:'Barlow Condensed';font-size:0.78rem;letter-spacing:0.08em;color:var(--muted);text-transform:uppercase;">Programlängd</label>
+          <select id="progGenWeeks" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:0.4rem 0.6rem;color:var(--text);font-family:'Barlow Condensed';font-size:0.9rem;width:100%;">
+            <option value="4" selected>4 veckor</option>
+            <option value="8">8 veckor</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label style="font-family:'Barlow Condensed';font-size:0.78rem;letter-spacing:0.08em;color:var(--muted);text-transform:uppercase;">Fliknamn (Sheets)</label>
+          <input id="progGenTabRef" type="text" placeholder="t.ex. Kalle_IP" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:0.4rem 0.6rem;color:var(--text);font-family:'Barlow Condensed';font-size:0.9rem;width:100%;box-sizing:border-box;">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label style="font-family:'Barlow Condensed';font-size:0.78rem;letter-spacing:0.08em;color:var(--muted);text-transform:uppercase;">Skador / Fokusområden / Övrigt</label>
+        <textarea id="progGenNotes" rows="2" placeholder="t.ex. ont i axeln, vill fokusera på bröst och rygg, tävlar i mars…" style="background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:0.4rem 0.6rem;color:var(--text);font-family:'Barlow Condensed';font-size:0.9rem;width:100%;box-sizing:border-box;resize:vertical;min-height:52px;"></textarea>
+      </div>
+
+      <div style="font-size:0.72rem;color:var(--muted);font-family:'Barlow Condensed';">
+        Box PRs: <span id="progGenPRSummary" style="color:var(--text);">–</span>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+        <button id="progGenBtn" onclick="generateProgram()" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;background:#a78bfa;color:#000;border:none;border-radius:3px;padding:0.5rem 1.5rem;cursor:pointer;">Generera →</button>
+        <span id="progGenStatus" style="font-size:0.78rem;color:var(--muted);font-family:'Barlow Condensed';"></span>
+      </div>
+
+      <div id="progGenOutput" style="margin-top:0.5rem;"></div>
+
+      <div id="progGenSaveRow" style="display:none;align-items:center;gap:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border);">
+        <button id="progGenSaveBtn" onclick="saveGeneratedProgram()" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;background:rgba(74,222,128,0.15);color:#4ade80;border:1px solid rgba(74,222,128,0.4);border-radius:3px;padding:0.5rem 1.5rem;cursor:pointer;">Spara till Sheets ✓</button>
+        <span style="font-size:0.72rem;color:var(--muted);font-family:'Barlow Condensed';">Skriver till fliken angiven ovan</span>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
