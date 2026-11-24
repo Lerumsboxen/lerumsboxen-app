@@ -897,12 +897,14 @@ function saveStripeConfig_(data) {
   var ss2 = SpreadsheetApp.getActiveSpreadsheet();
   var cfg = ss2.getSheetByName('Config') || ss2.insertSheet('Config');
   var cfgVals = cfg.getDataRange().getValues();
-  if (data.stripeKey)             setConfigValue_(cfg, cfgVals, 'stripe_key',                      data.stripeKey);
-  if (data.priceLbwl)             setConfigValue_(cfg, cfgVals, 'stripe_price_lbwl',               data.priceLbwl);
-  if (data.price2dwl)             setConfigValue_(cfg, cfgVals, 'stripe_price_2dwl',               data.price2dwl);
-  if (data.priceRehab)            setConfigValue_(cfg, cfgVals, 'stripe_price_rehab',              data.priceRehab);
-  if (data.priceMobility)         setConfigValue_(cfg, cfgVals, 'stripe_price_mobility',           data.priceMobility);
-  if (data.priceIndividualProgram) setConfigValue_(cfg, cfgVals, 'stripe_price_individualprogram', data.priceIndividualProgram);
+  if (data.stripeKey)                setConfigValue_(cfg, cfgVals, 'stripe_key',                         data.stripeKey);
+  if (data.priceLbwl)                setConfigValue_(cfg, cfgVals, 'stripe_price_lbwl',                  data.priceLbwl);
+  if (data.price2dwl)                setConfigValue_(cfg, cfgVals, 'stripe_price_2dwl',                  data.price2dwl);
+  if (data.priceRehab)               setConfigValue_(cfg, cfgVals, 'stripe_price_rehab',                 data.priceRehab);
+  if (data.priceMobility)            setConfigValue_(cfg, cfgVals, 'stripe_price_mobility',              data.priceMobility);
+  if (data.priceIndividualStrength)   setConfigValue_(cfg, cfgVals, 'stripe_price_individualstrength',   data.priceIndividualStrength);
+  if (data.priceIndividualAccessory)  setConfigValue_(cfg, cfgVals, 'stripe_price_individualaccessory',  data.priceIndividualAccessory);
+  if (data.priceIndividualFunctional) setConfigValue_(cfg, cfgVals, 'stripe_price_individualfunctional', data.priceIndividualFunctional);
   return { status: 'ok' };
 }
 
@@ -918,11 +920,13 @@ function createCheckoutSession_(data) {
 
   var product = (data.product || '').toString().trim();
   var priceMap = {
-    lbwl:              'stripe_price_lbwl',
-    '2dwl':            'stripe_price_2dwl',
-    rehab:             'stripe_price_rehab',
-    mobility:          'stripe_price_mobility',
-    individualprogram: 'stripe_price_individualprogram'
+    lbwl:                   'stripe_price_lbwl',
+    '2dwl':                 'stripe_price_2dwl',
+    rehab:                  'stripe_price_rehab',
+    mobility:               'stripe_price_mobility',
+    individualstrength:     'stripe_price_individualstrength',
+    individualaccessory:    'stripe_price_individualaccessory',
+    individualfunctional:   'stripe_price_individualfunctional'
   };
   var priceKey = priceMap[product];
   if (!priceKey) return { error: 'Okänd produkt: ' + product };
@@ -1009,8 +1013,8 @@ function verifyStripePayment_(data) {
     var memberName = (meta.memberName || data.memberName || '').toString().trim();
     var memberEmail = (meta.memberEmail || data.memberEmail || '').toString().toLowerCase().trim();
 
-    // ── Individuellt Program: store request + send email, don't modify Members ──
-    if (product === 'individualprogram') {
+    // ── Individual Programs: store request + send email, don't modify Members ──
+    if (product === 'individualstrength' || product === 'individualaccessory' || product === 'individualfunctional') {
       var reqSheet = ss2.getSheetByName('ProgramRequests');
       if (!reqSheet) {
         reqSheet = ss2.insertSheet('ProgramRequests');
@@ -1037,12 +1041,18 @@ function verifyStripePayment_(data) {
       ]);
 
       // Send notification email
+      var productLabels = {
+        individualstrength:   'Individual Strength',
+        individualaccessory:  'Individual Accessories',
+        individualfunctional: 'Individual Functional Fitness'
+      };
       var goalLabels = {
         crossfit:     'CrossFit Komplement',
         styrka:       'Styrka (Powerlifting)',
         hypertrofi:   'Hypertrofi',
         powerbuilding:'Powerbuilding'
       };
+      var productLabel = productLabels[product] || product;
       var goalLabel = goalLabels[meta.goal] || meta.goal || '—';
       var prs = [];
       if (meta.maxSquat)    prs.push('Squat: '    + meta.maxSquat    + ' kg');
@@ -1052,7 +1062,7 @@ function verifyStripePayment_(data) {
       if (meta.maxSnatch)   prs.push('Snatch: '   + meta.maxSnatch   + ' kg');
 
       var emailBody =
-        '<h2 style="font-family:sans-serif;color:#a78bfa;">Ny beställning: Individuellt Program</h2>' +
+        '<h2 style="font-family:sans-serif;color:#a78bfa;">Ny beställning: ' + productLabel + '</h2>' +
         '<table style="font-family:sans-serif;font-size:14px;border-collapse:collapse;">' +
         '<tr><td style="padding:4px 12px 4px 0;color:#888;">Namn</td><td><strong>' + memberName + '</strong></td></tr>' +
         '<tr><td style="padding:4px 12px 4px 0;color:#888;">E-post</td><td>' + memberEmail + '</td></tr>' +
@@ -1069,7 +1079,7 @@ function verifyStripePayment_(data) {
       try {
         GmailApp.sendEmail(
           'calle@lerumsboxen.com',
-          '📋 Individuellt program beställt av ' + memberName,
+          '📋 ' + productLabel + ' beställt av ' + memberName,
           'Ny beställning från ' + memberName + ' (' + memberEmail + ').\n\nMål: ' + goalLabel +
           '\nPass/vecka: ' + (meta.daysPerWeek||'—') + '\nProgramlängd: ' + (meta.programWeeks||'—') + ' veckor' +
           '\nMax-lyft: ' + (prs.length ? prs.join(', ') : '—') +

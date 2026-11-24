@@ -2375,9 +2375,17 @@ function json(obj) {
         <label>Price ID — Mobility (40 kr/mån)</label>
         <input type="text" id="stripePriceMobility" placeholder="price_…" autocomplete="off" style="font-family:monospace;font-size:0.82rem;">
       </div>
+      <div class="form-group" style="margin-bottom:0.65rem;">
+        <label>Price ID — Individual Strength (500 kr)</label>
+        <input type="text" id="stripePriceIndividualStrength" placeholder="price_…" autocomplete="off" style="font-family:monospace;font-size:0.82rem;">
+      </div>
+      <div class="form-group" style="margin-bottom:0.65rem;">
+        <label>Price ID — Individual Accessories (500 kr)</label>
+        <input type="text" id="stripePriceIndividualAccessory" placeholder="price_…" autocomplete="off" style="font-family:monospace;font-size:0.82rem;">
+      </div>
       <div class="form-group" style="margin-bottom:0.75rem;">
-        <label>Price ID — Individuellt Program (500 kr)</label>
-        <input type="text" id="stripePriceIndividualProgram" placeholder="price_…" autocomplete="off" style="font-family:monospace;font-size:0.82rem;">
+        <label>Price ID — Individual Functional Fitness (1 000 kr)</label>
+        <input type="text" id="stripePriceIndividualFunctional" placeholder="price_…" autocomplete="off" style="font-family:monospace;font-size:0.82rem;">
       </div>
       <button class="btn btn-sm" onclick="saveStripeConfig()" style="background:#4ade80;color:#000;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:2px;cursor:pointer;">💾 Spara Stripe-inställningar</button>
       <div id="stripeConfigStatus" style="margin-top:0.5rem;font-size:0.78rem;color:var(--muted);"></div>
@@ -13308,14 +13316,34 @@ function renderShopSection() {
       color: '#34d399'
     },
     {
-      id: 'individualprogram',
-      name: 'Individuellt Program',
-      emoji: '✦',
-      desc: 'Ett skräddarsytt träningsprogram skapad specifikt för dig. Fyll i dina mål, din träningsbakgrund och dina max-lyft — vi genererar ett periodiserat program anpassat efter dig och lägger det direkt i appen.',
+      id: 'individualstrength',
+      name: 'Individual Strength',
+      emoji: '🏆',
+      desc: 'Ett personligt 8-veckors styrkeprogam med fokus på big three (squat, deadlift, bench) och kompletterande övningar. Periodiserat upplägg med progressiv belastning och inbyggd deload — optimerat för din styrkenivå och ditt schema.',
       price: '500 kr',
-      duration: 'Engångskostnad • levereras i appen',
+      duration: '8 veckor • engångskostnad',
       active: false,
       color: '#f59e0b'
+    },
+    {
+      id: 'individualaccessory',
+      name: 'Individual Accessories',
+      emoji: '💡',
+      desc: 'Ett skräddarsytt 8-veckors tilläggsprogram designat som komplement till din befintliga träning. Fokus på svaga punkter, muskelbalans och hypertrofi — inga overheadlyfter eller tunga komplex som krockar med din CrossFit eller tyngdlyftning.',
+      price: '500 kr',
+      duration: '8 veckor • engångskostnad',
+      active: false,
+      color: '#34d399'
+    },
+    {
+      id: 'individualfunctional',
+      name: 'Individual Functional Fitness',
+      emoji: '⚡',
+      desc: 'Komplett 8-veckors program för Funktionell Fitness. Kombinerar styrka, kondition och olympiska lyft i ett helhetsprogram anpassat efter dina max-lyft, ditt antal träningsdagar och dina tävlingsmål. Levereras direkt i appen.',
+      price: '1 000 kr',
+      duration: '8 veckor • engångskostnad',
+      active: false,
+      color: '#a78bfa'
     },
   ];
 
@@ -13399,8 +13427,8 @@ async function startStripeCheckout(product, evt) {
     setTimeout(() => openProfileModal(), 200);
     return;
   }
-  if (product === 'individualprogram') {
-    openIPIntakeModal();
+  if (product === 'individualstrength' || product === 'individualaccessory' || product === 'individualfunctional') {
+    openIPIntakeModal(product);
     return;
   }
   const btn = evt && evt.currentTarget ? evt.currentTarget : (evt && evt.target ? evt.target : null);
@@ -13425,12 +13453,22 @@ async function startStripeCheckout(product, evt) {
   }
 }
 
-function openIPIntakeModal() {
+function openIPIntakeModal(product) {
   const m = document.getElementById('ipIntakeModal');
   if (!m) return;
   document.getElementById('ipIntakeStatus').textContent = '';
-  document.getElementById('ipIntakeSubmitBtn').disabled = false;
-  document.getElementById('ipIntakeSubmitBtn').textContent = 'Betala 500 kr →';
+  const btn = document.getElementById('ipIntakeSubmitBtn');
+  btn.disabled = false;
+  const prices = { individualstrength: '500 kr', individualaccessory: '500 kr', individualfunctional: '1 000 kr' };
+  btn.textContent = 'Betala ' + (prices[product] || '500 kr') + ' →';
+  btn.dataset.ipProduct = product;
+  const titles = { individualstrength: 'INDIVIDUAL STRENGTH', individualaccessory: 'INDIVIDUAL ACCESSORIES', individualfunctional: 'INDIVIDUAL FUNCTIONAL FITNESS' };
+  const colors = { individualstrength: '#f59e0b', individualaccessory: '#34d399', individualfunctional: '#a78bfa' };
+  const titleEl = m.querySelector('.modal-title');
+  if (titleEl) {
+    titleEl.style.color = colors[product] || '#f59e0b';
+    titleEl.childNodes[0].textContent = (titles[product] || 'INDIVIDUELLT PROGRAM') + ' ';
+  }
   m.style.display = 'flex';
 }
 
@@ -13452,15 +13490,16 @@ async function submitIPIntake() {
   const notes      = (document.getElementById('ipNotes').value   || '').trim();
   const statusEl   = document.getElementById('ipIntakeStatus');
   const btn        = document.getElementById('ipIntakeSubmitBtn');
+  const product    = btn.dataset.ipProduct || 'individualstrength';
   btn.disabled = true; btn.textContent = '…';
   statusEl.textContent = '';
   try {
     const base = window.location.origin + window.location.pathname;
-    const successUrl = base + '?payment=success&session_id={CHECKOUT_SESSION_ID}&product=individualprogram';
+    const successUrl = base + '?payment=success&session_id={CHECKOUT_SESSION_ID}&product=' + product;
     const cancelUrl  = base + '?payment=cancel';
     const data = await xhrPost(APPS_SCRIPT_URL, {
       action: 'createCheckoutSession',
-      product: 'individualprogram',
+      product,
       memberName:  profile.name,
       memberEmail: profile.email || '',
       successUrl, cancelUrl,
@@ -13498,9 +13537,9 @@ async function handleStripeSuccess(sessionId, product) {
         if (!names.includes(profile.name)) { names.push(profile.name); localStorage.setItem('lerums_mobility_members', JSON.stringify(names)); }
       } catch(_) {}
     }
-    const labels = { lbwl: 'LBWL 3×/vecka', '2dwl': 'LBWL 2×/vecka', rehab: 'Lerumsboxen Rehab', mobility: 'Mobility', individualprogram: 'Individuellt Program' };
-    if (confirmedProduct === 'individualprogram') {
-      showToast('✓ Betalning bekräftad! Vi skickar ditt program till dig så snart det är klart.');
+    const labels = { lbwl: 'LBWL 3×/vecka', '2dwl': 'LBWL 2×/vecka', rehab: 'Lerumsboxen Rehab', mobility: 'Mobility', individualstrength: 'Individual Strength', individualaccessory: 'Individual Accessories', individualfunctional: 'Individual Functional Fitness' };
+    if (confirmedProduct === 'individualstrength' || confirmedProduct === 'individualaccessory' || confirmedProduct === 'individualfunctional') {
+      showToast('✓ Betalning bekräftad! Ditt program läggs upp i appen inom kort.');
       setTimeout(() => selectDashSection('shop'), 600);
       return;
     }
@@ -13522,7 +13561,9 @@ async function saveStripeConfig() {
   const dwl2     = (document.getElementById('stripePrice2dwl')?.value || '').trim();
   const rehab    = (document.getElementById('stripePriceRehab')?.value || '').trim();
   const mobility = (document.getElementById('stripePriceMobility')?.value || '').trim();
-  const indivProg = (document.getElementById('stripePriceIndividualProgram')?.value || '').trim();
+  const indivStrength   = (document.getElementById('stripePriceIndividualStrength')?.value   || '').trim();
+  const indivAccessory  = (document.getElementById('stripePriceIndividualAccessory')?.value  || '').trim();
+  const indivFunctional = (document.getElementById('stripePriceIndividualFunctional')?.value || '').trim();
   const statusEl = document.getElementById('stripeConfigStatus');
   if (statusEl) { statusEl.textContent = 'Sparar…'; statusEl.style.color = 'var(--muted)'; }
   try {
@@ -13533,7 +13574,9 @@ async function saveStripeConfig() {
       price2dwl: dwl2,
       priceRehab: rehab,
       priceMobility: mobility,
-      priceIndividualProgram: indivProg
+      priceIndividualStrength:   indivStrength,
+      priceIndividualAccessory:  indivAccessory,
+      priceIndividualFunctional: indivFunctional
     });
     if (data.status === 'ok') {
       if (statusEl) { statusEl.textContent = '✓ Sparat i Config-fliken'; statusEl.style.color = 'var(--success)'; }
