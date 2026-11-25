@@ -13380,7 +13380,7 @@ function renderShopSection() {
     }
   ];
 
-  const hasActiveSubscription = hasRehabAccess() || hasMobilityAccess();
+  const hasActiveSubscription = hasRehabAccess() || hasMobilityAccess() || !!(profile && profile.email);
 
   el.innerHTML = products.map(p => `
     <div style="background:var(--card);border:1px solid ${p.active ? p.color : 'var(--border)'};border-radius:8px;padding:1.25rem;margin-bottom:0.9rem;position:relative;overflow:hidden;">
@@ -13423,8 +13423,8 @@ function renderShopSection() {
   `).join('') + `
   ${hasActiveSubscription ? `
   <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:0.9rem;text-align:center;">
-    <div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.6rem;">Hantera eller avsluta dina prenumerationer via Stripe.</div>
-    <button onclick="openManageSubscription(event)" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:4px;padding:0.4rem 1rem;cursor:pointer;">Hantera prenumeration →</button>
+    <div style="font-size:0.78rem;color:var(--muted);margin-bottom:0.6rem;">Hantera eller avsluta dina prenumerationer (Rehab, Mobility, Individual Programs) via Stripe-portalen.</div>
+    <button id="manageSubBtn" onclick="openManageSubscription(event)" style="font-family:'Barlow Condensed';font-weight:700;font-size:0.78rem;letter-spacing:0.1em;text-transform:uppercase;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:4px;padding:0.4rem 1rem;cursor:pointer;">Avsluta / hantera prenumeration →</button>
   </div>` : ''}
   <div style="font-size:0.72rem;color:var(--muted);text-align:center;line-height:1.5;padding:0.5rem 0 1rem;">
     Betalning hanteras säkert av Stripe. Lerumsboxen lagrar inga kortuppgifter.
@@ -13561,8 +13561,27 @@ async function handleStripeSuccess(sessionId, product) {
   }
 }
 
-function openManageSubscription() {
-  window.open('https://billing.stripe.com/p/login/fZu00k72956afxOeB2ds400', '_blank');
+async function openManageSubscription(evt) {
+  if (!profile || !profile.email) {
+    showToast('Du behöver en länkad e-postadress för att hantera prenumerationer.');
+    return;
+  }
+  const btn = document.getElementById('manageSubBtn');
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    const base = window.location.origin + window.location.pathname;
+    const data = await xhrPost(APPS_SCRIPT_URL, {
+      action: 'createBillingPortalSession',
+      memberEmail: profile.email,
+      returnUrl: base
+    });
+    if (data.error) throw new Error(data.error);
+    if (data.url) window.location.href = data.url;
+  } catch(e) {
+    showToast('Kunde inte öppna Stripe-portalen: ' + (e.message || 'Okänt fel'));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Avsluta / hantera prenumeration →'; }
+  }
 }
 
 async function saveStripeConfig() {
