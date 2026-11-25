@@ -11055,7 +11055,7 @@ function buildRehabCard() {
     } else {
       const btnStyle = (active) => `font-family:'Barlow Condensed';font-weight:700;font-size:0.75rem;letter-spacing:0.08em;text-transform:uppercase;border-radius:3px;padding:0.3rem 0.75rem;cursor:pointer;border:1px solid;transition:all 0.15s;`;
       content = `
-        <div style="font-size:0.78rem;color:var(--muted);margin-bottom:1rem;line-height:1.5;">Fyll i formuläret nedan så genererar Lerumsboxen Rehab ett personligt rehabiliteringsprogram åt dig.</div>
+        <div style="font-size:0.78rem;color:var(--muted);margin-bottom:1rem;line-height:1.5;">Fyll i formuläret nedan så genererar Rehab ett personligt rehabiliteringsprogram åt dig.</div>
 
         <div style="margin-bottom:0.85rem;">
           <div style="font-size:0.72rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.4rem;">Kroppsdel *</div>
@@ -11136,7 +11136,7 @@ function buildRehabCard() {
 
   return `
   <div style="background:var(--card);border:1px solid rgba(20,184,166,0.3);border-radius:6px;padding:1rem;margin-bottom:0.75rem;">
-    <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#14b8a6;margin-bottom:0.75rem;">🩹 Lerumsboxen Rehab</div>
+    <div style="font-family:'Bebas Neue';font-size:1rem;letter-spacing:0.08em;color:#14b8a6;margin-bottom:0.75rem;">🩹 Rehab</div>
     ${content}
   </div>`;
 }
@@ -13329,7 +13329,7 @@ function renderShopSection() {
       id: 'individualstrength',
       name: 'Individual Strength',
       emoji: '🏆',
-      desc: 'Ett personligt styrkeprogam med fokus på big three (squat, deadlift, bench) och kompletterande övningar. Periodiserat upplägg med progressiv belastning och inbyggd deload — optimerat för din styrkenivå och ditt schema. Förnyas automatiskt var 8:e vecka.',
+      desc: 'Sluta gissa dig fram i gymmet. Individual Strength är ett fullt periodiserat program byggt kring dina egna max-lyft — squat, deadlift och bench. Varje vecka vet du exakt vad du lyfter och varför. Progressiv belastning, inbyggd deload och automatisk förnyelse var 8:e vecka. Du sätter nya PR. Vi håller reda på vägen dit.',
       price: '800 kr / 8 v',
       duration: 'Löpande prenumeration • 800 kr var 8:e vecka',
       active: false,
@@ -13339,7 +13339,7 @@ function renderShopSection() {
       id: 'individualaccessory',
       name: 'Individual Successories',
       emoji: '💡',
-      desc: 'Ett skräddarsytt tilläggsprogram designat som komplement till din befintliga träning. Fokus på svaga punkter, muskelbalans och hypertrofi — inga overheadlyfter eller tunga komplex som krockar med din CrossFit eller tyngdlyftning. Förnyas automatiskt var 8:e vecka.',
+      desc: 'Ditt hemliga vapen. Individual Successories är ett tilläggspaket som fyller hålen i din befintliga träning — svaga punkter, obalanserad muskulatur och det du alltid skjuter upp. Inga tunga komplex som krockar med boxen, bara riktade övningar som faktiskt gör skillnad. Förnyas automatiskt var 8:e vecka.',
       price: '400 kr / 8 v',
       duration: 'Löpande prenumeration • 400 kr var 8:e vecka',
       active: false,
@@ -13349,7 +13349,7 @@ function renderShopSection() {
       id: 'individualfunctional',
       name: 'Individual Functional Fitness',
       emoji: '⚡',
-      desc: 'Komplett program för Funktionell Fitness. Kombinerar styrka, kondition och olympiska lyft i ett helhetsprogram anpassat efter dina max-lyft, ditt antal träningsdagar och dina tävlingsmål. Levereras direkt i appen. Förnyas automatiskt var 8:e vecka.',
+      desc: 'Allt du behöver för att bli bättre på CrossFit — på riktigt. Individual Functional Fitness kombinerar styrka, kondition, olympiska lyft och gymnastik i ett sammanhängande helhetsprogram byggt kring dina förutsättningar. Anpassat efter dina max-lyft, antal träningsdagar och mål. Levereras direkt i appen och förnyas automatiskt var 8:e vecka.',
       price: '1 200 kr / 8 v',
       duration: 'Löpande prenumeration • 1 200 kr var 8:e vecka',
       active: false,
@@ -13360,9 +13360,9 @@ function renderShopSection() {
   const subscriptions = [
     {
       id: 'rehab',
-      name: 'Lerumsboxen Rehab',
+      name: 'Rehab',
       emoji: '🩹',
-      desc: 'Skadad eller kämpar med besvär som hindrar din träning? Lerumsboxen Rehab ger dig ett personligt rehabiliteringsprogram baserat på din specifika skada, smärtnivå och träningsbakgrund. Beskriv dina besvär och få ett strukturerat rehab-upplägg direkt — så att du kan komma tillbaka starkare.',
+      desc: 'En skada behöver inte stoppa dig. Rehab ger dig ett personligt rehabiliteringsprogram baserat på din specifika skada, smärtnivå och träningsbakgrund — genererat direkt i appen av vår AI-coach. Beskriv dina besvär och få ett strukturerat rehab-upplägg på sekunder, så att du kan komma tillbaka starkare än innan.',
       price: '75 kr/mån',
       duration: 'Månadsabonnemang • 75 kr/mån',
       active: hasRehabAccess(),
@@ -13547,7 +13547,7 @@ async function handleStripeSuccess(sessionId, product) {
         if (!names.includes(profile.name)) { names.push(profile.name); localStorage.setItem('lerums_mobility_members', JSON.stringify(names)); }
       } catch(_) {}
     }
-    const labels = { lbwl: 'LBWL 3×/vecka', '2dwl': 'LBWL 2×/vecka', rehab: 'Lerumsboxen Rehab', mobility: 'Mobility', individualstrength: 'Individual Strength', individualaccessory: 'Individual Successories', individualfunctional: 'Individual Functional Fitness' };
+    const labels = { lbwl: 'LBWL 3×/vecka', '2dwl': 'LBWL 2×/vecka', rehab: 'Rehab', mobility: 'Mobility', individualstrength: 'Individual Strength', individualaccessory: 'Individual Successories', individualfunctional: 'Individual Functional Fitness' };
     if (confirmedProduct === 'individualstrength' || confirmedProduct === 'individualaccessory' || confirmedProduct === 'individualfunctional') {
       showToast('✓ Betalning bekräftad! Ditt program läggs upp i appen inom kort.');
       setTimeout(() => selectDashSection('shop'), 600);
