@@ -2376,15 +2376,15 @@ function json(obj) {
         <input type="text" id="stripePriceMobility" placeholder="price_…" autocomplete="off" style="font-family:monospace;font-size:0.82rem;">
       </div>
       <div class="form-group" style="margin-bottom:0.65rem;">
-        <label>Price ID — Individual Strength (500 kr)</label>
+        <label>Price ID — Individual Strength (800 kr / 8v)</label>
         <input type="text" id="stripePriceIndividualStrength" placeholder="price_…" autocomplete="off" style="font-family:monospace;font-size:0.82rem;">
       </div>
       <div class="form-group" style="margin-bottom:0.65rem;">
-        <label>Price ID — Individual Accessories (500 kr)</label>
+        <label>Price ID — Individual Successories (400 kr / 8v)</label>
         <input type="text" id="stripePriceIndividualAccessory" placeholder="price_…" autocomplete="off" style="font-family:monospace;font-size:0.82rem;">
       </div>
       <div class="form-group" style="margin-bottom:0.65rem;">
-        <label>Price ID — Individual Functional Fitness (800 kr / 8v)</label>
+        <label>Price ID — Individual Functional Fitness (1 200 kr / 8v)</label>
         <input type="text" id="stripePriceIndividualFunctional" placeholder="price_…" autocomplete="off" style="font-family:monospace;font-size:0.82rem;">
       </div>
       <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin:0.9rem 0 0.4rem;">Stripe Webhook (förnyelser)</div>
@@ -13340,8 +13340,8 @@ function renderShopSection() {
       name: 'Individual Successories',
       emoji: '💡',
       desc: 'Ett skräddarsytt tilläggsprogram designat som komplement till din befintliga träning. Fokus på svaga punkter, muskelbalans och hypertrofi — inga overheadlyfter eller tunga komplex som krockar med din CrossFit eller tyngdlyftning. Förnyas automatiskt var 8:e vecka.',
-      price: '800 kr / 8 v',
-      duration: 'Löpande prenumeration • 800 kr var 8:e vecka',
+      price: '400 kr / 8 v',
+      duration: 'Löpande prenumeration • 400 kr var 8:e vecka',
       active: false,
       color: '#34d399'
     },
@@ -13350,8 +13350,8 @@ function renderShopSection() {
       name: 'Individual Functional Fitness',
       emoji: '⚡',
       desc: 'Komplett program för Funktionell Fitness. Kombinerar styrka, kondition och olympiska lyft i ett helhetsprogram anpassat efter dina max-lyft, ditt antal träningsdagar och dina tävlingsmål. Levereras direkt i appen. Förnyas automatiskt var 8:e vecka.',
-      price: '800 kr / 8 v',
-      duration: 'Löpande prenumeration • 800 kr var 8:e vecka',
+      price: '1 200 kr / 8 v',
+      duration: 'Löpande prenumeration • 1 200 kr var 8:e vecka',
       active: false,
       color: '#a78bfa'
     },
@@ -13469,7 +13469,7 @@ function openIPIntakeModal(product) {
   document.getElementById('ipIntakeStatus').textContent = '';
   const btn = document.getElementById('ipIntakeSubmitBtn');
   btn.disabled = false;
-  const prices = { individualstrength: '500 kr', individualaccessory: '500 kr', individualfunctional: '1 000 kr' };
+  const prices = { individualstrength: '800 kr', individualaccessory: '400 kr', individualfunctional: '1 200 kr' };
   btn.textContent = 'Betala ' + (prices[product] || '500 kr') + ' →';
   btn.dataset.ipProduct = product;
   const titles = { individualstrength: 'INDIVIDUAL STRENGTH', individualaccessory: 'INDIVIDUAL SUCCESSORIES', individualfunctional: 'INDIVIDUAL FUNCTIONAL FITNESS' };
