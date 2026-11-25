@@ -26,7 +26,7 @@ var KONFIG = {
   MIN_FILL_SECONDS: 3,                     // spamskydd: formulär ifyllt snabbare än så = bot
 
   // --- CRM-appen ---
-  CRM_APP_URL:     '',                     // klistra in URL:en för CRM-appens driftsättning (används i mejlen)
+  CRM_APP_URL:     'https://script.google.com/macros/s/AKfycbwVBgvS1Q3lS8Pq6NjkLIc1mgy3xiT3-D5hGzzdYTUv30AXCXOdtu7_ikW-Xh5hJ6M/exec', // CRM-appens driftsättning (används i mejlen)
   CRM_USERS:       '',                     // kommaseparerade Google-konton som får öppna appen ('' = alla som har tillgång till arket)
   NO_ANSWER_DAYS:  3,                      // mejla SMS-förslag när leadet inte svarat på X dagar
   SMS_TEMPLATE:    'Hej {förnamn}! Det är {gym}. Vi har försökt ringa dig angående din förfrågan om en kostnadsfri konsultation. ' +

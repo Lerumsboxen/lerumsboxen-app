@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lerumsboxen Leads</title>
+<meta name="robots" content="noindex">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="../icon-192.png">
+<link rel="apple-touch-icon" href="../icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Leads">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#0b0b0d">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { min-height: 100vh; background: #0b0b0d; color: #f2f2f4; font-family: 'Barlow', system-ui, sans-serif;
+         display: flex; align-items: center; justify-content: center; padding: 2rem 1.25rem; line-height: 1.5; }
+  main { width: 100%; max-width: 420px; text-align: center; }
+  img { width: 88px; height: 88px; border-radius: 20px; }
+  h1 { font-family: 'Bebas Neue', sans-serif; font-weight: 400; font-size: 2.4rem; letter-spacing: .04em; margin-top: 1rem; }
+  h1 b { color: #e8001d; font-weight: 400; }
+  .open { display: block; margin: 1.5rem 0 2rem; background: #e8001d; color: #fff; text-decoration: none; font-weight: 600;
+          font-size: 1.1rem; padding: .9rem 1rem; border-radius: 10px; }
+  .open:hover { background: #b0001a; }
+  .install { text-align: left; background: #16161a; border: 1px solid #232328; border-radius: 12px; padding: 1rem 1.1rem; font-size: .93rem; color: #c4c4cc; }
+  .install h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: #808088; margin-bottom: .5rem; }
+  .install p + p { margin-top: .6rem; }
+  .install b { color: #f2f2f4; }
+  #installBtn { display: none; width: 100%; margin-top: .8rem; background: #f2f2f4; color: #0b0b0d; border: 0; border-radius: 8px; padding: .7rem; font: inherit; font-weight: 600; cursor: pointer; }
+  .redirect { color: #808088; margin-top: 1rem; }
+</style>
+</head>
+<body>
+<main>
+  <img src="../icon-192.png" alt="">
+  <h1>Lerumsboxen <b>Leads</b></h1>
+  <p class="redirect" id="redirectMsg" hidden>Öppnar…</p>
+  <a class="open" id="openLink" href="#">Öppna Leads</a>
+
+  <section class="install" id="installHelp">
+    <h2>Lägg till på hemskärmen</h2>
+    <p id="ios"><b>iPhone (Safari):</b> tryck på dela-knappen <b>⬆︎</b> och välj <b>Lägg till på hemskärmen</b>.</p>
+    <p id="android"><b>Android (Chrome):</b> tryck på menyn <b>⋮</b> och välj <b>Lägg till på startskärmen</b> eller <b>Installera app</b>.</p>
+    <p>Första gången loggar du in med ditt Google-konto. Kontot behöver ha tillgång till arket Lerumsboxen Leads.</p>
+    <button id="installBtn">Installera appen</button>
+  </section>
+</main>
+
+<script>
+  // CRM-appens driftsättning i Apps Script (Kör som: användaren som öppnar webbappen)
+  const CRM_APP_URL = 'https://script.google.com/macros/s/AKfycbwVBgvS1Q3lS8Pq6NjkLIc1mgy3xiT3-D5hGzzdYTUv30AXCXOdtu7_ikW-Xh5hJ6M/exec';
+
+  document.getElementById('openLink').href = CRM_APP_URL;
+
+  // Startad från hemskärmen → gå direkt till appen
+  const fromHomeScreen = window.navigator.standalone === true ||
+    window.matchMedia('(display-mode: standalone)').matches ||
+    new URLSearchParams(location.search).get('src') === 'app';
+  if (fromHomeScreen) {
+    document.getElementById('redirectMsg').hidden = false;
+    document.getElementById('installHelp').hidden = true;
+    location.replace(CRM_APP_URL);
+  }
+
+  // Visa bara instruktionen för rätt telefon
+  const ua = navigator.userAgent;
+  if (/iPhone|iPad|iPod/.test(ua)) document.getElementById('android').hidden = true;
+  else if (/Android/.test(ua)) document.getElementById('ios').hidden = true;
+
+  // Chrome/Edge: egen installationsknapp
+  let deferred;
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault(); deferred = e;
+    document.getElementById('installBtn').style.display = 'block';
+  });
+  document.getElementById('installBtn').addEventListener('click', async () => {
+    if (!deferred) return;
+    deferred.prompt();
+    await deferred.userChoice;
+    deferred = null;
+    document.getElementById('installBtn').style.display = 'none';
+  });
+</script>
+</body>
+</html>

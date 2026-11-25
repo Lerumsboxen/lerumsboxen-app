@@ -42,7 +42,7 @@ Google-sökning → konsultation.html → Apps Script (webbapp) → Google Sheet
 
    Kopiera URL:en till `CRM_APP_URL` i KONFIG, spara, och uppdatera båda driftsättningarna en gång till enligt steg 4.
 6. **Ge personalen tillgång.** Dela arket (redigera) med den personal som ska använda appen. Fyll gärna i deras Google-konton i `CRM_USERS`. Den som saknar tillgång till arket kan inte öppna några leads.
-7. **Lägg appen på hemskärmen.** Öppna URL:en i mobilen och välj *Lägg till på hemskärmen* (Safari: dela-knappen; Chrome: menyn).
+7. **Lägg appen på hemskärmen.** Öppna **https://lerumsboxen.github.io/lerumsboxen-app/leads/** i mobilen och följ instruktionen på sidan (Safari: dela-knappen → *Lägg till på hemskärmen*; Chrome: menyn → *Installera app*). Ikonen öppnar CRM-appen direkt. Sidan ligger i `leads/index.html`; byter appen adress ändrar du `CRM_APP_URL` där.
 
 Varför två driftsättningar? Formuläret måste vara öppet för alla. Appen ska bara visas för er. Appen körs som den som är inloggad, så det är arkets delning som styr vem som ser leads. Även om någon öppnar formulärets URL visar den aldrig appen för andra än dig.
 
