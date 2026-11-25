@@ -2383,9 +2383,19 @@ function json(obj) {
         <label>Price ID — Individual Accessories (500 kr)</label>
         <input type="text" id="stripePriceIndividualAccessory" placeholder="price_…" autocomplete="off" style="font-family:monospace;font-size:0.82rem;">
       </div>
-      <div class="form-group" style="margin-bottom:0.75rem;">
-        <label>Price ID — Individual Functional Fitness (1 000 kr)</label>
+      <div class="form-group" style="margin-bottom:0.65rem;">
+        <label>Price ID — Individual Functional Fitness (800 kr / 8v)</label>
         <input type="text" id="stripePriceIndividualFunctional" placeholder="price_…" autocomplete="off" style="font-family:monospace;font-size:0.82rem;">
+      </div>
+      <div style="font-family:'Barlow Condensed';font-weight:700;font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin:0.9rem 0 0.4rem;">Stripe Webhook (förnyelser)</div>
+      <div class="form-group" style="margin-bottom:0.5rem;">
+        <label>Webhook Secret (välj ett eget ord/fras)</label>
+        <input type="text" id="stripeWebhookSecret" placeholder="t.ex. lbwt-webhook-2026" autocomplete="off" style="font-family:monospace;font-size:0.82rem;">
+      </div>
+      <div style="font-size:0.75rem;color:var(--muted);line-height:1.6;margin-bottom:0.75rem;">
+        Spara → kopiera webhook-URL nedan → klistra in i <strong style="color:var(--text);">Stripe Dashboard → Developers → Webhooks → Add endpoint</strong>.<br>
+        Välj event: <code style="background:var(--border);padding:0.1rem 0.3rem;border-radius:3px;">invoice.payment_succeeded</code>
+        <div id="stripeWebhookUrlDisplay" style="margin-top:0.4rem;font-family:monospace;font-size:0.75rem;word-break:break-all;color:#a78bfa;"></div>
       </div>
       <button class="btn btn-sm" onclick="saveStripeConfig()" style="background:#4ade80;color:#000;font-family:'Barlow Condensed';font-weight:700;letter-spacing:0.1em;text-transform:uppercase;border:none;border-radius:2px;cursor:pointer;">💾 Spara Stripe-inställningar</button>
       <div id="stripeConfigStatus" style="margin-top:0.5rem;font-size:0.78rem;color:var(--muted);"></div>
@@ -13319,19 +13329,19 @@ function renderShopSection() {
       id: 'individualstrength',
       name: 'Individual Strength',
       emoji: '🏆',
-      desc: 'Ett personligt 8-veckors styrkeprogam med fokus på big three (squat, deadlift, bench) och kompletterande övningar. Periodiserat upplägg med progressiv belastning och inbyggd deload — optimerat för din styrkenivå och ditt schema.',
-      price: '500 kr',
-      duration: '8 veckor • engångskostnad',
+      desc: 'Ett personligt styrkeprogam med fokus på big three (squat, deadlift, bench) och kompletterande övningar. Periodiserat upplägg med progressiv belastning och inbyggd deload — optimerat för din styrkenivå och ditt schema. Förnyas automatiskt var 8:e vecka.',
+      price: '800 kr / 8 v',
+      duration: 'Löpande prenumeration • 800 kr var 8:e vecka',
       active: false,
       color: '#f59e0b'
     },
     {
       id: 'individualaccessory',
-      name: 'Individual Accessories',
+      name: 'Individual Successories',
       emoji: '💡',
-      desc: 'Ett skräddarsytt 8-veckors tilläggsprogram designat som komplement till din befintliga träning. Fokus på svaga punkter, muskelbalans och hypertrofi — inga overheadlyfter eller tunga komplex som krockar med din CrossFit eller tyngdlyftning.',
-      price: '500 kr',
-      duration: '8 veckor • engångskostnad',
+      desc: 'Ett skräddarsytt tilläggsprogram designat som komplement till din befintliga träning. Fokus på svaga punkter, muskelbalans och hypertrofi — inga overheadlyfter eller tunga komplex som krockar med din CrossFit eller tyngdlyftning. Förnyas automatiskt var 8:e vecka.',
+      price: '800 kr / 8 v',
+      duration: 'Löpande prenumeration • 800 kr var 8:e vecka',
       active: false,
       color: '#34d399'
     },
@@ -13339,9 +13349,9 @@ function renderShopSection() {
       id: 'individualfunctional',
       name: 'Individual Functional Fitness',
       emoji: '⚡',
-      desc: 'Komplett 8-veckors program för Funktionell Fitness. Kombinerar styrka, kondition och olympiska lyft i ett helhetsprogram anpassat efter dina max-lyft, ditt antal träningsdagar och dina tävlingsmål. Levereras direkt i appen.',
-      price: '1 000 kr',
-      duration: '8 veckor • engångskostnad',
+      desc: 'Komplett program för Funktionell Fitness. Kombinerar styrka, kondition och olympiska lyft i ett helhetsprogram anpassat efter dina max-lyft, ditt antal träningsdagar och dina tävlingsmål. Levereras direkt i appen. Förnyas automatiskt var 8:e vecka.',
+      price: '800 kr / 8 v',
+      duration: 'Löpande prenumeration • 800 kr var 8:e vecka',
       active: false,
       color: '#a78bfa'
     },
@@ -13462,7 +13472,7 @@ function openIPIntakeModal(product) {
   const prices = { individualstrength: '500 kr', individualaccessory: '500 kr', individualfunctional: '1 000 kr' };
   btn.textContent = 'Betala ' + (prices[product] || '500 kr') + ' →';
   btn.dataset.ipProduct = product;
-  const titles = { individualstrength: 'INDIVIDUAL STRENGTH', individualaccessory: 'INDIVIDUAL ACCESSORIES', individualfunctional: 'INDIVIDUAL FUNCTIONAL FITNESS' };
+  const titles = { individualstrength: 'INDIVIDUAL STRENGTH', individualaccessory: 'INDIVIDUAL SUCCESSORIES', individualfunctional: 'INDIVIDUAL FUNCTIONAL FITNESS' };
   const colors = { individualstrength: '#f59e0b', individualaccessory: '#34d399', individualfunctional: '#a78bfa' };
   const titleEl = m.querySelector('.modal-title');
   if (titleEl) {
@@ -13537,7 +13547,7 @@ async function handleStripeSuccess(sessionId, product) {
         if (!names.includes(profile.name)) { names.push(profile.name); localStorage.setItem('lerums_mobility_members', JSON.stringify(names)); }
       } catch(_) {}
     }
-    const labels = { lbwl: 'LBWL 3×/vecka', '2dwl': 'LBWL 2×/vecka', rehab: 'Lerumsboxen Rehab', mobility: 'Mobility', individualstrength: 'Individual Strength', individualaccessory: 'Individual Accessories', individualfunctional: 'Individual Functional Fitness' };
+    const labels = { lbwl: 'LBWL 3×/vecka', '2dwl': 'LBWL 2×/vecka', rehab: 'Lerumsboxen Rehab', mobility: 'Mobility', individualstrength: 'Individual Strength', individualaccessory: 'Individual Successories', individualfunctional: 'Individual Functional Fitness' };
     if (confirmedProduct === 'individualstrength' || confirmedProduct === 'individualaccessory' || confirmedProduct === 'individualfunctional') {
       showToast('✓ Betalning bekräftad! Ditt program läggs upp i appen inom kort.');
       setTimeout(() => selectDashSection('shop'), 600);
@@ -13564,6 +13574,7 @@ async function saveStripeConfig() {
   const indivStrength   = (document.getElementById('stripePriceIndividualStrength')?.value   || '').trim();
   const indivAccessory  = (document.getElementById('stripePriceIndividualAccessory')?.value  || '').trim();
   const indivFunctional = (document.getElementById('stripePriceIndividualFunctional')?.value || '').trim();
+  const webhookSecret   = (document.getElementById('stripeWebhookSecret')?.value || '').trim();
   const statusEl = document.getElementById('stripeConfigStatus');
   if (statusEl) { statusEl.textContent = 'Sparar…'; statusEl.style.color = 'var(--muted)'; }
   try {
@@ -13576,10 +13587,15 @@ async function saveStripeConfig() {
       priceMobility: mobility,
       priceIndividualStrength:   indivStrength,
       priceIndividualAccessory:  indivAccessory,
-      priceIndividualFunctional: indivFunctional
+      priceIndividualFunctional: indivFunctional,
+      webhookSecret
     });
     if (data.status === 'ok') {
       if (statusEl) { statusEl.textContent = '✓ Sparat i Config-fliken'; statusEl.style.color = 'var(--success)'; }
+      const urlEl = document.getElementById('stripeWebhookUrlDisplay');
+      if (urlEl && webhookSecret && APPS_SCRIPT_URL) {
+        urlEl.textContent = APPS_SCRIPT_URL + '?wh=' + encodeURIComponent(webhookSecret);
+      }
     } else throw new Error(data.error || 'Okänt fel');
   } catch(e) {
     if (statusEl) { statusEl.textContent = 'Fel: ' + e.message; statusEl.style.color = '#f87171'; }

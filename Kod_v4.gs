@@ -1,4 +1,9 @@
 function doPost(e) {
+  // Stripe webhook: detected by ?wh= URL param
+  if (e.parameter && e.parameter.wh !== undefined) {
+    return handleStripeWebhook_(e);
+  }
+
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var data = JSON.parse(e.postData.contents);
   var action = data.action;
@@ -615,6 +620,106 @@ function doPost(e) {
 
 function doGet(e) { return doPost(e); }
 
+// ── handleStripeWebhook_ ──────────────────────────────────────────────────────
+// Called when Stripe POSTs to {APPS_SCRIPT_URL}?wh=<secret>
+// Listens for invoice.payment_succeeded (subscription renewals)
+
+function handleStripeWebhook_(e) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var cfg = ss.getSheetByName('Config');
+
+  // Verify URL secret
+  var storedSecret = cfg ? getConfigValue_(cfg, 'stripe_webhook_secret') : null;
+  var provided = (e.parameter && e.parameter.wh) ? e.parameter.wh : '';
+  if (storedSecret && provided !== storedSecret) {
+    return json({error: 'Unauthorized'});
+  }
+
+  var event;
+  try { event = JSON.parse(e.postData.contents); } catch(err) { return json({error: 'Invalid JSON'}); }
+
+  // Only handle invoice.payment_succeeded
+  if (event.type !== 'invoice.payment_succeeded') {
+    return json({received: true, ignored: event.type || 'unknown'});
+  }
+
+  var invoice = event.data && event.data.object;
+  if (!invoice) return json({error: 'No invoice object'});
+
+  // Skip first-payment invoices — those are handled by verifyStripePayment_
+  if (invoice.billing_reason === 'subscription_create') {
+    return json({received: true, ignored: 'first_payment'});
+  }
+
+  var subscriptionId = invoice.subscription;
+  if (!subscriptionId) return json({error: 'No subscription ID'});
+
+  var stripeKey = cfg ? getConfigValue_(cfg, 'stripe_key') : null;
+  if (!stripeKey) return json({error: 'No Stripe key'});
+
+  try {
+    // Fetch subscription to read metadata
+    var subResp = UrlFetchApp.fetch('https://api.stripe.com/v1/subscriptions/' + subscriptionId, {
+      headers: { 'Authorization': 'Bearer ' + stripeKey },
+      muteHttpExceptions: true
+    });
+    var sub = JSON.parse(subResp.getContentText());
+    if (sub.error) return json({error: sub.error.message});
+
+    var meta = sub.metadata || {};
+    var memberName  = meta.memberName  || '';
+    var memberEmail = meta.memberEmail || '';
+    var product     = meta.product     || '';
+
+    var individualProducts = ['individualstrength', 'individualaccessory', 'individualfunctional'];
+    if (individualProducts.indexOf(product) < 0) {
+      return json({received: true, ignored: 'not_individual_program'});
+    }
+
+    var productLabels = {
+      individualstrength:   'Individual Strength',
+      individualaccessory:  'Individual Successories',
+      individualfunctional: 'Individual Functional Fitness'
+    };
+    var productLabel = productLabels[product] || product;
+
+    // Log renewal in ProgramRequests sheet
+    var reqSheet = ss.getSheetByName('ProgramRequests');
+    if (!reqSheet) {
+      reqSheet = ss.insertSheet('ProgramRequests');
+      reqSheet.appendRow(['memberName','memberEmail','goal','daysPerWeek','programWeeks',
+                          'maxSquat','maxDeadlift','maxBench','maxClean','maxSnatch',
+                          'notes','requestedAt','sessionId','status']);
+    }
+    var now = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
+    reqSheet.appendRow([memberName, memberEmail, '', '', '8', '', '', '', '', '', '', now, subscriptionId, 'renewal']);
+
+    // Send notification email to coach
+    var emailBody =
+      '<h2 style="font-family:sans-serif;color:#a78bfa;">🔄 Dags att uppdatera program</h2>' +
+      '<table style="font-family:sans-serif;font-size:14px;border-collapse:collapse;">' +
+      '<tr><td style="padding:4px 12px 4px 0;color:#888;">Namn</td><td><strong>' + memberName + '</strong></td></tr>' +
+      '<tr><td style="padding:4px 12px 4px 0;color:#888;">E-post</td><td>' + memberEmail + '</td></tr>' +
+      '<tr><td style="padding:4px 12px 4px 0;color:#888;">Program</td><td>' + productLabel + '</td></tr>' +
+      '<tr><td style="padding:4px 12px 4px 0;color:#888;">Period</td><td>Ny 8-veckorsperiod påbörjad</td></tr>' +
+      '</table>' +
+      '<p style="font-family:sans-serif;font-size:13px;color:#888;margin-top:16px;">' +
+      'Öppna appen → Programmering → Individual Programs → <strong>' + memberName + '</strong> → ✦ Ny för att generera nytt program.' +
+      '</p>';
+
+    GmailApp.sendEmail(
+      'calle@lerumsboxen.com',
+      '🔄 ' + productLabel + ' förnyad — dags att uppdatera program för ' + memberName,
+      memberName + ' (' + memberEmail + ') har förnyat ' + productLabel + '. Dags att generera nytt 8-veckors program i appen.',
+      { htmlBody: emailBody, name: 'Lerumsboxen App' }
+    );
+
+    return json({received: true, memberName: memberName, product: product});
+  } catch(err) {
+    return json({error: err.message});
+  }
+}
+
 function json(obj) {
   return ContentService
     .createTextOutput(JSON.stringify(obj))
@@ -905,6 +1010,7 @@ function saveStripeConfig_(data) {
   if (data.priceIndividualStrength)   setConfigValue_(cfg, cfgVals, 'stripe_price_individualstrength',   data.priceIndividualStrength);
   if (data.priceIndividualAccessory)  setConfigValue_(cfg, cfgVals, 'stripe_price_individualaccessory',  data.priceIndividualAccessory);
   if (data.priceIndividualFunctional) setConfigValue_(cfg, cfgVals, 'stripe_price_individualfunctional', data.priceIndividualFunctional);
+  if (data.webhookSecret !== undefined) setConfigValue_(cfg, cfgVals, 'stripe_webhook_secret', data.webhookSecret);
   return { status: 'ok' };
 }
 
@@ -939,7 +1045,8 @@ function createCheckoutSession_(data) {
   var successUrl  = (data.successUrl  || '').toString();
   var cancelUrl   = (data.cancelUrl   || '').toString();
 
-  var isSubscription = (product === 'rehab' || product === 'mobility');
+  var individualPrograms = ['individualstrength', 'individualaccessory', 'individualfunctional'];
+  var isSubscription = (product === 'rehab' || product === 'mobility' || individualPrograms.indexOf(product) >= 0);
 
   var params = {
     'mode': isSubscription ? 'subscription' : 'payment',
@@ -952,15 +1059,18 @@ function createCheckoutSession_(data) {
     'metadata[product]': product
   };
 
-  // Pass intake form data as metadata for individualprogram
-  if (product === 'individualprogram') {
+  // Pass intake form data as metadata for individual programs
+  if (individualPrograms.indexOf(product) >= 0) {
     var intakeFields = ['goal','daysPerWeek','programWeeks','maxSquat','maxDeadlift','maxBench','maxClean','maxSnatch','notes'];
     intakeFields.forEach(function(f) {
       if (data[f] !== undefined && data[f] !== null && data[f] !== '') {
-        // Stripe metadata values max 500 chars
         params['metadata[' + f + ']'] = String(data[f]).substring(0, 500);
       }
     });
+    // Also set subscription_data metadata so renewals have member info
+    params['subscription_data[metadata][memberName]']  = memberName;
+    params['subscription_data[metadata][memberEmail]'] = memberEmail;
+    params['subscription_data[metadata][product]']     = product;
   }
 
   if (memberEmail) params['customer_email'] = memberEmail;
@@ -1013,8 +1123,9 @@ function verifyStripePayment_(data) {
     var memberName = (meta.memberName || data.memberName || '').toString().trim();
     var memberEmail = (meta.memberEmail || data.memberEmail || '').toString().toLowerCase().trim();
 
+    var individualPrograms_ = ['individualstrength', 'individualaccessory', 'individualfunctional'];
     // ── Individual Programs: store request + send email, don't modify Members ──
-    if (product === 'individualstrength' || product === 'individualaccessory' || product === 'individualfunctional') {
+    if (individualPrograms_.indexOf(product) >= 0) {
       var reqSheet = ss2.getSheetByName('ProgramRequests');
       if (!reqSheet) {
         reqSheet = ss2.insertSheet('ProgramRequests');
