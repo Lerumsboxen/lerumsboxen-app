@@ -21,6 +21,33 @@ Google-sökning → konsultation.html → Apps Script (webbapp) → Google Sheet
 
 > Om ni ändrar scriptet senare väljer ni *Driftsätt → Hantera driftsättningar → Redigera → Ny version*, så behåller ni samma URL.
 
+## CRM-appen (tavla för mobil och dator)
+
+`App.html` är en app ovanpå arket. Den visar leads som kort i kolumner per status. Allt sparas fortfarande i arket.
+
+- **Flytta ett lead:** dra kortet till en annan kolumn. På mobilen håller du fingret på kortet en kort stund och drar det till en flik högst upp. Du kan också trycka på en status i kortet.
+- **Öppna kortet:** tryck på ett namn. Där finns kontaktuppgifter och meddelande, knappar för Ring, Inget svar, Svarade och Mejla, samt fälten Ansvarig, Nästa uppföljning och Anteckningar. Fälten sparas automatiskt.
+- **Inget svar:** tryck på *Inget svar* efter ett samtal som inte besvaras. Svarar personen inte inom 3 dagar (`NO_ANSWER_DAYS`) får ni ett mejl med ett färdigt SMS och en knapp som öppnar SMS-appen. SMS:et finns också i kortet med knapparna *Kopiera* och *Öppna i SMS*.
+- **SMS-texten** ändrar du i `SMS_TEMPLATE` i KONFIG. Där ersätts `{förnamn}` och `{gym}` automatiskt.
+
+### Installera appen
+
+1. **Uppdatera scriptet.** Ersätt koden i Apps Script med den nya `Leads_AppsScript.gs`. Behåll dina egna värden i KONFIG.
+2. **Lägg till appfilen.** Klicka på *+* → *HTML*, döp filen till exakt `App` och klistra in hela `App.html`.
+3. **Kör `setup` igen.** Det lägger till kolumnerna *Samtalsförsök*, *Ej nådd sedan* och *SMS skickat*. Befintliga leads påverkas inte.
+4. **Uppdatera formulärets driftsättning.** Välj *Driftsätt → Hantera driftsättningar → Redigera (pennan) → Version: Ny version*. Formulärets URL ändras inte.
+5. **Skapa en separat driftsättning för appen.** Välj *Driftsätt → Ny driftsättning → Webbapp* och ställ in:
+   - *Kör som:* **Användaren som öppnar webbappen**
+   - *Åtkomst:* **Alla med ett Google-konto**
+
+   Kopiera URL:en till `CRM_APP_URL` i KONFIG, spara, och uppdatera båda driftsättningarna en gång till enligt steg 4.
+6. **Ge personalen tillgång.** Dela arket (redigera) med den personal som ska använda appen. Fyll gärna i deras Google-konton i `CRM_USERS`. Den som saknar tillgång till arket kan inte öppna några leads.
+7. **Lägg appen på hemskärmen.** Öppna URL:en i mobilen och välj *Lägg till på hemskärmen* (Safari: dela-knappen; Chrome: menyn).
+
+Varför två driftsättningar? Formuläret måste vara öppet för alla. Appen ska bara visas för er. Appen körs som den som är inloggad, så det är arkets delning som styr vem som ser leads. Även om någon öppnar formulärets URL visar den aldrig appen för andra än dig.
+
+`App.html` kan också öppnas direkt i en webbläsare. Då körs den i testläge med påhittade leads och sparar ingenting.
+
 ## Så få Google-sökare till formuläret
 
 - **Google Företagsprofil** (business.google.com): lägg länken till `konsultation.html` som bokningslänk eller webbplats, och gärna som ett inlägg med knappen *Läs mer*.

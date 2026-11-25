@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<base target="_top">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Lerumsboxen Leads</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --red: #e8001d; --red-dark: #b0001a; --ink: #18181b; --muted: #6b6b75; --line: #e4e4e7;
+    --bg: #f4f4f6; --card: #fff; --head: #0b0b0d; --ok: #15803d; --warn: #b45309;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { font-family: 'Barlow', system-ui, sans-serif; color: var(--ink); background: var(--bg); font-size: 15px; overflow: hidden; display: flex; flex-direction: column; }
+  .board-wrap { flex: 1; min-height: 0; overflow: hidden; }
+  button { font: inherit; cursor: pointer; }
+  input, select, textarea { font: inherit; color: inherit; }
+
+  /* ---------- Header ---------- */
+  .top { flex: none; background: var(--head); color: #fff; border-bottom: 2px solid var(--red); display: flex; align-items: center; gap: .6rem; padding: .55rem .9rem; height: 56px; }
+  .brand { font-family: 'Bebas Neue', sans-serif; font-size: 1.45rem; letter-spacing: .05em; white-space: nowrap; }
+  .brand b { color: var(--red); font-weight: 400; }
+  .search { flex: 1; max-width: 320px; margin-left: auto; background: #1d1d22; border: 1px solid #2a2a30; color: #fff; border-radius: 8px; padding: .45rem .7rem; }
+  .search::placeholder { color: #8b8b93; }
+  .tbtn { background: #1d1d22; color: #fff; border: 1px solid #2a2a30; border-radius: 8px; padding: .45rem .7rem; white-space: nowrap; }
+  .tbtn.primary { background: var(--red); border-color: var(--red); font-weight: 600; }
+  .tbtn:hover { filter: brightness(1.15); }
+  .toggle { display: flex; align-items: center; gap: .35rem; color: #c4c4cc; font-size: .85rem; white-space: nowrap; }
+  .toggle input { accent-color: var(--red); }
+
+  /* ---------- Tabs (mobil) ---------- */
+  .tabs { flex: none; display: none; gap: .4rem; overflow-x: auto; padding: .6rem .75rem; background: #fff; border-bottom: 1px solid var(--line); scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex: none; border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: .4rem .8rem; font-weight: 600; font-size: .88rem; display: flex; align-items: center; gap: .4rem; }
+  .tab .n { background: var(--bg); border-radius: 999px; padding: 0 .45rem; font-size: .78rem; color: var(--muted); }
+  .tab.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .tab.active .n { background: #333; color: #ddd; }
+  .tab.drop-hover { outline: 2px dashed var(--red); outline-offset: 2px; }
+
+  /* ---------- Tavla ---------- */
+  .board { display: flex; gap: .75rem; padding: .9rem; height: 100%; overflow-x: auto; align-items: stretch; }
+  .col { flex: 0 0 272px; display: flex; flex-direction: column; background: #ebebef; border-radius: var(--radius); min-height: 0; transition: background .12s; }
+  .col.drop-hover { background: #fde2e4; box-shadow: inset 0 0 0 2px var(--red); }
+  .col-head { display: flex; align-items: center; gap: .5rem; padding: .7rem .8rem .5rem; font-weight: 700; font-size: .9rem; }
+  .col-head .n { margin-left: auto; color: var(--muted); font-weight: 600; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .col-body { flex: 1; overflow-y: auto; padding: 0 .55rem .7rem; display: flex; flex-direction: column; gap: .5rem; min-height: 80px; }
+  .empty { color: #a1a1aa; font-size: .85rem; text-align: center; padding: 1rem 0; }
+  .col.collapsed { flex: 0 0 48px; cursor: pointer; }
+  .col.collapsed .col-head { writing-mode: vertical-rl; transform: rotate(180deg); padding: .8rem .9rem; white-space: nowrap; height: 100%; }
+  .col.collapsed .col-head .n { margin: 0 0 .5rem; }
+  .col.collapsed .col-body { display: none; }
+
+  /* ---------- Kort ---------- */
+  .card { background: var(--card); border-radius: 8px; padding: .65rem .75rem; box-shadow: 0 1px 2px rgba(0,0,0,.08); border-left: 3px solid transparent; cursor: grab;
+          user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
+  .card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+  .card.overdue { border-left-color: var(--red); }
+  .card.dragging { opacity: .35; }
+  .card .name { font-weight: 700; font-size: .98rem; }
+  .card .meta { color: var(--muted); font-size: .82rem; margin-top: .1rem; }
+  .badges { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .45rem; }
+  .badge { font-size: .72rem; font-weight: 600; border-radius: 4px; padding: .1rem .4rem; background: var(--bg); color: var(--muted); }
+  .badge.red { background: #fde2e4; color: var(--red-dark); }
+  .badge.amber { background: #fef3c7; color: var(--warn); }
+  .badge.green { background: #dcfce7; color: var(--ok); }
+  .ghost { position: fixed; z-index: 1000; pointer-events: none; transform: rotate(2deg); box-shadow: 0 12px 28px rgba(0,0,0,.25); opacity: .95; }
+
+  /* ---------- Modal ---------- */
+  .overlay { position: fixed; inset: 0; background: rgba(10,10,12,.5); display: none; align-items: center; justify-content: center; z-index: 500; padding: 1rem; }
+  .overlay.open { display: flex; }
+  .modal { background: #fff; border-radius: 14px; width: 100%; max-width: 620px; max-height: 92vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+  .m-head { position: sticky; top: 0; background: #fff; z-index: 2; padding: 1rem 1.1rem .7rem; border-bottom: 1px solid var(--line); }
+  .m-title { display: flex; align-items: flex-start; gap: .75rem; }
+  .m-title h2 { font-size: 1.35rem; line-height: 1.2; flex: 1; }
+  .m-sub { color: var(--muted); font-size: .85rem; margin-top: .15rem; }
+  .x { background: var(--bg); border: 0; border-radius: 50%; width: 34px; height: 34px; font-size: 1.2rem; flex: none; }
+  .chips { display: flex; gap: .35rem; overflow-x: auto; margin-top: .7rem; padding-bottom: .15rem; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { flex: none; border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: .3rem .7rem; font-size: .82rem; font-weight: 600; display: flex; align-items: center; gap: .35rem; }
+  .chip.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .m-body { padding: 1rem 1.1rem 1.4rem; display: grid; gap: 1.1rem; }
+  .actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
+  .act { border: 1px solid var(--line); background: #fff; border-radius: 10px; padding: .6rem .3rem; display: flex; flex-direction: column; align-items: center; gap: .2rem; font-size: .8rem; font-weight: 600; color: var(--ink); text-decoration: none; }
+  .act .i { font-size: 1.25rem; line-height: 1; }
+  .act.call { background: var(--ok); border-color: var(--ok); color: #fff; }
+  .act.disabled { opacity: .4; pointer-events: none; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem 1rem; }
+  .kv .k { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; font-weight: 600; }
+  .kv .v { font-size: .95rem; word-break: break-word; }
+  .kv .v a { color: var(--ink); }
+  .msg { background: var(--bg); border-radius: 8px; padding: .7rem .8rem; white-space: pre-wrap; font-size: .93rem; }
+  .sec-t { font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; font-weight: 700; margin-bottom: .35rem; }
+  .sms { border: 1px solid var(--line); border-radius: 10px; padding: .8rem; }
+  .sms.alert { border-color: var(--red); background: #fff7f8; }
+  .sms textarea { width: 100%; min-height: 92px; border: 1px solid var(--line); border-radius: 8px; padding: .6rem; resize: vertical; background: #fff; }
+  .sms .row { display: flex; gap: .45rem; margin-top: .5rem; flex-wrap: wrap; }
+  .btn { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: .5rem .8rem; font-weight: 600; font-size: .88rem; color: var(--ink); text-decoration: none; display: inline-flex; align-items: center; gap: .3rem; }
+  .btn.red { background: var(--red); border-color: var(--red); color: #fff; }
+  .btn.ghostb { background: transparent; }
+  .field label { display: block; font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; font-weight: 700; margin-bottom: .3rem; }
+  .field input, .field textarea, .field select { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: .55rem .65rem; background: #fff; }
+  .field textarea { min-height: 96px; resize: vertical; }
+  .field input:focus, .field textarea:focus, .field select:focus, .sms textarea:focus { outline: 2px solid var(--red); outline-offset: 0; border-color: transparent; }
+  .inline { display: flex; gap: .4rem; }
+  .foot { color: var(--muted); font-size: .8rem; display: flex; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
+  .foot a { color: var(--muted); }
+
+  .toast { position: fixed; left: 50%; bottom: 1.2rem; transform: translateX(-50%) translateY(150%); background: var(--ink); color: #fff; padding: .6rem 1rem; border-radius: 8px; font-size: .9rem; z-index: 2000; transition: transform .2s, opacity .2s; max-width: 90vw; opacity: 0; pointer-events: none; }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  .toast.err { background: var(--red-dark); }
+  .loading { position: fixed; inset: 56px 0 0; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+  .mock { background: #fef3c7; color: #92400e; font-size: .8rem; text-align: center; padding: .3rem; }
+
+  /* ---------- Mobil ---------- */
+  @media (max-width: 760px) {
+    .top { height: auto; flex-wrap: wrap; padding: .5rem .7rem; }
+    .brand { font-size: 1.3rem; }
+    .search { order: 5; flex-basis: 100%; max-width: none; margin: 0; }
+    .toggle { display: none; }
+    .tabs { display: flex; }
+    .board { display: block; padding: .6rem; height: auto; overflow: visible; }
+    .board-wrap { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .col { display: none; background: transparent; }
+    .col.active { display: flex; }
+    .col-head { display: none; }
+    .col-body { overflow: visible; padding: 0; }
+    .card { padding: .8rem .85rem; }
+    .overlay { padding: 0; align-items: flex-end; }
+    .modal { max-width: none; max-height: 94vh; border-radius: 16px 16px 0 0; }
+    .grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div id="mockBar" class="mock" style="display:none">Testläge med påhittade leads – inget sparas</div>
+<header class="top">
+  <div class="brand">Lerumsboxen <b>Leads</b></div>
+  <input class="search" id="q" type="search" placeholder="Sök namn, telefon, intresse…">
+  <label class="toggle"><input type="checkbox" id="showClosed"> Visa avslutade</label>
+  <button class="tbtn" id="refresh" title="Uppdatera">↻</button>
+  <button class="tbtn primary" id="addBtn">+ Nytt lead</button>
+</header>
+<nav class="tabs" id="tabs"></nav>
+<div class="board-wrap"><main class="board" id="board"></main></div>
+<div class="loading" id="loading">Laddar leads…</div>
+
+<div class="overlay" id="overlay"><div class="modal" id="modal" role="dialog" aria-modal="true"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   Data / API
+   ========================================================= */
+const MOCK = typeof google === 'undefined' || !google.script;
+const COLORS = {
+  'Ny': '#e8001d', 'Kontaktad': '#d97706', 'Konsultation bokad': '#2563eb',
+  'Konsultation genomförd': '#6366f1', 'Blev medlem': '#16a34a', 'Ej intresserad': '#a1a1aa', 'Ingen kontakt': '#a1a1aa'
+};
+const FOLDED = ['Ej intresserad', 'Ingen kontakt'];
+
+const S = { board: null, leads: [], active: 'Ny', query: '', showClosed: false, openId: null };
+
+function api(fn, ...args) {
+  if (MOCK) return Mock[fn](...args);
+  return new Promise((res, rej) => {
+    google.script.run.withSuccessHandler(res).withFailureHandler(e => rej(e && e.message ? e : new Error(String(e))))[fn](...args);
+  });
+}
+
+/* =========================================================
+   Hjälpare
+   ========================================================= */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const DAY = 864e5;
+function startOfDay(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
+function ago(isoStr) {
+  if (!isoStr) return '';
+  const days = Math.round((startOfDay(new Date()) - startOfDay(isoStr)) / DAY);
+  if (days <= 0) return 'idag';
+  if (days === 1) return 'igår';
+  if (days < 30) return days + ' d sedan';
+  return new Date(isoStr).toLocaleDateString('sv-SE');
+}
+function fmtDate(isoStr, withTime) {
+  if (!isoStr) return '–';
+  const d = new Date(isoStr);
+  return withTime ? d.toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' }) : d.toLocaleDateString('sv-SE');
+}
+function firstName(n) { return String(n || '').trim().split(/\s+/)[0] || ''; }
+function smsText(l) { return (S.board.smsTemplate || '').replace(/\{förnamn\}/g, firstName(l.namn)); }
+function telHref(p) { return 'tel:' + String(p).replace(/[^\d+]/g, ''); }
+function smsHref(p, body) { return 'sms:' + String(p).replace(/[^\d+]/g, '') + '?&body=' + encodeURIComponent(body); }
+function noAnswerDays(l) { return l.ejNaddSedan ? Math.floor((Date.now() - new Date(l.ejNaddSedan)) / DAY) : -1; }
+function isOverdue(l) {
+  if (!l.nastaUppfoljning || S.board.closed.includes(l.status)) return false;
+  return new Date(l.nastaUppfoljning + 'T00:00') <= startOfDay(new Date());
+}
+function needsSms(l) {
+  return l.telefon && !l.smsSkickat && !S.board.closed.includes(l.status) && noAnswerDays(l) >= S.board.noAnswerDays;
+}
+let toastTimer;
+function toast(msg, isErr) {
+  const t = $('#toast');
+  t.textContent = msg; t.className = 'toast show' + (isErr ? ' err' : '');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.className = 'toast', isErr ? 4000 : 1800);
+}
+function replaceLead(l) {
+  const i = S.leads.findIndex(x => x.id === l.id);
+  if (i >= 0) S.leads[i] = l; else S.leads.push(l);
+}
+function matches(l) {
+  if (!S.query) return true;
+  const q = S.query.toLowerCase();
+  return [l.namn, l.telefon, l.epost, l.intresse, l.ansvarig, l.kalla].some(v => String(v || '').toLowerCase().includes(q));
+}
+function sortLeads(a, b) {
+  const oa = isOverdue(a) || needsSms(a), ob = isOverdue(b) || needsSms(b);
+  if (oa !== ob) return oa ? -1 : 1;
+  if (a.status === 'Ny') return new Date(a.inkommen) - new Date(b.inkommen); // längst väntat först
+  return new Date(b.inkommen) - new Date(a.inkommen);
+}
+
+/* =========================================================
+   Rendering
+   ========================================================= */
+function cardHtml(l) {
+  const b = [];
+  if (needsSms(l)) b.push(`<span class="badge red">Skicka SMS</span>`);
+  if (l.ejNaddSedan) b.push(`<span class="badge amber">Inget svar ×${l.forsok}</span>`);
+  else if (l.forsok) b.push(`<span class="badge">${l.forsok} samtal</span>`);
+  if (l.nastaUppfoljning && !S.board.closed.includes(l.status))
+    b.push(`<span class="badge ${isOverdue(l) ? 'red' : ''}">Följ upp ${esc(l.nastaUppfoljning.slice(5))}</span>`);
+  if (l.smsSkickat) b.push(`<span class="badge green">SMS skickat</span>`);
+  if (l.ansvarig) b.push(`<span class="badge">${esc(l.ansvarig)}</span>`);
+  return `<div class="card${isOverdue(l) || needsSms(l) ? ' overdue' : ''}" data-id="${l.id}">
+    <div class="name">${esc(l.namn || '(namn saknas)')}</div>
+    <div class="meta">${esc(l.intresse || 'Inget intresse angivet')} · ${ago(l.inkommen)}</div>
+    ${b.length ? `<div class="badges">${b.join('')}</div>` : ''}
+  </div>`;
+}
+
+function render() {
+  const statuses = S.board.statuses;
+  const visible = S.leads.filter(matches);
+  const by = Object.fromEntries(statuses.map(s => [s, []]));
+  visible.forEach(l => (by[l.status] || by['Ny']).push(l));
+  Object.values(by).forEach(arr => arr.sort(sortLeads));
+
+  $('#tabs').innerHTML = statuses.map(s =>
+    `<button class="tab${s === S.active ? ' active' : ''}" data-drop="${esc(s)}" data-tab="${esc(s)}">
+       <span class="dot" style="background:${COLORS[s]}"></span>${esc(s)}<span class="n">${by[s].length}</span></button>`).join('');
+
+  $('#board').innerHTML = statuses.map(s => {
+    const folded = FOLDED.includes(s) && !S.showClosed;
+    return `<section class="col${folded ? ' collapsed' : ''}${s === S.active ? ' active' : ''}" data-drop="${esc(s)}" data-col="${esc(s)}">
+      <div class="col-head"><span class="dot" style="background:${COLORS[s]}"></span>${esc(s)}<span class="n">${by[s].length}</span></div>
+      <div class="col-body">${by[s].map(cardHtml).join('') || '<div class="empty">Dra hit</div>'}</div>
+    </section>`;
+  }).join('');
+
+  if (S.openId != null) renderModal();
+}
+
+/* =========================================================
+   Flytta lead (optimistiskt)
+   ========================================================= */
+async function moveLead(id, status) {
+  const l = S.leads.find(x => x.id === id);
+  if (!l || l.status === status) return;
+  const prev = { ...l };
+  l.status = status;
+  if (['Konsultation bokad', 'Konsultation genomförd', 'Blev medlem'].includes(status)) l.ejNaddSedan = '';
+  render();
+  toast(`${firstName(l.namn)} → ${status}`);
+  try {
+    replaceLead(await api('updateLead', id, { status }));
+    render();
+  } catch (e) {
+    replaceLead(prev); render();
+    toast('Kunde inte spara: ' + e.message, true);
+  }
+}
+
+/* =========================================================
+   Drag and drop (mus + touch via pointer events)
+   ========================================================= */
+const D = { el: null, id: null, ghost: null, startX: 0, startY: 0, offX: 0, offY: 0, active: false, timer: null, touch: false, target: null, scrollRAF: null, lastX: 0 };
+
+function dropTargetAt(x, y) {
+  const el = document.elementFromPoint(x, y);
+  return el && el.closest('[data-drop]');
+}
+function beginDrag() {
+  D.active = true;
+  const r = D.el.getBoundingClientRect();
+  D.offX = D.startX - r.left; D.offY = D.startY - r.top;
+  D.ghost = D.el.cloneNode(true);
+  D.ghost.classList.add('ghost');
+  D.ghost.style.width = r.width + 'px';
+  document.body.appendChild(D.ghost);
+  D.el.classList.add('dragging');
+  moveGhost(D.startX, D.startY);
+  if (navigator.vibrate) navigator.vibrate(15);
+}
+function moveGhost(x, y) {
+  D.ghost.style.left = (x - D.offX) + 'px';
+  D.ghost.style.top = (y - D.offY) + 'px';
+  const t = dropTargetAt(x, y);
+  if (t !== D.target) {
+    D.target && D.target.classList.remove('drop-hover');
+    D.target = t;
+    t && t.dataset.drop !== cardStatus() && t.classList.add('drop-hover');
+  }
+  D.lastX = x;
+}
+function cardStatus() { const l = S.leads.find(x => x.id === D.id); return l && l.status; }
+function autoScroll() {
+  const b = $('#board'), w = window.innerWidth, edge = 70;
+  if (D.lastX > w - edge) b.scrollLeft += 14; else if (D.lastX < edge) b.scrollLeft -= 14;
+  D.scrollRAF = requestAnimationFrame(autoScroll);
+}
+function endDrag(cancel) {
+  clearTimeout(D.timer);
+  cancelAnimationFrame(D.scrollRAF);
+  const wasActive = D.active, id = D.id, target = D.target;
+  D.ghost && D.ghost.remove();
+  D.el && D.el.classList.remove('dragging');
+  target && target.classList.remove('drop-hover');
+  Object.assign(D, { el: null, id: null, ghost: null, active: false, target: null });
+  if (!cancel && wasActive && target) moveLead(id, target.dataset.drop);
+  return wasActive;
+}
+
+document.addEventListener('pointerdown', e => {
+  const card = e.target.closest('.card');
+  if (!card || e.button > 0) return;
+  D.el = card; D.id = Number(card.dataset.id);
+  D.startX = e.clientX; D.startY = e.clientY; D.lastX = e.clientX;
+  D.touch = e.pointerType !== 'mouse';
+  if (D.touch) D.timer = setTimeout(() => { if (D.el) { beginDrag(); autoScroll(); } }, 320); // långt tryck
+});
+document.addEventListener('pointermove', e => {
+  if (!D.el) return;
+  const dist = Math.hypot(e.clientX - D.startX, e.clientY - D.startY);
+  if (!D.active) {
+    if (D.touch) { if (dist > 10) { clearTimeout(D.timer); D.el = null; } return; } // det var en scroll
+    if (dist > 6) { beginDrag(); autoScroll(); } else return;
+  }
+  moveGhost(e.clientX, e.clientY);
+});
+document.addEventListener('pointerup', e => {
+  if (!D.el) return;
+  const id = D.id;
+  const dragged = endDrag(false);
+  if (!dragged) openLead(id);
+});
+document.addEventListener('pointercancel', () => D.el && endDrag(true));
+document.addEventListener('touchmove', e => { if (D.active) e.preventDefault(); }, { passive: false });
+document.addEventListener('contextmenu', e => { if (e.target.closest('.card')) e.preventDefault(); });
+
+/* =========================================================
+   Leadkort (modal)
+   ========================================================= */
+function openLead(id) { S.openId = id; renderModal(); $('#overlay').classList.add('open'); }
+function closeModal() { S.openId = null; $('#overlay').classList.remove('open'); }
+$('#overlay').addEventListener('click', e => { if (e.target.id === 'overlay') closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+function renderModal() {
+  const l = S.leads.find(x => x.id === S.openId);
+  if (!l) return closeModal();
+  const m = $('#modal');
+  // Behåll osparad text i SMS-rutan och fokus vid omritning
+  const keepSms = m.querySelector('#smsText');
+  const smsVal = keepSms && keepSms.dataset.id == l.id ? keepSms.value : smsText(l);
+  if (m.contains(document.activeElement) && document.activeElement.matches('input,textarea,select')) return;
+
+  const nad = noAnswerDays(l);
+  const ph = l.telefon, em = l.epost;
+  const people = [...new Set(S.leads.map(x => x.ansvarig).filter(Boolean))];
+
+  m.innerHTML = `
+  <div class="m-head">
+    <div class="m-title">
+      <div style="flex:1"><h2>${esc(l.namn || '(namn saknas)')}</h2>
+        <div class="m-sub">#${l.id} · inkom ${fmtDate(l.inkommen, true)} · ${esc(l.kalla || 'okänd källa')}</div></div>
+      <button class="x" id="mClose" aria-label="Stäng">×</button>
+    </div>
+    <div class="chips">${S.board.statuses.map(s =>
+      `<button class="chip${s === l.status ? ' on' : ''}" data-status="${esc(s)}"><span class="dot" style="background:${COLORS[s]}"></span>${esc(s)}</button>`).join('')}</div>
+  </div>
+  <div class="m-body">
+    <div class="actions">
+      <a class="act call${ph ? '' : ' disabled'}" href="${ph ? telHref(ph) : '#'}"><span class="i">✆</span>Ring</a>
+      <button class="act${ph ? '' : ' disabled'}" data-call="0"><span class="i">✕</span>Inget svar</button>
+      <button class="act${ph ? '' : ' disabled'}" data-call="1"><span class="i">✓</span>Svarade</button>
+      <a class="act${em ? '' : ' disabled'}" href="${em ? 'mailto:' + esc(em) : '#'}"><span class="i">✉</span>Mejla</a>
+    </div>
+
+    <div class="grid">
+      <div class="kv"><div class="k">Telefon</div><div class="v">${ph ? `<a href="${telHref(ph)}">${esc(ph)}</a>` : '–'}</div></div>
+      <div class="kv"><div class="k">E-post</div><div class="v">${em ? `<a href="mailto:${esc(em)}">${esc(em)}</a>` : '–'}</div></div>
+      <div class="kv"><div class="k">Intresse</div><div class="v">${esc(l.intresse || '–')}</div></div>
+      <div class="kv"><div class="k">Bäst att nå</div><div class="v">${esc(l.tid || 'Spelar ingen roll')}</div></div>
+      <div class="kv"><div class="k">Samtalsförsök</div><div class="v">${l.forsok || 0}${l.senastKontaktad ? ' · senast ' + fmtDate(l.senastKontaktad, true) : ''}</div></div>
+      <div class="kv"><div class="k">Ej nådd</div><div class="v">${l.ejNaddSedan ? `sedan ${fmtDate(l.ejNaddSedan)} (${nad} d)` : '–'}</div></div>
+    </div>
+
+    ${l.meddelande ? `<div><div class="sec-t">Meddelande</div><div class="msg">${esc(l.meddelande)}</div></div>` : ''}
+
+    ${ph ? `<div class="sms${needsSms(l) ? ' alert' : ''}">
+      <div class="sec-t">${needsSms(l) ? `Inget svar på ${nad} dagar – skicka SMS` : 'SMS-mall'}</div>
+      <textarea id="smsText" data-id="${l.id}">${esc(smsVal)}</textarea>
+      <div class="row">
+        <button class="btn" id="copySms">Kopiera</button>
+        <a class="btn red" id="openSms" href="${smsHref(ph, smsVal)}">Öppna i SMS</a>
+        ${l.smsSkickat
+          ? `<button class="btn ghostb" id="unSms">Skickat ${fmtDate(l.smsSkickat)} · ångra</button>`
+          : `<button class="btn" id="markSms">Markera som skickat</button>`}
+      </div>
+    </div>` : ''}
+
+    <div class="grid">
+      <div class="field"><label for="fAns">Ansvarig</label>
+        <input id="fAns" data-f="ansvarig" list="people" value="${esc(l.ansvarig)}" placeholder="Vem tar leadet?">
+        <datalist id="people">${people.map(p => `<option value="${esc(p)}">`).join('')}</datalist></div>
+      <div class="field"><label for="fNext">Nästa uppföljning</label>
+        <div class="inline"><input id="fNext" data-f="nastaUppfoljning" type="date" value="${esc(l.nastaUppfoljning)}">
+        <button class="btn" data-plus="2" title="Om 2 dagar">+2d</button></div></div>
+    </div>
+    <div class="field"><label for="fNotes">Anteckningar</label>
+      <textarea id="fNotes" data-f="anteckningar" placeholder="Vad pratade ni om? Mål, skador, nästa steg…">${esc(l.anteckningar)}</textarea></div>
+
+    <div class="foot"><span>Sparas automatiskt när du lämnar ett fält.</span><a href="${esc(S.board.sheetUrl)}" target="_blank">Öppna i Google Sheets</a></div>
+  </div>`;
+}
+
+$('#modal').addEventListener('click', async e => {
+  const l = S.leads.find(x => x.id === S.openId);
+  if (!l) return;
+  if (e.target.closest('#mClose')) return closeModal();
+
+  const chip = e.target.closest('[data-status]');
+  if (chip) return moveLead(l.id, chip.dataset.status);
+
+  const call = e.target.closest('[data-call]');
+  if (call) {
+    const answered = call.dataset.call === '1';
+    try {
+      replaceLead(await api('logCall', l.id, answered));
+      render();
+      toast(answered ? 'Samtal loggat' : `Inget svar loggat – SMS föreslås efter ${S.board.noAnswerDays} dagar`);
+    } catch (err) { toast(err.message, true); }
+    return;
+  }
+
+  if (e.target.closest('#copySms')) {
+    const txt = $('#smsText').value;
+    try { await navigator.clipboard.writeText(txt); }
+    catch (_) { $('#smsText').select(); document.execCommand('copy'); }
+    return toast('SMS kopierat');
+  }
+  if (e.target.closest('#markSms') || e.target.closest('#unSms')) {
+    const sent = !!e.target.closest('#markSms');
+    try { replaceLead(await api('markSmsSent', l.id, sent)); render(); toast(sent ? 'Markerat som skickat' : 'Ångrat'); }
+    catch (err) { toast(err.message, true); }
+    return;
+  }
+  const plus = e.target.closest('[data-plus]');
+  if (plus) {
+    const d = new Date(); d.setDate(d.getDate() + Number(plus.dataset.plus));
+    const v = d.toLocaleDateString('sv-SE');
+    $('#fNext').value = v;
+    return saveField(l.id, 'nastaUppfoljning', v);
+  }
+});
+$('#modal').addEventListener('input', e => {
+  if (e.target.id === 'smsText') {
+    const l = S.leads.find(x => x.id === S.openId);
+    $('#openSms').href = smsHref(l.telefon, e.target.value);
+  }
+});
+$('#modal').addEventListener('change', e => {
+  const f = e.target.dataset.f;
+  if (f) saveField(S.openId, f, e.target.value);
+});
+async function saveField(id, field, value) {
+  const l = S.leads.find(x => x.id === id);
+  if (!l || l[field] === value) return;
+  l[field] = value;
+  try {
+    replaceLead(await api('updateLead', id, { [field]: value }));
+    document.activeElement && document.activeElement.blur && document.activeElement.matches('input[type=date]') && document.activeElement.blur();
+    render();
+    toast('Sparat');
+  } catch (err) { toast('Kunde inte spara: ' + err.message, true); }
+}
+
+/* =========================================================
+   Nytt lead
+   ========================================================= */
+$('#addBtn').addEventListener('click', () => {
+  S.openId = null;
+  $('#modal').innerHTML = `
+  <div class="m-head"><div class="m-title"><h2>Nytt lead</h2><button class="x" id="nClose">×</button></div></div>
+  <form class="m-body" id="newForm">
+    <div class="field"><label>Namn</label><input name="namn" required autocomplete="off"></div>
+    <div class="grid">
+      <div class="field"><label>Telefon</label><input name="telefon" type="tel"></div>
+      <div class="field"><label>E-post</label><input name="epost" type="email"></div>
+    </div>
+    <div class="grid">
+      <div class="field"><label>Intresse</label><select name="intresse"><option value="">–</option>
+        <option>Funktionell fitness / CrossFit</option><option>Weightlifting (tyngdlyftning)</option>
+        <option>Individuellt program / personlig träning</option><option>Rehab</option><option>Vet inte än – vill ha råd</option></select></div>
+      <div class="field"><label>Källa</label><select name="kalla">
+        <option>Ringde in</option><option>Kom in i boxen</option><option>Tips från medlem</option><option>Sociala medier</option><option>Manuellt</option></select></div>
+    </div>
+    <div class="field"><label>Meddelande</label><textarea name="meddelande"></textarea></div>
+    <button class="btn red" type="submit" style="justify-content:center;padding:.75rem">Lägg till</button>
+  </form>`;
+  $('#overlay').classList.add('open');
+  $('#nClose').onclick = closeModal;
+  $('#newForm').onsubmit = async e => {
+    e.preventDefault();
+    const d = Object.fromEntries(new FormData(e.target));
+    if (!d.namn.trim()) return;
+    try {
+      const l = await api('addLeadFromApp', d);
+      replaceLead(l); S.active = 'Ny'; render(); openLead(l.id); toast('Lead tillagt');
+    } catch (err) { toast(err.message, true); }
+  };
+  setTimeout(() => $('#newForm [name=namn]').focus(), 50);
+});
+
+/* =========================================================
+   Övrigt UI
+   ========================================================= */
+$('#tabs').addEventListener('click', e => {
+  const t = e.target.closest('[data-tab]');
+  if (t) { S.active = t.dataset.tab; render(); }
+});
+$('#board').addEventListener('click', e => {
+  const c = e.target.closest('.col.collapsed');
+  if (c) { S.showClosed = true; $('#showClosed').checked = true; render(); }
+});
+$('#showClosed').addEventListener('change', e => { S.showClosed = e.target.checked; render(); });
+$('#q').addEventListener('input', e => { S.query = e.target.value.trim(); render(); });
+$('#refresh').addEventListener('click', () => load(true));
+
+async function load(manual) {
+  try {
+    const b = await api('getBoard');
+    S.board = b; S.leads = b.leads;
+    $('#loading').style.display = 'none';
+    render();
+    if (manual) toast('Uppdaterat');
+  } catch (e) {
+    $('#loading').textContent = 'Kunde inte ladda: ' + e.message;
+  }
+}
+// Hämta nytt var 60:e sekund när inget kort är öppet och inget dras
+setInterval(() => { if (S.openId == null && !D.el && !document.hidden) load(false); }, 60000);
+
+/* =========================================================
+   Testläge (när sidan öppnas utanför Google)
+   ========================================================= */
+const Mock = (() => {
+  const now = Date.now(), d = n => new Date(now - n * DAY).toISOString();
+  const statuses = ['Ny', 'Kontaktad', 'Konsultation bokad', 'Konsultation genomförd', 'Blev medlem', 'Ej intresserad', 'Ingen kontakt'];
+  let id = 0;
+  const L = (namn, status, o = {}) => ({ id: ++id, inkommen: d(o.age ?? 1), namn, telefon: '070-123 45 ' + String(10 + id), epost: namn.split(' ')[0].toLowerCase() + '@example.com',
+    intresse: o.intresse || 'Funktionell fitness / CrossFit', tid: o.tid || '', meddelande: o.msg || '', kalla: o.kalla || 'google-profil', status,
+    ansvarig: o.ans || '', senastKontaktad: o.sk || '', nastaUppfoljning: o.next || '', anteckningar: o.notes || '', forsok: o.f || 0,
+    ejNaddSedan: o.enad || '', smsSkickat: o.sms || '' });
+  const iso = n => new Date(now + n * DAY).toISOString().slice(0, 10);
+  const leads = [
+    L('Anna Svensson', 'Ny', { age: 0, msg: 'Har aldrig tränat CrossFit men vill komma igång efter föräldraledigheten.', tid: 'Kväll' }),
+    L('Erik Johansson', 'Ny', { age: 2, intresse: 'Weightlifting (tyngdlyftning)', kalla: 'instagram-bio' }),
+    L('Sara Lind', 'Ny', { age: 4, f: 2, enad: d(4), sk: d(2), intresse: 'Rehab', msg: 'Opererat knät i våras.' }),
+    L('Johan Berg', 'Kontaktad', { age: 3, f: 1, sk: d(2), ans: 'Calle', next: iso(-1), notes: 'Vill komma på prova-på lördag.' }),
+    L('Maria Ek', 'Kontaktad', { age: 6, f: 3, enad: d(5), sk: d(1), sms: d(1), ans: 'Calle' }),
+    L('Peter Holm', 'Konsultation bokad', { age: 5, f: 1, sk: d(4), ans: 'Calle', next: iso(2), intresse: 'Individuellt program / personlig träning' }),
+    L('Lina Ström', 'Konsultation genomförd', { age: 9, f: 2, sk: d(3), ans: 'Calle', next: iso(1) }),
+    L('Oskar Nyberg', 'Blev medlem', { age: 20, f: 2, ans: 'Calle' }),
+    L('Karin Dahl', 'Ej intresserad', { age: 30, f: 1 }),
+    L('Mats Ahl', 'Ingen kontakt', { age: 25, f: 3, enad: d(22), sms: d(18) })
+  ];
+  const wait = v => new Promise(r => setTimeout(() => r(JSON.parse(JSON.stringify(v))), 250));
+  const find = i => leads.find(l => l.id === i);
+  return {
+    getBoard: () => wait({ me: 'test@example.com', gym: 'Lerumsboxen', statuses, closed: ['Blev medlem', 'Ej intresserad', 'Ingen kontakt'], noAnswerDays: 3,
+      smsTemplate: 'Hej {förnamn}! Det är Lerumsboxen. Vi har försökt ringa dig angående din förfrågan om en kostnadsfri konsultation. Svara gärna här när det passar att vi ringer, eller ring oss tillbaka. Ha en fin dag!',
+      sheetUrl: '#', leads }),
+    updateLead: (i, c) => { const l = find(i); Object.assign(l, c); if (c.status && ['Konsultation bokad', 'Konsultation genomförd', 'Blev medlem'].includes(c.status)) l.ejNaddSedan = ''; return wait(l); },
+    logCall: (i, ans) => { const l = find(i); l.forsok++; l.senastKontaktad = new Date().toISOString();
+      if (ans) { l.ejNaddSedan = ''; if (l.status === 'Ny') l.status = 'Kontaktad'; } else if (!l.ejNaddSedan) l.ejNaddSedan = new Date().toISOString(); return wait(l); },
+    markSmsSent: (i, sent) => { const l = find(i); l.smsSkickat = sent ? new Date().toISOString() : ''; return wait(l); },
+    addLeadFromApp: dd => { const l = L(dd.namn, 'Ny', { age: 0, kalla: dd.kalla, intresse: dd.intresse, msg: dd.meddelande }); l.telefon = dd.telefon; l.epost = dd.epost; leads.push(l); return wait(l); }
+  };
+})();
+
+if (MOCK) $('#mockBar').style.display = 'block';
+load(false);
+</script>
+</body>
+</html>

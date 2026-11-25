@@ -23,7 +23,14 @@ var KONFIG = {
   AUTOREPLY_FROM_NAME: 'Lerumsboxen',
   REMINDER_HOUR:   8,                      // daglig påminnelse kl 08
   RETENTION_MONTHS: 12,                    // avslutade leads anonymiseras efter X månader (GDPR)
-  MIN_FILL_SECONDS: 3                      // spamskydd: formulär ifyllt snabbare än så = bot
+  MIN_FILL_SECONDS: 3,                     // spamskydd: formulär ifyllt snabbare än så = bot
+
+  // --- CRM-appen ---
+  CRM_APP_URL:     '',                     // klistra in URL:en för CRM-appens driftsättning (används i mejlen)
+  CRM_USERS:       '',                     // kommaseparerade Google-konton som får öppna appen ('' = alla som har tillgång till arket)
+  NO_ANSWER_DAYS:  3,                      // mejla SMS-förslag när leadet inte svarat på X dagar
+  SMS_TEMPLATE:    'Hej {förnamn}! Det är {gym}. Vi har försökt ringa dig angående din förfrågan om en kostnadsfri konsultation. ' +
+                   'Svara gärna här när det passar att vi ringer, eller ring oss tillbaka. Ha en fin dag!'
 };
 
 var SHEET_LEADS    = 'Leads';
@@ -32,7 +39,7 @@ var SHEET_OVERVIEW = 'Översikt';
 var COLS = [
   'ID', 'Inkommen', 'Namn', 'Telefon', 'E-post', 'Intresse', 'Bäst att nå',
   'Meddelande', 'Källa', 'Status', 'Ansvarig', 'Senast kontaktad',
-  'Nästa uppföljning', 'Anteckningar'
+  'Nästa uppföljning', 'Anteckningar', 'Samtalsförsök', 'Ej nådd sedan', 'SMS skickat'
 ];
 
 var STATUSES = [
@@ -60,8 +67,21 @@ function col_(name) { return COLS.indexOf(name) + 1; }
 
 // ===================== WEBBAPP =====================
 
+/**
+ * GET visar CRM-appen för inloggade användare med tillgång.
+ * Den publika formulär-driftsättningen (Kör som: Jag, Alla) visar aldrig appen för andra än ägaren,
+ * eftersom anonyma besökare saknar e-postadress i Session.getActiveUser().
+ */
 function doGet() {
-  return json_({ ok: true, service: 'leads' });
+  try {
+    requireUser_();
+  } catch (err) {
+    return json_({ ok: true, service: 'leads' });
+  }
+  return HtmlService.createHtmlOutputFromFile('App')
+    .setTitle(KONFIG.GYM_NAME + ' Leads')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DEFAULT);
 }
 
 function doPost(e) {
@@ -165,7 +185,7 @@ function notifyStaff_(id, lead) {
     'Meddelande:',
     lead.meddelande || '–',
     '',
-    'Öppna CRM: ' + url
+    'Öppna CRM: ' + (KONFIG.CRM_APP_URL || url)
   ];
   var opts = { name: KONFIG.GYM_NAME + ' CRM' };
   if (lead.epost) opts.replyTo = lead.epost;
@@ -194,6 +214,7 @@ function autoReply_(lead) {
 
 /** Körs dagligen: mejlar leads som väntat >24h eller har uppföljning idag/försenad. */
 function dailyReminder() {
+  try { checkNoAnswer_(); } catch (err) { console.error('checkNoAnswer', err); }
   var sh = getLeadsSheet_();
   var data = sh.getDataRange().getValues();
   if (data.length < 2) return;
@@ -225,7 +246,7 @@ function dailyReminder() {
   var body = [];
   if (uncontacted.length) body.push('EJ KONTAKTADE (>24 h):', uncontacted.join('\n'), '');
   if (followUps.length)  body.push('UPPFÖLJNING IDAG / FÖRSENAD:', followUps.join('\n'), '');
-  body.push('Öppna CRM: ' + SpreadsheetApp.getActiveSpreadsheet().getUrl());
+  body.push('Öppna CRM: ' + (KONFIG.CRM_APP_URL || SpreadsheetApp.getActiveSpreadsheet().getUrl()));
 
   MailApp.sendEmail(
     KONFIG.NOTIFY_EMAILS,
@@ -258,6 +279,215 @@ function anonymizeOldLeads() {
     count++;
   }
   console.log('Anonymiserade ' + count + ' leads');
+}
+
+// ===================== INGET SVAR → SMS-FÖRSLAG =====================
+
+/** Mejlar ett färdigt SMS för varje lead som inte svarat på NO_ANSWER_DAYS dagar. Körs av dailyReminder. */
+function checkNoAnswer_() {
+  var sh = getLeadsSheet_();
+  var data = sh.getDataRange().getValues();
+  var props = PropertiesService.getScriptProperties();
+  var limit = KONFIG.NO_ANSWER_DAYS * 24 * 3600 * 1000;
+  var now = new Date();
+
+  for (var i = 1; i < data.length; i++) {
+    var lead = rowToLead_(data[i]);
+    if (!lead.id || CLOSED_STATUSES.indexOf(lead.status) >= 0) continue;
+    if (!lead.ejNaddSedan || lead.smsSkickat || !lead.telefon) continue;
+    if (now - new Date(lead.ejNaddSedan) < limit) continue;
+    var key = 'smsmail_' + lead.id + '_' + lead.ejNaddSedan.slice(0, 10);
+    if (props.getProperty(key)) continue;
+
+    var sms = smsText_(lead);
+    var smsLink = 'sms:' + lead.telefon.replace(/[^\d+]/g, '') + '?&body=' + encodeURIComponent(sms);
+    var appUrl = KONFIG.CRM_APP_URL || SpreadsheetApp.getActiveSpreadsheet().getUrl();
+    var html =
+      '<p><b>' + esc_(lead.namn) + '</b> har inte svarat i telefon på ' + KONFIG.NO_ANSWER_DAYS +
+      ' dagar (' + lead.forsok + ' försök). Skicka gärna ett SMS:</p>' +
+      '<p>Telefon: <a href="tel:' + esc_(lead.telefon) + '">' + esc_(lead.telefon) + '</a></p>' +
+      '<div style="background:#f4f4f5;border-left:3px solid #e8001d;padding:12px 14px;font-size:15px;line-height:1.5">' +
+      esc_(sms) + '</div>' +
+      '<p><a href="' + smsLink + '" style="display:inline-block;background:#e8001d;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none">Öppna i SMS (mobil)</a></p>' +
+      '<p style="color:#666;font-size:13px">Markera SMS:et som skickat i <a href="' + appUrl + '">CRM-appen</a> när du skickat det.</p>';
+    var text = lead.namn + ' har inte svarat på ' + KONFIG.NO_ANSWER_DAYS + ' dagar.\nTelefon: ' + lead.telefon +
+      '\n\nSMS att kopiera:\n' + sms + '\n\nCRM: ' + appUrl;
+
+    MailApp.sendEmail(KONFIG.NOTIFY_EMAILS, 'Inget svar: skicka SMS till ' + lead.namn, text, {
+      htmlBody: html, name: KONFIG.GYM_NAME + ' CRM'
+    });
+    props.setProperty(key, new Date().toISOString());
+  }
+}
+
+function smsText_(lead) {
+  var first = String(lead.namn || '').split(' ')[0];
+  return KONFIG.SMS_TEMPLATE.replace(/\{förnamn\}/g, first).replace(/\{gym\}/g, KONFIG.GYM_NAME);
+}
+
+function esc_(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+// ===================== API FÖR CRM-APPEN (google.script.run) =====================
+
+function requireUser_() {
+  var active = Session.getActiveUser().getEmail();
+  var effective = Session.getEffectiveUser().getEmail();
+  if (!active || active !== effective) throw new Error('Ingen behörighet');
+  var allowed = KONFIG.CRM_USERS.split(',').map(function (s) { return s.trim().toLowerCase(); }).filter(String);
+  if (allowed.length && allowed.indexOf(active.toLowerCase()) < 0) throw new Error('Ingen behörighet');
+  return active;
+}
+
+function iso_(v) { return v instanceof Date ? v.toISOString() : ''; }
+function day_(v) {
+  return v instanceof Date ? Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd') : '';
+}
+
+function rowToLead_(r) {
+  function g(c) { return r[col_(c) - 1]; }
+  return {
+    id:               Number(g('ID')) || 0,
+    inkommen:         iso_(g('Inkommen')),
+    namn:             String(g('Namn') || ''),
+    telefon:          String(g('Telefon') || ''),
+    epost:            String(g('E-post') || ''),
+    intresse:         String(g('Intresse') || ''),
+    tid:              String(g('Bäst att nå') || ''),
+    meddelande:       String(g('Meddelande') || ''),
+    kalla:            String(g('Källa') || ''),
+    status:           String(g('Status') || 'Ny'),
+    ansvarig:         String(g('Ansvarig') || ''),
+    senastKontaktad:  iso_(g('Senast kontaktad')),
+    nastaUppfoljning: day_(g('Nästa uppföljning')),
+    anteckningar:     String(g('Anteckningar') || ''),
+    forsok:           Number(g('Samtalsförsök')) || 0,
+    ejNaddSedan:      iso_(g('Ej nådd sedan')),
+    smsSkickat:       iso_(g('SMS skickat'))
+  };
+}
+
+function findRow_(sh, id) {
+  var last = sh.getLastRow();
+  if (last < 2) return -1;
+  var ids = sh.getRange(2, col_('ID'), last - 1, 1).getValues();
+  for (var i = 0; i < ids.length; i++) if (Number(ids[i][0]) === Number(id)) return i + 2;
+  return -1;
+}
+
+/** Läser raden, låter fn ändra lead-objektet via set(kolumn, värde), och returnerar uppdaterat lead. */
+function withLead_(id, fn) {
+  requireUser_();
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var sh = getLeadsSheet_();
+    var row = findRow_(sh, id);
+    if (row < 0) throw new Error('Leadet finns inte längre');
+    var range = sh.getRange(row, 1, 1, COLS.length);
+    var vals = range.getValues()[0];
+    var set = function (c, v) { vals[col_(c) - 1] = v; };
+    fn(rowToLead_(vals), set);
+    // Skriv tillbaka text skyddad mot formelinjektion (getValues tappar apostrof-prefixet)
+    range.setValues([vals.map(function (v) { return typeof v === 'string' ? safe_(v) : v; })]);
+    return rowToLead_(vals);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function getBoard() {
+  var me = requireUser_();
+  var sh = getLeadsSheet_();
+  var data = sh.getDataRange().getValues();
+  var leads = [];
+  for (var i = 1; i < data.length; i++) {
+    var l = rowToLead_(data[i]);
+    if (l.id) leads.push(l);
+  }
+  return {
+    me: me,
+    gym: KONFIG.GYM_NAME,
+    statuses: STATUSES,
+    closed: CLOSED_STATUSES,
+    noAnswerDays: KONFIG.NO_ANSWER_DAYS,
+    smsTemplate: KONFIG.SMS_TEMPLATE.replace(/\{gym\}/g, KONFIG.GYM_NAME),
+    sheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl(),
+    leads: leads
+  };
+}
+
+var REACHED_STATUSES = ['Konsultation bokad', 'Konsultation genomförd', 'Blev medlem'];
+
+function updateLead(id, changes) {
+  return withLead_(id, function (lead, set) {
+    changes = changes || {};
+    if (changes.status !== undefined) {
+      if (STATUSES.indexOf(changes.status) < 0) throw new Error('Okänd status');
+      set('Status', changes.status);
+      if (changes.status !== 'Ny' && !lead.senastKontaktad) set('Senast kontaktad', new Date());
+      if (REACHED_STATUSES.indexOf(changes.status) >= 0) set('Ej nådd sedan', '');
+    }
+    var text = { namn: 'Namn', telefon: 'Telefon', epost: 'E-post', intresse: 'Intresse',
+                 ansvarig: 'Ansvarig', anteckningar: 'Anteckningar' };
+    Object.keys(text).forEach(function (k) {
+      if (changes[k] !== undefined) set(text[k], safe_(clean_(changes[k], k === 'anteckningar' ? 5000 : 200)));
+    });
+    if (changes.nastaUppfoljning !== undefined) {
+      var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(changes.nastaUppfoljning || '');
+      set('Nästa uppföljning', m ? new Date(+m[1], +m[2] - 1, +m[3]) : '');
+    }
+  });
+}
+
+/** Loggar ett samtal. answered=false startar 3-dagarsklockan för SMS-förslaget. */
+function logCall(id, answered) {
+  return withLead_(id, function (lead, set) {
+    var now = new Date();
+    set('Samtalsförsök', lead.forsok + 1);
+    set('Senast kontaktad', now);
+    if (answered) {
+      set('Ej nådd sedan', '');
+      if (lead.status === 'Ny') set('Status', 'Kontaktad');
+    } else if (!lead.ejNaddSedan) {
+      set('Ej nådd sedan', now);
+    }
+  });
+}
+
+function markSmsSent(id, sent) {
+  return withLead_(id, function (lead, set) {
+    set('SMS skickat', sent === false ? '' : new Date());
+  });
+}
+
+function addLeadFromApp(d) {
+  requireUser_();
+  d = d || {};
+  var namn = clean_(d.namn, 100);
+  if (!namn) throw new Error('Namn saknas');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var sh = getLeadsSheet_();
+    var row = COLS.map(function () { return ''; });
+    row[col_('ID') - 1] = nextId_(sh);
+    row[col_('Inkommen') - 1] = new Date();
+    row[col_('Namn') - 1] = safe_(namn);
+    row[col_('Telefon') - 1] = safe_(clean_(d.telefon, 40));
+    row[col_('E-post') - 1] = safe_(clean_(d.epost, 120).toLowerCase());
+    row[col_('Intresse') - 1] = safe_(clean_(d.intresse, 80));
+    row[col_('Meddelande') - 1] = safe_(clean_(d.meddelande, 2000));
+    row[col_('Källa') - 1] = safe_(clean_(d.kalla, 80) || 'Manuellt');
+    row[col_('Status') - 1] = 'Ny';
+    sh.appendRow(row);
+    return rowToLead_(row);
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 // ===================== AUTOMATIK I ARKET =====================
@@ -319,6 +549,9 @@ function setup() {
   sh.getRange(2, col_('Inkommen'), n, 1).setNumberFormat('yyyy-mm-dd hh:mm');
   sh.getRange(2, col_('Senast kontaktad'), n, 1).setNumberFormat('yyyy-mm-dd');
   sh.getRange(2, col_('Nästa uppföljning'), n, 1).setNumberFormat('yyyy-mm-dd');
+  sh.getRange(2, col_('Ej nådd sedan'), n, 1).setNumberFormat('yyyy-mm-dd hh:mm');
+  sh.getRange(2, col_('SMS skickat'), n, 1).setNumberFormat('yyyy-mm-dd hh:mm');
+  sh.getRange(2, col_('Samtalsförsök'), n, 1).setNumberFormat('0');
   sh.getRange(2, col_('Telefon'), n, 1).setNumberFormat('@');
   sh.getRange(2, col_('Meddelande'), n, 1).setWrap(true);
   sh.getRange(2, col_('Anteckningar'), n, 1).setWrap(true);
@@ -353,10 +586,13 @@ function setup() {
   // Kolumnbredder
   var widths = { 'ID': 50, 'Inkommen': 130, 'Namn': 170, 'Telefon': 120, 'E-post': 200,
     'Intresse': 170, 'Bäst att nå': 110, 'Meddelande': 280, 'Källa': 140, 'Status': 170,
-    'Ansvarig': 100, 'Senast kontaktad': 120, 'Nästa uppföljning': 130, 'Anteckningar': 300 };
+    'Ansvarig': 100, 'Senast kontaktad': 120, 'Nästa uppföljning': 130, 'Anteckningar': 300,
+    'Samtalsförsök': 100, 'Ej nådd sedan': 130, 'SMS skickat': 130 };
   Object.keys(widths).forEach(function (k) { sh.setColumnWidth(col_(k), widths[k]); });
 
-  if (!sh.getFilter()) sh.getRange(1, 1, maxRows, COLS.length).createFilter();
+  var filter = sh.getFilter();
+  if (filter && filter.getRange().getNumColumns() < COLS.length) { filter.remove(); filter = null; }
+  if (!filter) sh.getRange(1, 1, maxRows, COLS.length).createFilter();
 
   buildOverview_(ss);
 
@@ -389,12 +625,12 @@ function buildOverview_(ss) {
 
   var r0 = rows.length + 2;
   ov.getRange(r0, 1).setValue('Per intresse');
-  ov.getRange(r0 + 1, 1).setFormula('=IFERROR(QUERY(' + L + 'A:N,"select ' + columnLetter_(col_('Intresse')) +
+  ov.getRange(r0 + 1, 1).setFormula('=IFERROR(QUERY(' + L + 'A:' + columnLetter_(COLS.length) + ',"select ' + columnLetter_(col_('Intresse')) +
     ', count(' + columnLetter_(col_('ID')) + ') where ' + columnLetter_(col_('ID')) +
     ' is not null group by ' + columnLetter_(col_('Intresse')) + ' order by count(' + columnLetter_(col_('ID')) +
     ') desc label count(' + columnLetter_(col_('ID')) + ') \'Antal\'",1),"")');
   ov.getRange(r0, 4).setValue('Per källa');
-  ov.getRange(r0 + 1, 4).setFormula('=IFERROR(QUERY(' + L + 'A:N,"select ' + columnLetter_(col_('Källa')) +
+  ov.getRange(r0 + 1, 4).setFormula('=IFERROR(QUERY(' + L + 'A:' + columnLetter_(COLS.length) + ',"select ' + columnLetter_(col_('Källa')) +
     ', count(' + columnLetter_(col_('ID')) + ') where ' + columnLetter_(col_('ID')) +
     ' is not null group by ' + columnLetter_(col_('Källa')) + ' order by count(' + columnLetter_(col_('ID')) +
     ') desc label count(' + columnLetter_(col_('ID')) + ') \'Antal\'",1),"")');
