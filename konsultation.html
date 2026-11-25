@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Boka kostnadsfri konsultation – Lerumsboxen</title>
+<meta name="description" content="Funderar du på att börja träna på Lerumsboxen i Lerum? Lämna dina kontaktuppgifter så ringer vi upp för en kostnadsfri konsultation.">
+<meta property="og:title" content="Boka kostnadsfri konsultation – Lerumsboxen">
+<meta property="og:description" content="Lämna dina uppgifter så hör vi av oss och hittar rätt träning för dig.">
+<meta property="og:image" content="hero/01.jpg">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #0b0b0d; --card: #16161a; --card2: #1d1d22;
+    --red: #e8001d; --red-dark: #b0001a;
+    --text: #f2f2f4; --muted: #9a9aa2; --border: #2a2a30; --success: #22c55e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--black); color: var(--text);
+    font-family: 'Barlow', system-ui, sans-serif; line-height: 1.5;
+    min-height: 100vh;
+  }
+  .hero {
+    position: relative; min-height: 38vh; display: flex; align-items: flex-end;
+    background: linear-gradient(to bottom, rgba(11,11,13,.35), var(--black) 95%), url('hero/01.jpg') center 30%/cover;
+    padding: 2rem 1.25rem 1.5rem;
+  }
+  .hero-inner { max-width: 560px; margin: 0 auto; width: 100%; }
+  .brand { font-family: 'Bebas Neue', sans-serif; letter-spacing: .08em; font-size: 1.1rem; color: var(--red); }
+  h1 { font-family: 'Bebas Neue', sans-serif; font-weight: 400; font-size: clamp(2.4rem, 8vw, 3.4rem); line-height: 1; letter-spacing: .02em; margin: .25rem 0 .5rem; }
+  .lead { color: #d4d4d8; max-width: 46ch; }
+  main { max-width: 560px; margin: 0 auto; padding: 1.25rem 1.25rem 3rem; }
+  form, .done { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem 1.25rem; }
+  .field { margin-bottom: 1rem; }
+  label { display: block; font-weight: 600; font-size: .9rem; margin-bottom: .35rem; }
+  .opt { color: var(--muted); font-weight: 400; }
+  input, select, textarea {
+    width: 100%; font: inherit; font-size: 1rem; color: var(--text);
+    background: var(--card2); border: 1px solid var(--border); border-radius: 8px; padding: .75rem .85rem;
+  }
+  select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 18px) 55%, calc(100% - 13px) 55%; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 2rem; }
+  textarea { min-height: 96px; resize: vertical; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--red); outline-offset: 1px; border-color: transparent; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+  @media (max-width: 480px) { .row { grid-template-columns: 1fr; } }
+  .hint { font-size: .8rem; color: var(--muted); margin-top: .3rem; }
+  .check { display: flex; gap: .6rem; align-items: flex-start; font-weight: 400; font-size: .88rem; color: #d4d4d8; }
+  .check input { width: 18px; height: 18px; margin-top: 2px; flex: none; accent-color: var(--red); }
+  .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  button {
+    width: 100%; font-family: 'Bebas Neue', sans-serif; font-size: 1.35rem; letter-spacing: .06em;
+    background: var(--red); color: #fff; border: 0; border-radius: 8px; padding: .8rem 1rem; cursor: pointer; margin-top: .5rem;
+  }
+  button:hover { background: var(--red-dark); }
+  button:disabled { opacity: .6; cursor: wait; }
+  .error { display: none; background: rgba(232,0,29,.12); border: 1px solid var(--red); color: #ffb3bd; border-radius: 8px; padding: .7rem .85rem; font-size: .9rem; margin-bottom: 1rem; }
+  .done { display: none; text-align: center; padding: 2.5rem 1.25rem; }
+  .done h2 { font-family: 'Bebas Neue', sans-serif; font-weight: 400; font-size: 2.2rem; color: var(--success); }
+  .done p { color: #d4d4d8; margin-top: .5rem; }
+  .points { list-style: none; display: grid; gap: .5rem; margin: 0 0 1.25rem; color: #d4d4d8; font-size: .95rem; }
+  .points li::before { content: '✓'; color: var(--red); font-weight: 700; margin-right: .5rem; }
+  footer { text-align: center; color: var(--muted); font-size: .8rem; padding: 0 1rem 2rem; }
+  footer a { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="brand">LERUMSBOXEN</div>
+    <h1>Boka en kostnadsfri konsultation</h1>
+    <p class="lead">Lämna dina uppgifter så hör vi av oss. Vi pratar om dina mål och hittar träningen som passar dig.</p>
+  </div>
+</header>
+
+<main>
+  <ul class="points">
+    <li>Kostnadsfritt och utan förpliktelser</li>
+    <li>Vi kontaktar dig oftast inom ett dygn</li>
+    <li>Passar både nybörjare och erfarna</li>
+  </ul>
+
+  <form id="leadForm" novalidate>
+    <div class="error" id="err" role="alert"></div>
+
+    <div class="field">
+      <label for="name">Namn</label>
+      <input id="name" name="name" autocomplete="name" required maxlength="100">
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label for="phone">Telefon</label>
+        <input id="phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" maxlength="40">
+      </div>
+      <div class="field">
+        <label for="email">E-post</label>
+        <input id="email" name="email" type="email" autocomplete="email" maxlength="120">
+      </div>
+    </div>
+    <p class="hint" style="margin:-.6rem 0 1rem">Fyll i telefon, e-post eller båda.</p>
+
+    <div class="field">
+      <label for="interest">Vad är du intresserad av?</label>
+      <select id="interest" name="interest">
+        <option value="">Välj…</option>
+        <option>Funktionell fitness / CrossFit</option>
+        <option>Weightlifting (tyngdlyftning)</option>
+        <option>Individuellt program / personlig träning</option>
+        <option>Rehab</option>
+        <option>Vet inte än – vill ha råd</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="contactTime">När passar det bäst att nå dig? <span class="opt">(valfritt)</span></label>
+      <select id="contactTime" name="contactTime">
+        <option value="">Spelar ingen roll</option>
+        <option>Förmiddag</option>
+        <option>Eftermiddag</option>
+        <option>Kväll</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="message">Berätta gärna lite om dig <span class="opt">(valfritt)</span></label>
+      <textarea id="message" name="message" maxlength="2000" placeholder="Mål, tidigare träning, skador vi bör känna till…"></textarea>
+    </div>
+
+    <div class="hp" aria-hidden="true">
+      <label for="website">Lämna tomt</label>
+      <input id="website" name="website" tabindex="-1" autocomplete="off">
+    </div>
+
+    <div class="field">
+      <label class="check">
+        <input type="checkbox" id="consent" name="consent" required>
+        <span>Jag godkänner att Lerumsboxen sparar mina uppgifter för att kontakta mig om träning. Uppgifterna delas inte med någon annan och raderas om vi inte hörs vidare.</span>
+      </label>
+    </div>
+
+    <button type="submit" id="submitBtn">Skicka – ring upp mig</button>
+  </form>
+
+  <div class="done" id="done" role="status">
+    <h2>Tack!</h2>
+    <p>Vi har fått dina uppgifter och hör av oss så snart vi kan.</p>
+  </div>
+</main>
+
+<footer>Lerumsboxen · Lerum</footer>
+
+<script>
+  // Klistra in webbapp-URL:en från Leads-scriptet (se crm/README.md)
+  const LEADS_SCRIPT_URL = 'KLISTRA_IN_WEBBAPP_URL_HÄR';
+
+  const form = document.getElementById('leadForm');
+  const err = document.getElementById('err');
+  const btn = document.getElementById('submitBtn');
+  const startedAt = Date.now();
+
+  function source() {
+    const p = new URLSearchParams(location.search);
+    const utm = ['utm_source', 'utm_medium', 'utm_campaign'].map(k => p.get(k)).filter(Boolean).join(' / ');
+    if (utm) return utm;
+    if (p.get('gclid')) return 'Google Ads';
+    if (p.get('src')) return p.get('src');
+    const ref = document.referrer;
+    if (!ref) return 'Direkt';
+    try {
+      const h = new URL(ref).hostname;
+      if (h === location.hostname) return 'Hemsidan';
+      if (/google\./.test(h)) return 'Google';
+      if (/facebook|fb\./.test(h)) return 'Facebook';
+      if (/instagram/.test(h)) return 'Instagram';
+      return h;
+    } catch (_) { return 'Okänd'; }
+  }
+
+  function showError(msg) {
+    err.textContent = msg;
+    err.style.display = 'block';
+    err.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    err.style.display = 'none';
+    const f = form.elements;
+    const data = {
+      name: f.name.value.trim(),
+      phone: f.phone.value.trim(),
+      email: f.email.value.trim(),
+      interest: f.interest.value,
+      contactTime: f.contactTime.value,
+      message: f.message.value.trim(),
+      consent: f.consent.checked,
+      website: f.website.value,
+      startedAt,
+      source: source()
+    };
+
+    if (!data.name) { f.name.focus(); return showError('Fyll i ditt namn.'); }
+    if (!data.phone && !data.email) { f.phone.focus(); return showError('Fyll i telefon eller e-post så vi kan nå dig.'); }
+    if (data.email && !f.email.checkValidity()) { f.email.focus(); return showError('E-postadressen ser inte riktig ut.'); }
+    if (!data.consent) { return showError('Du behöver godkänna att vi sparar dina uppgifter för att kunna kontakta dig.'); }
+    if (LEADS_SCRIPT_URL.startsWith('KLISTRA')) { return showError('Formuläret är inte kopplat än (LEADS_SCRIPT_URL saknas).'); }
+
+    btn.disabled = true;
+    btn.textContent = 'Skickar…';
+    try {
+      const res = await fetch(LEADS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // undviker CORS-preflight
+        body: JSON.stringify(data)
+      });
+      const out = await res.json();
+      if (!out.ok) throw new Error(out.error || 'Något gick fel');
+      form.style.display = 'none';
+      document.querySelector('.points').style.display = 'none';
+      document.getElementById('done').style.display = 'block';
+      if (typeof gtag === 'function') gtag('event', 'generate_lead', { method: 'konsultation' });
+    } catch (ex) {
+      showError((ex && ex.message && ex.message !== 'Failed to fetch' ? ex.message + '. ' : '') + 'Kunde inte skicka. Försök igen om en stund.');
+      btn.disabled = false;
+      btn.textContent = 'Skicka – ring upp mig';
+    }
+  });
+</script>
+</body>
+</html>
