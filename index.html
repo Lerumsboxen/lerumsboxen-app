@@ -13307,7 +13307,7 @@ function renderShopSection() {
   const products = [
     {
       id: 'lbwl',
-      name: 'LBWL 3×/vecka',
+      name: 'Weightlifting 3×/vecka',
       emoji: '🏋️',
       desc: 'Ett komplett 10-veckors tyngdlyftningsprogram byggt för att maximera dina resultat i olympiska lyft. Tre strukturerade pass per vecka med progressiv uppbyggnad, peaking och deload — allt du behöver för att gå in i tävling eller maxtest med full kapacitet.',
       price: '1 000 kr',
@@ -13317,7 +13317,7 @@ function renderShopSection() {
     },
     {
       id: '2dwl',
-      name: 'LBWL 2×/vecka',
+      name: 'Weightlifting 2×/vecka',
       emoji: '💪',
       desc: 'Samma periodiserade tyngdlyftningsprinciper som 3×-programmet, komprimerat till två pass per vecka. Designat för dig som kombinerar tyngdlyftning med Funktionell Fitness och behöver ett program som inte kräver mer än det ger — utan att kompromissa med resultat.',
       price: '800 kr',
@@ -13547,7 +13547,7 @@ async function handleStripeSuccess(sessionId, product) {
         if (!names.includes(profile.name)) { names.push(profile.name); localStorage.setItem('lerums_mobility_members', JSON.stringify(names)); }
       } catch(_) {}
     }
-    const labels = { lbwl: 'LBWL 3×/vecka', '2dwl': 'LBWL 2×/vecka', rehab: 'Rehab', mobility: 'Mobility', individualstrength: 'Individual Strength', individualaccessory: 'Individual Successories', individualfunctional: 'Individual Functional Fitness' };
+    const labels = { lbwl: 'Weightlifting 3×/vecka', '2dwl': 'Weightlifting 2×/vecka', rehab: 'Rehab', mobility: 'Mobility', individualstrength: 'Individual Strength', individualaccessory: 'Individual Successories', individualfunctional: 'Individual Functional Fitness' };
     if (confirmedProduct === 'individualstrength' || confirmedProduct === 'individualaccessory' || confirmedProduct === 'individualfunctional') {
       showToast('✓ Betalning bekräftad! Ditt program läggs upp i appen inom kort.');
       setTimeout(() => selectDashSection('shop'), 600);
