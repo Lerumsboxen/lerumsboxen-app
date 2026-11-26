@@ -84,17 +84,15 @@
   .seg input:focus-visible + label { outline: 2px solid #fff; outline-offset: 2px; }
   .exp-note { display: none; font-size: .85rem; color: #d4d4d8; margin-top: .45rem; }
   .gallery h2 { font-family: 'Bebas Neue', sans-serif; font-weight: 400; font-size: 1.7rem; letter-spacing: .02em; margin: .25rem 0 .75rem; }
-  .mosaic { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-bottom: 1.5rem; }
+  .mosaic { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-bottom: 2rem; }
   .mosaic figure { position: relative; margin: 0; border-radius: 10px; overflow: hidden; background: var(--card); aspect-ratio: 3 / 4; }
   .mosaic figure.wide { grid-column: span 2; aspect-ratio: 3 / 2; }
   .mosaic img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .4s; }
   .mosaic figure:hover img { transform: scale(1.03); }
   .mosaic figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 1.6rem .75rem .6rem; font-weight: 600; font-size: .9rem;
                        background: linear-gradient(transparent, rgba(0,0,0,.75)); }
-  .cta { display: block; text-align: center; font-family: 'Bebas Neue', sans-serif; font-size: 1.35rem; letter-spacing: .06em; background: var(--red); color: #fff;
-         text-decoration: none; border-radius: 8px; padding: .8rem 1rem; margin: 0 0 2rem; }
-  .cta:hover { background: var(--red-dark); }
-  footer { text-align: center; color: var(--muted); font-size: .8rem; padding: 0 1rem 2rem; }
+  footer { text-align: center; color: var(--muted); font-size: .85rem; line-height: 1.6; padding: 0 1rem 2.5rem; }
+  footer strong { color: #d4d4d8; font-weight: 600; }
   footer a { color: var(--muted); }
 </style>
 </head>
@@ -131,12 +129,11 @@
       <figure class="wide"><img src="bilder/31.jpg" alt="Coachat gruppass i Lerumsboxen" width="1400" height="933"><figcaption>Coachade pass i grupp</figcaption></figure>
       <figure><img src="bilder/21.jpg" alt="Glad medlem mitt i ett pass" loading="lazy" width="600" height="900"><figcaption>Pepp och glädje</figcaption></figure>
       <figure><img src="bilder/36.jpg" alt="Medlem som tränar funktionell fitness" loading="lazy" width="600" height="900"><figcaption>Funktionell Fitness</figcaption></figure>
-      <figure><img src="bilder/hyrox.jpg" alt="Medlem som gör utfall med sandbag på Hyrox-banan" loading="lazy" width="600" height="884"><figcaption>Hyrox och kondition</figcaption></figure>
+      <figure><img src="bilder/hyrox.jpg" alt="Medlem som gör utfall med sandbag på Hyrox-banan" loading="lazy" width="600" height="884"><figcaption>Hyrox</figcaption></figure>
       <figure><img src="bilder/10.jpg" alt="Coach med en medlem" loading="lazy" width="600" height="900"><figcaption>Personlig träning</figcaption></figure>
       <figure><img src="bilder/gemenskap.jpg" alt="Medlemmar som tränar tillsammans med hantlar" loading="lazy" width="600" height="900"><figcaption>Gemenskap</figcaption></figure>
       <figure><img src="bilder/15.jpg" alt="Medlemmar som tränar med hantlar" loading="lazy" width="600" height="900"><figcaption>För alla nivåer</figcaption></figure>
     </div>
-    <a class="cta" href="#leadForm">Jag vill börja – kontakta mig</a>
   </section>
 
   <ul class="points">
@@ -222,7 +219,12 @@
   </div>
 </main>
 
-<footer>Lerumsboxen · Lerum</footer>
+<footer>
+  <strong>Lerumsboxen AB</strong><br>
+  Hedeforsvägen 9, Hus 413<br>
+  443 61 Stenkullen<br>
+  Org.nr 559456-9567
+</footer>
 
 <script>
   // Klistra in webbapp-URL:en från Leads-scriptet (se crm/README.md)
