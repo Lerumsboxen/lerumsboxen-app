@@ -236,6 +236,7 @@ function cardHtml(l) {
   if (l.nastaUppfoljning && !S.board.closed.includes(l.status))
     b.push(`<span class="badge ${isOverdue(l) ? 'red' : ''}">Följ upp ${esc(l.nastaUppfoljning.slice(5))}</span>`);
   if (l.smsSkickat) b.push(`<span class="badge green">SMS skickat</span>`);
+  if (l.erfarenhet === 'Ja') b.push(`<span class="badge green">Erfaren</span>`);
   if (l.ansvarig) b.push(`<span class="badge">${esc(l.ansvarig)}</span>`);
   return `<div class="card${isOverdue(l) || needsSms(l) ? ' overdue' : ''}" data-id="${l.id}">
     <div class="name">${esc(l.namn || '(namn saknas)')}</div>
@@ -406,6 +407,7 @@ function renderModal() {
       <div class="kv"><div class="k">Telefon</div><div class="v">${ph ? `<a href="${telHref(ph)}">${esc(ph)}</a>` : '–'}</div></div>
       <div class="kv"><div class="k">E-post</div><div class="v">${em ? `<a href="mailto:${esc(em)}">${esc(em)}</a>` : '–'}</div></div>
       <div class="kv"><div class="k">Intresse</div><div class="v">${esc(l.intresse || '–')}</div></div>
+      <div class="kv"><div class="k">Tränat FF/CrossFit</div><div class="v">${l.erfarenhet === 'Ja' ? 'Ja – ingen introkurs' : l.erfarenhet === 'Nej' ? 'Nej – introkurs' : '–'}</div></div>
       <div class="kv"><div class="k">Bäst att nå</div><div class="v">${esc(l.tid || 'Spelar ingen roll')}</div></div>
       <div class="kv"><div class="k">Samtalsförsök</div><div class="v">${l.forsok || 0}${l.senastKontaktad ? ' · senast ' + fmtDate(l.senastKontaktad, true) : ''}</div></div>
       <div class="kv"><div class="k">Ej nådd</div><div class="v">${l.ejNaddSedan ? `sedan ${fmtDate(l.ejNaddSedan)} (${nad} d)` : '–'}</div></div>
@@ -518,6 +520,7 @@ $('#addBtn').addEventListener('click', () => {
       <div class="field"><label>Intresse</label><select name="intresse"><option value="">–</option>
         <option>Funktionell fitness / CrossFit</option><option>Weightlifting (tyngdlyftning)</option>
         <option>Individuellt program / personlig träning</option><option>Rehab</option><option>Vet inte än – vill ha råd</option></select></div>
+      <div class="field"><label>Tränat FF/CrossFit</label><select name="erfarenhet"><option value="">–</option><option>Ja</option><option>Nej</option></select></div>
       <div class="field"><label>Källa</label><select name="kalla">
         <option>Ringde in</option><option>Kom in i boxen</option><option>Tips från medlem</option><option>Sociala medier</option><option>Manuellt</option></select></div>
     </div>

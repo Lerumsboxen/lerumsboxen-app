@@ -39,7 +39,7 @@ var SHEET_OVERVIEW = 'Översikt';
 var COLS = [
   'ID', 'Inkommen', 'Namn', 'Telefon', 'E-post', 'Intresse', 'Bäst att nå',
   'Meddelande', 'Källa', 'Status', 'Ansvarig', 'Senast kontaktad',
-  'Nästa uppföljning', 'Anteckningar', 'Samtalsförsök', 'Ej nådd sedan', 'SMS skickat'
+  'Nästa uppföljning', 'Anteckningar', 'Samtalsförsök', 'Ej nådd sedan', 'SMS skickat', 'Erfarenhet FF'
 ];
 
 var STATUSES = [
@@ -102,6 +102,7 @@ function doPost(e) {
       epost:     clean_(d.email, 120).toLowerCase(),
       intresse:  clean_(d.interest, 80),
       tid:       clean_(d.contactTime, 60),
+      erfarenhet:clean_(d.experience, 10),
       meddelande:clean_(d.message, 2000),
       kalla:     clean_(d.source, 200)
     };
@@ -127,7 +128,7 @@ function doPost(e) {
     try {
       var sh = getLeadsSheet_();
       id = nextId_(sh);
-      var row = [];
+      var row = COLS.map(function () { return ''; });
       row[col_('ID') - 1]                = id;
       row[col_('Inkommen') - 1]          = new Date();
       row[col_('Namn') - 1]              = safe_(lead.namn);
@@ -137,6 +138,7 @@ function doPost(e) {
       row[col_('Bäst att nå') - 1]       = safe_(lead.tid);
       row[col_('Meddelande') - 1]        = safe_(lead.meddelande);
       row[col_('Källa') - 1]             = safe_(lead.kalla);
+      row[col_('Erfarenhet FF') - 1]     = safe_(lead.erfarenhet);
       row[col_('Status') - 1]            = 'Ny';
       row[col_('Ansvarig') - 1]          = '';
       row[col_('Senast kontaktad') - 1]  = '';
@@ -179,6 +181,7 @@ function notifyStaff_(id, lead) {
     'Telefon:     ' + (lead.telefon || '–'),
     'E-post:      ' + (lead.epost || '–'),
     'Intresse:    ' + (lead.intresse || '–'),
+    'Tränat FF/CrossFit tidigare: ' + (lead.erfarenhet || '–'),
     'Bäst att nå: ' + (lead.tid || '–'),
     'Källa:       ' + (lead.kalla || '–'),
     '',
@@ -366,7 +369,8 @@ function rowToLead_(r) {
     anteckningar:     String(g('Anteckningar') || ''),
     forsok:           Number(g('Samtalsförsök')) || 0,
     ejNaddSedan:      iso_(g('Ej nådd sedan')),
-    smsSkickat:       iso_(g('SMS skickat'))
+    smsSkickat:       iso_(g('SMS skickat')),
+    erfarenhet:       String(g('Erfarenhet FF') || '')
   };
 }
 
@@ -431,7 +435,7 @@ function updateLead(id, changes) {
       if (changes.status !== 'Ny' && !lead.senastKontaktad) set('Senast kontaktad', new Date());
       if (REACHED_STATUSES.indexOf(changes.status) >= 0) set('Ej nådd sedan', '');
     }
-    var text = { namn: 'Namn', telefon: 'Telefon', epost: 'E-post', intresse: 'Intresse',
+    var text = { namn: 'Namn', telefon: 'Telefon', epost: 'E-post', intresse: 'Intresse', erfarenhet: 'Erfarenhet FF',
                  ansvarig: 'Ansvarig', anteckningar: 'Anteckningar' };
     Object.keys(text).forEach(function (k) {
       if (changes[k] !== undefined) set(text[k], safe_(clean_(changes[k], k === 'anteckningar' ? 5000 : 200)));
@@ -482,6 +486,7 @@ function addLeadFromApp(d) {
     row[col_('Intresse') - 1] = safe_(clean_(d.intresse, 80));
     row[col_('Meddelande') - 1] = safe_(clean_(d.meddelande, 2000));
     row[col_('Källa') - 1] = safe_(clean_(d.kalla, 80) || 'Manuellt');
+    row[col_('Erfarenhet FF') - 1] = safe_(clean_(d.erfarenhet, 10));
     row[col_('Status') - 1] = 'Ny';
     sh.appendRow(row);
     return rowToLead_(row);
@@ -587,7 +592,7 @@ function setup() {
   var widths = { 'ID': 50, 'Inkommen': 130, 'Namn': 170, 'Telefon': 120, 'E-post': 200,
     'Intresse': 170, 'Bäst att nå': 110, 'Meddelande': 280, 'Källa': 140, 'Status': 170,
     'Ansvarig': 100, 'Senast kontaktad': 120, 'Nästa uppföljning': 130, 'Anteckningar': 300,
-    'Samtalsförsök': 100, 'Ej nådd sedan': 130, 'SMS skickat': 130 };
+    'Samtalsförsök': 100, 'Ej nådd sedan': 130, 'SMS skickat': 130, 'Erfarenhet FF': 110 };
   Object.keys(widths).forEach(function (k) { sh.setColumnWidth(col_(k), widths[k]); });
 
   var filter = sh.getFilter();
