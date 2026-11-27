@@ -7,7 +7,7 @@
 <meta name="description" content="Träning för alla nivåer på Lerumsboxen i Lerum – ingen förkunskap krävs. Lämna dina kontaktuppgifter så ringer vi upp för en kostnadsfri konsultation.">
 <meta property="og:title" content="Kom och träna med oss! – Lerumsboxen">
 <meta property="og:description" content="Lämna dina uppgifter så hör vi av oss och hittar rätt träning för dig.">
-<meta property="og:image" content="https://lerumsboxen.github.io/lerumsboxen-app/bilder/31.jpg">
+<meta property="og:image" content="https://app.lerumsboxen.com/bilder/31.jpg">
 <link rel="icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
@@ -95,6 +95,23 @@
   footer strong { color: #d4d4d8; font-weight: 600; }
   footer a { color: var(--muted); }
 </style>
+<!-- Meta Pixel Code -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '1663730088550791');
+fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=1663730088550791&ev=PageView&noscript=1"
+/></noscript>
+<!-- End Meta Pixel Code -->
 </head>
 <body>
 
@@ -237,7 +254,7 @@
 
   function source() {
     const p = new URLSearchParams(location.search);
-    const utm = ['utm_source', 'utm_medium', 'utm_campaign'].map(k => p.get(k)).filter(Boolean).join(' / ');
+    const utm = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content'].map(k => p.get(k)).filter(Boolean).join(' / ');
     if (utm) return utm;
     if (p.get('gclid')) return 'Google Ads';
     if (p.get('src')) return p.get('src');
@@ -306,6 +323,7 @@
       document.querySelector('.points').style.display = 'none';
       document.getElementById('done').style.display = 'block';
       if (typeof gtag === 'function') gtag('event', 'generate_lead', { method: 'konsultation' });
+      if (typeof fbq === 'function') fbq('track', 'Lead', { content_name: 'Konsultation 12 mån' });
     } catch (ex) {
       showError((ex && ex.message && ex.message !== 'Failed to fetch' ? ex.message + '. ' : '') + 'Kunde inte skicka. Försök igen om en stund.');
       btn.disabled = false;
