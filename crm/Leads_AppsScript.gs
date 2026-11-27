@@ -23,7 +23,7 @@ var KONFIG = {
   AUTOREPLY_FROM_NAME: 'Lerumsboxen',
   REMINDER_HOUR:   8,                      // daglig påminnelse kl 08
   RETENTION_MONTHS: 12,                    // avslutade leads anonymiseras efter X månader (GDPR)
-  MIN_FILL_SECONDS: 3,                     // spamskydd: formulär ifyllt snabbare än så = bot
+  MIN_FILL_SECONDS: 5,                     // spamskydd: formulär ifyllt snabbare än så = bot
 
   // --- CRM-appen ---
   CRM_APP_URL:     'https://script.google.com/macros/s/AKfycbwVBgvS1Q3lS8Pq6NjkLIc1mgy3xiT3-D5hGzzdYTUv30AXCXOdtu7_ikW-Xh5hJ6M/exec', // CRM-appens driftsättning (används i mejlen)
