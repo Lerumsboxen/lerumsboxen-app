@@ -28,6 +28,7 @@ Google-sökning → konsultation.html → Apps Script (webbapp) → Google Sheet
 - **Flytta ett lead:** dra kortet till en annan kolumn. På mobilen håller du fingret på kortet en kort stund och drar det till en flik högst upp. Du kan också trycka på en status i kortet.
 - **Öppna kortet:** tryck på ett namn. Där finns kontaktuppgifter och meddelande, knappar för Ring, Inget svar, Svarade och Mejla, samt fälten Ansvarig, Nästa uppföljning och Anteckningar. Fälten sparas automatiskt.
 - **Inget svar:** tryck på *Inget svar* efter ett samtal som inte besvaras. Svarar personen inte inom 3 dagar (`NO_ANSWER_DAYS`) får ni ett mejl med ett färdigt SMS och en knapp som öppnar SMS-appen. SMS:et finns också i kortet med knapparna *Kopiera* och *Öppna i SMS*.
+- **Bekräftelsemejlet** till nya leads ändrar du i appen under **✉ Utskick**. Där kan du slå av och på mejlet, ändra ämne och text, se en förhandsvisning och skicka ett test till dig själv. Platshållarna `{förnamn}`, `{namn}`, `{intresse}` och `{gym}` ersätts automatiskt. Texten sparas i scriptets *Script Properties*, så du behöver inte driftsätta om när du ändrar den. *Återställ standardtext* hämtar texten i `AUTOREPLY_DEFAULT`.
 - **SMS-texten** ändrar du i `SMS_TEMPLATE` i KONFIG. Där ersätts `{förnamn}` och `{gym}` automatiskt.
 
 ### Installera appen

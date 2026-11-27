@@ -19,7 +19,7 @@
 var KONFIG = {
   GYM_NAME:        'Lerumsboxen',
   NOTIFY_EMAILS:   'info@lerumsboxen.se',  // kommaseparerat, får mejl vid varje nytt lead
-  SEND_AUTOREPLY:  true,                   // bekräftelsemejl till den som anmält sig
+  SEND_AUTOREPLY:  true,                   // startvärde för bekräftelsemejlet – slås av/på och redigeras sedan i CRM-appen (✉ Utskick)
   AUTOREPLY_FROM_NAME: 'Lerumsboxen',
   REMINDER_HOUR:   8,                      // daglig påminnelse kl 08
   RETENTION_MONTHS: 12,                    // avslutade leads anonymiseras efter X månader (GDPR)
@@ -31,6 +31,23 @@ var KONFIG = {
   NO_ANSWER_DAYS:  3,                      // mejla SMS-förslag när leadet inte svarat på X dagar
   SMS_TEMPLATE:    'Hej {förnamn}! Det är {gym}. Vi har försökt ringa dig angående din förfrågan om en kostnadsfri konsultation. ' +
                    'Svara gärna här när det passar att vi ringer, eller ring oss tillbaka. Ha en fin dag!'
+};
+
+// Standardtext för bekräftelsemejlet. Själva texten redigeras i CRM-appen och sparas i Script Properties;
+// det här används bara tills någon sparat en egen text, och när man trycker "Återställ standard".
+// Platshållare: {förnamn} {namn} {gym} {intresse}
+var AUTOREPLY_DEFAULT = {
+  subject: 'Tack! Vi hör av oss – {gym}',
+  body: [
+    'Hej {förnamn}!',
+    '',
+    'Tack för att du hört av dig till {gym}. Vi har tagit emot din förfrågan om en konsultation och återkommer till dig så snart vi kan, oftast inom ett dygn.',
+    '',
+    'Vill du nå oss innan dess? Svara bara på det här mejlet.',
+    '',
+    'Hälsningar,',
+    '{gym}'
+  ].join('\n')
 };
 
 var SHEET_LEADS    = 'Leads';
@@ -151,7 +168,7 @@ function doPost(e) {
 
     // --- Mejl (fel här ska inte fälla anmälan) ---
     try { notifyStaff_(id, lead); } catch (err) { console.error('notifyStaff', err); }
-    if (KONFIG.SEND_AUTOREPLY && lead.epost) {
+    if (lead.epost && getAutoReply_().enabled) {
       try { autoReply_(lead); } catch (err) { console.error('autoReply', err); }
     }
 
@@ -195,22 +212,32 @@ function notifyStaff_(id, lead) {
   MailApp.sendEmail(KONFIG.NOTIFY_EMAILS, subject, lines.join('\n'), opts);
 }
 
-function autoReply_(lead) {
-  var first = lead.namn.split(' ')[0];
-  var body = [
-    'Hej ' + first + '!',
-    '',
-    'Tack för att du hört av dig till ' + KONFIG.GYM_NAME + '. Vi har tagit emot din förfrågan om en konsultation och återkommer till dig så snart vi kan, oftast inom ett dygn.',
-    '',
-    'Vill du nå oss innan dess? Svara bara på det här mejlet.',
-    '',
-    'Hälsningar,',
-    KONFIG.GYM_NAME
-  ].join('\n');
-  MailApp.sendEmail(lead.epost, 'Tack! Vi hör av oss – ' + KONFIG.GYM_NAME, body, {
+function autoReply_(lead, to, subjectPrefix) {
+  var t = getAutoReply_();
+  MailApp.sendEmail(to || lead.epost, (subjectPrefix || '') + fillTemplate_(t.subject, lead), fillTemplate_(t.body, lead), {
     name: KONFIG.AUTOREPLY_FROM_NAME,
     replyTo: KONFIG.NOTIFY_EMAILS.split(',')[0].trim()
   });
+}
+
+/** Läser bekräftelsemejlets inställningar (redigeras i CRM-appen). */
+function getAutoReply_() {
+  var p = PropertiesService.getScriptProperties().getProperties();
+  return {
+    enabled: p.autoreply_enabled === undefined ? KONFIG.SEND_AUTOREPLY : p.autoreply_enabled === 'true',
+    subject: p.autoreply_subject || AUTOREPLY_DEFAULT.subject,
+    body:    p.autoreply_body    || AUTOREPLY_DEFAULT.body,
+    updated: p.autoreply_updated || ''
+  };
+}
+
+function fillTemplate_(tpl, lead) {
+  var namn = String(lead.namn || '').trim();
+  return String(tpl || '')
+    .replace(/\{förnamn\}/g, namn.split(/\s+/)[0] || '')
+    .replace(/\{namn\}/g, namn)
+    .replace(/\{gym\}/g, KONFIG.GYM_NAME)
+    .replace(/\{intresse\}/g, lead.intresse || 'träning');
 }
 
 // ===================== PÅMINNELSER =====================
@@ -493,6 +520,51 @@ function addLeadFromApp(d) {
   } finally {
     lock.releaseLock();
   }
+}
+
+// ----- Bekräftelsemejl (✉ Utskick i appen) -----
+
+function getAutoReplySettings() {
+  requireUser_();
+  var t = getAutoReply_();
+  t.defaults = AUTOREPLY_DEFAULT;
+  t.gym = KONFIG.GYM_NAME;
+  t.replyTo = KONFIG.NOTIFY_EMAILS.split(',')[0].trim();
+  return t;
+}
+
+function validAutoReply_(s) {
+  s = s || {};
+  var subject = clean_(s.subject, 200);
+  var body = String(s.body == null ? '' : s.body).replace(/\r\n/g, '\n').slice(0, 5000).trim();
+  if (!subject) throw new Error('Ämnesraden får inte vara tom');
+  if (!body) throw new Error('Texten får inte vara tom');
+  return { enabled: s.enabled !== false, subject: subject, body: body };
+}
+
+function saveAutoReplySettings(s) {
+  var me = requireUser_();
+  var v = validAutoReply_(s);
+  var stamp = me + ' ' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
+  PropertiesService.getScriptProperties().setProperties({
+    autoreply_enabled: String(v.enabled),
+    autoreply_subject: v.subject,
+    autoreply_body:    v.body,
+    autoreply_updated: stamp
+  });
+  return getAutoReplySettings();
+}
+
+/** Skickar texten som står i rutan (även osparad) till den inloggade, med ett påhittat lead. */
+function sendAutoReplyTest(s) {
+  var me = requireUser_();
+  var v = validAutoReply_(s);
+  var lead = { namn: 'Anna Svensson', intresse: 'Funktionell fitness / CrossFit' };
+  MailApp.sendEmail(me, '[TEST] ' + fillTemplate_(v.subject, lead), fillTemplate_(v.body, lead), {
+    name: KONFIG.AUTOREPLY_FROM_NAME,
+    replyTo: KONFIG.NOTIFY_EMAILS.split(',')[0].trim()
+  });
+  return me;
 }
 
 // ===================== AUTOMATIK I ARKET =====================

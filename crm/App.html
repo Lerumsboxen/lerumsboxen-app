@@ -113,6 +113,13 @@
   .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
   .toast.err { background: var(--red-dark); }
   .loading { position: fixed; inset: 56px 0 0; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+  .ar-tags { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .4rem; }
+  .ar-tags button { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: .2rem .6rem; font-size: .8rem; font-weight: 600; color: var(--ink); cursor: pointer; }
+  .ar-preview { background: #f4f4f5; border-left: 3px solid var(--red); padding: .75rem .9rem; font-size: .9rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+  .ar-preview b { display: block; margin-bottom: .45rem; }
+  .ar-switch { display: flex; align-items: center; gap: .5rem; font-weight: 600; }
+  .ar-switch input { width: 1.1rem; height: 1.1rem; accent-color: var(--red); }
+  .ar-off { opacity: .5; }
   .mock { background: #fef3c7; color: #92400e; font-size: .8rem; text-align: center; padding: .3rem; }
 
   /* ---------- Mobil ---------- */
@@ -121,6 +128,7 @@
     .brand { font-size: 1.3rem; }
     .search { order: 5; flex-basis: 100%; max-width: none; margin: 0; }
     .toggle { display: none; }
+    .tbtn .lbl { display: none; }
     .tabs { display: flex; }
     .board { display: block; padding: .6rem; height: auto; overflow: visible; }
     .board-wrap { overflow-y: auto; -webkit-overflow-scrolling: touch; }
@@ -142,6 +150,7 @@
   <input class="search" id="q" type="search" placeholder="Sök namn, telefon, intresse…">
   <label class="toggle"><input type="checkbox" id="showClosed"> Visa avslutade</label>
   <button class="tbtn" id="refresh" title="Uppdatera">↻</button>
+  <button class="tbtn" id="arBtn" title="Redigera bekräftelsemejlet till nya leads" aria-label="Utskick">✉<span class="lbl"> Utskick</span></button>
   <button class="tbtn primary" id="addBtn">+ Nytt lead</button>
 </header>
 <nav class="tabs" id="tabs"></nav>
@@ -542,6 +551,80 @@ $('#addBtn').addEventListener('click', () => {
 });
 
 /* =========================================================
+   Bekräftelsemejl (✉ Utskick)
+   ========================================================= */
+const AR_SAMPLE = { namn: 'Anna Svensson', intresse: 'Funktionell fitness / CrossFit' };
+function arFill(t, gym) {
+  return String(t || '').replace(/\{förnamn\}/g, firstName(AR_SAMPLE.namn)).replace(/\{namn\}/g, AR_SAMPLE.namn)
+    .replace(/\{gym\}/g, gym).replace(/\{intresse\}/g, AR_SAMPLE.intresse);
+}
+$('#arBtn').addEventListener('click', async () => {
+  S.openId = null;
+  $('#modal').innerHTML = '<div class="m-body">Laddar…</div>';
+  $('#overlay').classList.add('open');
+  let st;
+  try { st = await api('getAutoReplySettings'); }
+  catch (err) { closeModal(); return toast(err.message, true); }
+  $('#modal').innerHTML = `
+  <div class="m-head"><div class="m-title"><h2>Bekräftelsemejl</h2><button class="x" id="arClose" aria-label="Stäng">×</button></div>
+    <div class="foot" style="margin-top:.3rem"><span>Skickas automatiskt till den som fyller i formuläret, om hen angett e-post.</span></div></div>
+  <div class="m-body">
+    <label class="ar-switch"><input type="checkbox" id="arOn" ${st.enabled ? 'checked' : ''}> Skicka bekräftelsemejl</label>
+    <div id="arFields">
+      <div class="field"><label>Ämnesrad</label><input id="arSubj" maxlength="200" value="${esc(st.subject)}"></div>
+      <div class="field"><label>Text</label><textarea id="arBody" maxlength="5000" style="min-height:220px">${esc(st.body)}</textarea>
+        <div class="ar-tags" id="arTags"><span class="foot" style="align-self:center">Infoga:</span>
+          ${['{förnamn}', '{namn}', '{intresse}', '{gym}'].map(t => `<button type="button" data-t="${t}">${t}</button>`).join('')}</div></div>
+      <div class="field"><label>Förhandsvisning (exempel-lead)</label><div class="ar-preview" id="arPrev"></div></div>
+    </div>
+    <div class="sms"><div class="row">
+      <button class="btn red" id="arSave">Spara</button>
+      <button class="btn" id="arTest">Skicka test till mig</button>
+      <button class="btn ghostb" id="arReset">Återställ standardtext</button>
+    </div></div>
+    <div class="foot"><span>Svar på mejlet går till ${esc(st.replyTo)}.</span><span id="arStamp">${st.updated ? 'Senast ändrad av ' + esc(st.updated) : 'Standardtext – inte ändrad än'}</span></div>
+  </div>`;
+  const subj = $('#arSubj'), body = $('#arBody');
+  let lastFocus = body;
+  const preview = () => {
+    $('#arPrev').innerHTML = '<b>' + esc(arFill(subj.value, st.gym)) + '</b>' + esc(arFill(body.value, st.gym));
+    $('#arFields').classList.toggle('ar-off', !$('#arOn').checked);
+  };
+  const values = () => ({ enabled: $('#arOn').checked, subject: subj.value, body: body.value });
+  subj.addEventListener('focus', () => lastFocus = subj);
+  body.addEventListener('focus', () => lastFocus = body);
+  [subj, body].forEach(el => el.addEventListener('input', preview));
+  $('#arOn').addEventListener('change', preview);
+  $('#arTags').addEventListener('click', e => {
+    const b = e.target.closest('[data-t]'); if (!b) return;
+    const el = lastFocus, a = el.selectionStart ?? el.value.length, z = el.selectionEnd ?? a;
+    el.value = el.value.slice(0, a) + b.dataset.t + el.value.slice(z);
+    el.focus(); el.setSelectionRange(a + b.dataset.t.length, a + b.dataset.t.length); preview();
+  });
+  $('#arReset').onclick = () => {
+    if (!confirm('Ersätt texten i rutorna med standardtexten? Inget sparas förrän du trycker Spara.')) return;
+    subj.value = st.defaults.subject; body.value = st.defaults.body; preview();
+  };
+  $('#arSave').onclick = async () => {
+    const btn = $('#arSave'); btn.disabled = true;
+    try {
+      st = Object.assign(st, await api('saveAutoReplySettings', values()));
+      $('#arStamp').textContent = 'Senast ändrad av ' + st.updated;
+      toast(st.enabled ? 'Bekräftelsemejlet är sparat' : 'Sparat – bekräftelsemejl är avstängt');
+    } catch (err) { toast(err.message, true); }
+    btn.disabled = false;
+  };
+  $('#arTest').onclick = async () => {
+    const btn = $('#arTest'); btn.disabled = true;
+    try { const to = await api('sendAutoReplyTest', values()); toast('Testmejl skickat till ' + to); }
+    catch (err) { toast(err.message, true); }
+    btn.disabled = false;
+  };
+  $('#arClose').onclick = closeModal;
+  preview();
+});
+
+/* =========================================================
    Övrigt UI
    ========================================================= */
 $('#tabs').addEventListener('click', e => {
@@ -594,6 +677,8 @@ const Mock = (() => {
     L('Karin Dahl', 'Ej intresserad', { age: 30, f: 1 }),
     L('Mats Ahl', 'Ingen kontakt', { age: 25, f: 3, enad: d(22), sms: d(18) })
   ];
+  const arDefault = { subject: 'Tack! Vi hör av oss – {gym}', body: 'Hej {förnamn}!\n\nTack för att du hört av dig till {gym}. Vi har tagit emot din förfrågan om en konsultation och återkommer till dig så snart vi kan, oftast inom ett dygn.\n\nVill du nå oss innan dess? Svara bara på det här mejlet.\n\nHälsningar,\n{gym}' };
+  const arMock = { enabled: true, ...arDefault, updated: '' };
   const wait = v => new Promise(r => setTimeout(() => r(JSON.parse(JSON.stringify(v))), 250));
   const find = i => leads.find(l => l.id === i);
   return {
@@ -604,6 +689,11 @@ const Mock = (() => {
     logCall: (i, ans) => { const l = find(i); l.forsok++; l.senastKontaktad = new Date().toISOString();
       if (ans) { l.ejNaddSedan = ''; if (l.status === 'Ny') l.status = 'Kontaktad'; } else if (!l.ejNaddSedan) l.ejNaddSedan = new Date().toISOString(); return wait(l); },
     markSmsSent: (i, sent) => { const l = find(i); l.smsSkickat = sent ? new Date().toISOString() : ''; return wait(l); },
+    getAutoReplySettings: () => wait(Object.assign({ gym: 'Lerumsboxen', replyTo: 'info@lerumsboxen.se', defaults: { ...arDefault } }, arMock)),
+    saveAutoReplySettings: v => { if (!v.subject.trim() || !v.body.trim()) return Promise.reject(new Error('Ämne och text får inte vara tomma'));
+      Object.assign(arMock, v, { updated: 'test@example.com ' + new Date().toISOString().slice(0, 16).replace('T', ' ') });
+      return wait(Object.assign({ gym: 'Lerumsboxen', replyTo: 'info@lerumsboxen.se', defaults: { ...arDefault } }, arMock)); },
+    sendAutoReplyTest: () => wait('test@example.com'),
     addLeadFromApp: dd => { const l = L(dd.namn, 'Ny', { age: 0, kalla: dd.kalla, intresse: dd.intresse, msg: dd.meddelande }); l.telefon = dd.telefon; l.epost = dd.epost; leads.push(l); return wait(l); }
   };
 })();
